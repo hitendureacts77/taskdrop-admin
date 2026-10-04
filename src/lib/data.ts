@@ -314,7 +314,7 @@ export async function getRazorpayXState(): Promise<RazorpayXState> {
 
 // ----------------------------------------------------------------- people --
 
-async function namesFor(ids: string[]): Promise<Map<string, string>> {
+export async function namesFor(ids: string[]): Promise<Map<string, string>> {
   const unique = [...new Set(ids.filter(Boolean))];
   const out = new Map<string, string>();
   if (!unique.length) return out;
@@ -904,6 +904,7 @@ export const USER_FILTERS = [
   { key: 'workers', label: 'Workers' },
   { key: 'money', label: 'Money in wallet' },
   { key: 'admins', label: 'Admins' },
+  { key: 'suspended', label: 'Suspended' },
 ] as const;
 export type UserFilter = (typeof USER_FILTERS)[number]['key'];
 
@@ -965,7 +966,17 @@ function toUserRow(p: ProfileRow, wallet: { b: number; c: number } | undefined, 
   };
 }
 
-export async function getUsers(filter: UserFilter, search: string | undefined, page: number, pageSize = 30): Promise<{ rows: UserRow[]; total: number }> {
+/**
+ * `restrict` narrows the list to these people (a tag, or the suspended): the
+ * caller works the ids out, so this file stays free of the CRM tables.
+ */
+export async function getUsers(
+  filter: UserFilter,
+  search: string | undefined,
+  page: number,
+  pageSize = 30,
+  restrict?: string[] | null,
+): Promise<{ rows: UserRow[]; total: number }> {
   const supabase = await createSessionClient();
   let restrictTo: string[] | null = null;
   if (filter === 'admins') {
@@ -975,10 +986,13 @@ export async function getUsers(filter: UserFilter, search: string | undefined, p
     // Page through the wallets themselves (largest first), then fetch just this page's people,
     // so the list works however many wallets hold money.
     const from = page * pageSize;
-    const { data: w, error: wErr, count } = await supabase
+    if (restrict && !restrict.length) return { rows: [], total: 0 };
+    let wq = supabase
       .from('wallets')
       .select('user_id, balance_minor, clearing_minor', { count: 'exact' })
-      .or('balance_minor.gt.0,clearing_minor.gt.0')
+      .or('balance_minor.gt.0,clearing_minor.gt.0');
+    if (restrict) wq = wq.in('user_id', restrict);
+    const { data: w, error: wErr, count } = await wq
       .order('balance_minor', { ascending: false })
       .order('user_id', { ascending: true })
       .range(from, from + pageSize - 1);
@@ -997,6 +1011,7 @@ export async function getUsers(filter: UserFilter, search: string | undefined, p
       }),
     };
   }
+  if (restrict) restrictTo = restrictTo ? restrictTo.filter((id) => restrict.includes(id)) : restrict;
   if (restrictTo && !restrictTo.length) return { rows: [], total: 0 };
 
   let q = supabase.from('profiles').select(PROFILE_COLS, { count: 'exact' });

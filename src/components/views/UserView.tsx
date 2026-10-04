@@ -1,15 +1,30 @@
+import type { PersonCrm, TimelineEvent } from '@/lib/crm';
 import type { MoneySettings, UserDetail } from '@/lib/data';
 import { istDate, istDateTime, phone, timeAgo } from '@/lib/format';
 import { initials, payoutStatus, taskStatus } from '@/lib/labels';
 import { Card, Empty, JobLink, KV, Money, PageHeader, Pill } from '../ui';
+import { MessageCard, NotesCard, SuspendButton, SuspensionBanner, SuspensionHistory, TagChip, TagsCard, TimelineCard } from './PersonCrm';
 
-export function UserView({ u, settings, now: nowIso }: { u: UserDetail; settings: MoneySettings; now: string }) {
+export function UserView({
+  u,
+  settings,
+  now: nowIso,
+  crm,
+  timeline,
+}: {
+  u: UserDetail;
+  settings: MoneySettings;
+  now: string;
+  crm: PersonCrm;
+  timeline: TimelineEvent[];
+}) {
   const now = new Date(nowIso);
   const first = u.name.split(' ')[0] ?? u.name;
 
   return (
     <>
       <PageHeader
+        right={<SuspendButton userId={u.id} name={u.name} isAdmin={u.roles.includes('admin')} crm={crm} />}
         crumbs={[{ href: '/users', label: 'People' }, { label: u.name }]}
         title={
           <span className="person person-lg">
@@ -25,6 +40,10 @@ export function UserView({ u, settings, now: nowIso }: { u: UserDetail; settings
             {u.isWorker ? <Pill tone="blue">Worker</Pill> : null}
             <Pill tone="grey">Poster</Pill>
             {u.availableNow ? <Pill tone="green">Available now</Pill> : null}
+            {crm.suspension ? <Pill tone="red">Suspended</Pill> : null}
+            {crm.tags.map((t) => (
+              <TagChip key={t.id} tag={t} />
+            ))}
             <span className="muted">
               {u.username ? `@${u.username} · ` : ''}
               {u.place ? `${u.place} · ` : ''}joined {istDate(u.joinedAt)}
@@ -33,6 +52,8 @@ export function UserView({ u, settings, now: nowIso }: { u: UserDetail; settings
           </span>
         }
       />
+
+      <SuspensionBanner userId={u.id} name={u.name} crm={crm} />
 
       <div className="grid-main-side">
         <div className="stack">
@@ -66,6 +87,8 @@ export function UserView({ u, settings, now: nowIso }: { u: UserDetail; settings
               </>
             ) : null}
           </Card>
+
+          <NotesCard userId={u.id} crm={crm} now={now} />
 
           <Card title={`Jobs ${first} posted`} flush>
             {u.posted.length ? (
@@ -140,9 +163,13 @@ export function UserView({ u, settings, now: nowIso }: { u: UserDetail; settings
               <Empty title="Hasn’t worked on a job" />
             )}
           </Card>
+
+          <TimelineCard events={timeline} first={first} />
         </div>
 
         <div className="stack">
+          <TagsCard userId={u.id} crm={crm} />
+          <MessageCard userId={u.id} name={u.name} crm={crm} />
           <Card title="Contact">
             {u.contactKnown ? (
               <KV
@@ -203,6 +230,7 @@ export function UserView({ u, settings, now: nowIso }: { u: UserDetail; settings
               <p className="muted small">Never withdrawn.</p>
             )}
           </Card>
+          <SuspensionHistory crm={crm} />
           <p className="muted small">Person id {u.id}</p>
         </div>
       </div>
