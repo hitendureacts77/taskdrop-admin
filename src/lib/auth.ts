@@ -2,6 +2,28 @@ import { createClient } from './supabase/server';
 
 export type AdminUser = { id: string; email: string | null };
 
+/**
+ * Who may open this panel, on top of holding the admin role in the database.
+ * ADMIN_EMAIL is the Google account; ADMIN_PHONE is the mobile number. A phone
+ * account sits on a placeholder email (p<number>@phone.taskdrop.app), so the
+ * number is matched through that. When neither is set the database role alone
+ * decides, as before.
+ */
+const digits10 = (s: string | undefined | null) => String(s ?? '').replace(/[^0-9]/g, '').slice(-10);
+
+export function adminAllowlist(): { email: string; phone: string } {
+  return { email: (process.env.ADMIN_EMAIL ?? '').trim().toLowerCase(), phone: digits10(process.env.ADMIN_PHONE) };
+}
+
+export function isAllowedIdentity(email: string | null): boolean {
+  const a = adminAllowlist();
+  if (!a.email && a.phone.length !== 10) return true;
+  const e = (email ?? '').trim().toLowerCase();
+  return (a.email !== '' && e === a.email) || (a.phone.length === 10 && e === `p${a.phone}@phone.taskdrop.app`);
+}
+
+export const normalisePhone = digits10;
+
 export type AdminCheck =
   | { status: 'ok'; user: AdminUser }
   | { status: 'unauthenticated' }
@@ -35,5 +57,7 @@ export async function checkAdmin(): Promise<AdminCheck> {
     .maybeSingle();
 
   if (!role) return { status: 'forbidden' };
+  // A database admin outside the allowlist is still turned away here.
+  if (!isAllowedIdentity(user.email ?? null)) return { status: 'forbidden' };
   return { status: 'ok', user: { id: user.id, email: user.email ?? null } };
 }
