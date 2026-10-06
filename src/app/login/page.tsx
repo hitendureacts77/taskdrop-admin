@@ -14,37 +14,45 @@ export default function LoginPage() {
   );
 }
 
+const field = {
+  padding: '11px 14px',
+  borderRadius: 10,
+  border: '1px solid var(--line)',
+  background: 'var(--surface)',
+  color: 'var(--ink)',
+  fontSize: 14,
+} as const;
+
 function LoginForm() {
   const params = useSearchParams();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(params.get('error'));
 
-  // Phone sign-in: the admin's own number, a code by text, then in.
-  const [phone, setPhone] = useState('');
-  const [code, setCode] = useState('');
-  const [step, setStep] = useState<'phone' | 'code'>('phone');
-  const [phoneBusy, setPhoneBusy] = useState(false);
+  // Username sign-in: the admin's @username and the password set for it in the
+  // app (Settings -> Security). The session is set server-side as cookies.
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [passwordBusy, setPasswordBusy] = useState(false);
 
-  const phoneCall = async (action: 'send' | 'verify') => {
-    setPhoneBusy(true);
+  const passwordSignIn = async () => {
+    setPasswordBusy(true);
     setError(null);
     try {
-      const res = await fetch('/api/auth/phone', {
+      const res = await fetch('/api/auth/password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, phone, code }),
+        body: JSON.stringify({ username, password }),
       });
       const out = (await res.json().catch(() => ({}))) as { ok?: boolean; message?: string };
       if (!res.ok || !out.ok) {
-        setError(out.message ?? 'Could not do that. Try again in a moment.');
+        setError(out.message ?? 'Could not sign in. Try again in a moment.');
         return;
       }
-      if (action === 'send') setStep('code');
-      else window.location.href = '/';
+      window.location.href = '/';
     } catch {
       setError('Could not reach the server. Check your connection.');
     } finally {
-      setPhoneBusy(false);
+      setPasswordBusy(false);
     }
   };
 
@@ -88,7 +96,7 @@ function LoginForm() {
         </div>
         <h1 style={{ fontSize: 22, margin: '10px 0 6px', letterSpacing: '-0.01em' }}>Ops console</h1>
         <p style={{ fontSize: 13, color: 'var(--muted)', margin: '0 0 22px', lineHeight: 1.5 }}>
-          Staff only. Sign in with the admin Google account, or with the admin mobile number.
+          Staff only. Sign in with the admin Google account, or with the admin username and password.
         </p>
 
         <button
@@ -112,47 +120,44 @@ function LoginForm() {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '18px 0 14px', color: 'var(--muted)', fontSize: 11.5 }}>
           <span style={{ flex: 1, height: 1, background: 'var(--line)' }} />
-          or with your mobile number
+          or with your username
           <span style={{ flex: 1, height: 1, background: 'var(--line)' }} />
         </div>
 
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            void phoneCall(step === 'phone' ? 'send' : 'verify');
+            void passwordSignIn();
           }}
           style={{ display: 'grid', gap: 10 }}
         >
           <input
-            type="tel"
-            inputMode="numeric"
-            autoComplete="tel-national"
-            placeholder="10-digit mobile number"
-            aria-label="Mobile number"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            disabled={step === 'code' || phoneBusy}
+            type="text"
+            autoComplete="username"
+            autoCapitalize="none"
+            spellCheck={false}
+            placeholder="@username"
+            aria-label="Username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            disabled={passwordBusy}
             required
-            style={{ padding: '11px 14px', borderRadius: 10, border: '1px solid var(--line)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 14 }}
+            style={field}
           />
-          {step === 'code' ? (
-            <input
-              type="text"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              placeholder="Code from the text message"
-              aria-label="Code from the text message"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              disabled={phoneBusy}
-              required
-              autoFocus
-              style={{ padding: '11px 14px', borderRadius: 10, border: '1px solid var(--line)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 14, letterSpacing: '0.2em' }}
-            />
-          ) : null}
+          <input
+            type="password"
+            autoComplete="current-password"
+            placeholder="Password"
+            aria-label="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={passwordBusy}
+            required
+            style={field}
+          />
           <button
             type="submit"
-            disabled={phoneBusy}
+            disabled={passwordBusy}
             style={{
               width: '100%',
               padding: '12px 16px',
@@ -162,25 +167,12 @@ function LoginForm() {
               color: 'var(--ink)',
               fontSize: 14,
               fontWeight: 600,
-              cursor: phoneBusy ? 'default' : 'pointer',
-              opacity: phoneBusy ? 0.6 : 1,
+              cursor: passwordBusy ? 'default' : 'pointer',
+              opacity: passwordBusy ? 0.6 : 1,
             }}
           >
-            {phoneBusy ? 'One moment…' : step === 'phone' ? 'Text me a code' : 'Sign in'}
+            {passwordBusy ? 'One moment…' : 'Sign in'}
           </button>
-          {step === 'code' ? (
-            <button
-              type="button"
-              onClick={() => {
-                setStep('phone');
-                setCode('');
-                setError(null);
-              }}
-              style={{ background: 'none', border: 0, color: 'var(--muted)', fontSize: 12.5, cursor: 'pointer', padding: 0 }}
-            >
-              Use a different number
-            </button>
-          ) : null}
         </form>
 
         {error ? (

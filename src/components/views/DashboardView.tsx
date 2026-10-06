@@ -3,6 +3,7 @@ import type { AllTime, EscrowJob, MoneyHeld, MoneySettings, Movement, PayoutTota
 import type { EarningsSeries } from '@/lib/earnings';
 import { istTime, pct, prettyDayKey, timeAgo } from '@/lib/format';
 import { CHART_COLORS, payoutStage, PAYOUT_STAGE } from '@/lib/labels';
+import { ClickCard, ClickRow } from '../Clickable';
 import { Icon } from '../Icon';
 import { LineChart } from '../LineChart';
 import { Card, Delta, Empty, Money, PageHeader, Pill, StatLink, Swatch, Tabs } from '../ui';
@@ -51,8 +52,8 @@ export function DashboardView({ d }: { d: DashboardData }) {
       icon: 'send',
       title: needsYou.length === 1 ? '1 withdrawal needs you' : `${needsYou.length} withdrawals need you`,
       sub: needsYou.length
-        ? 'Stuck, waiting for balance or approval in RazorpayX, or to be paid by hand.'
-        : 'RazorpayX is sending withdrawals by itself.',
+        ? 'Waiting for you to pay by hand, or stuck in RazorpayX.'
+        : 'No withdrawals are waiting to be paid.',
       href: '/payouts',
       cta: 'Open',
     },
@@ -102,7 +103,7 @@ export function DashboardView({ d }: { d: DashboardData }) {
       />
 
       <div className="tiles">
-        <div className="tile tile-earn">
+        <ClickCard className="tile tile-earn" href="/money">
           <div className="tile-body">
             <div className="tile-label">
               <Icon name="bank" size={18} /> TaskDrop’s earnings
@@ -130,9 +131,9 @@ export function DashboardView({ d }: { d: DashboardData }) {
               All earnings <Icon name="arrow" size={14} />
             </Link>
           </div>
-        </div>
+        </ClickCard>
 
-        <div className="tile tile-escrow">
+        <ClickCard className="tile tile-escrow" href="/tasks?filter=escrow">
           <div className="tile-body">
             <div className="tile-label">
               <Icon name="shield" size={18} /> Held in escrow now
@@ -153,12 +154,12 @@ export function DashboardView({ d }: { d: DashboardData }) {
               See the {funded.length} job{funded.length === 1 ? '' : 's'} <Icon name="arrow" size={14} />
             </Link>
           </div>
-        </div>
+        </ClickCard>
 
-        <div className="tile tile-paid">
+        <ClickCard className="tile tile-paid" href="/payouts#history">
           <div className="tile-body">
             <div className="tile-label">
-              <Icon name="send" size={18} /> Paid to workers
+              <Icon name="send" size={18} /> Paid out to people
             </div>
             <div className="tile-pair">
               <div>
@@ -176,9 +177,9 @@ export function DashboardView({ d }: { d: DashboardData }) {
               See every payout <Icon name="arrow" size={14} />
             </Link>
           </div>
-        </div>
+        </ClickCard>
 
-        <div className={`tile ${needsYou.length ? 'tile-send' : 'tile-calm'}`}>
+        <ClickCard className={`tile ${needsYou.length ? 'tile-send' : 'tile-calm'}`} href="/payouts">
           <div className="tile-body">
             <div className="tile-label">
               <Icon name="clock" size={18} /> Withdrawals on the way
@@ -186,16 +187,16 @@ export function DashboardView({ d }: { d: DashboardData }) {
             <Money minor={queueMinor} className="tile-num" />
             <p className="tile-text">
               {d.queue.length
-                ? `${d.queue.length} withdrawal${d.queue.length === 1 ? '' : 's'} already out of workers’ wallets and being sent by RazorpayX${needsYou.length ? `; ${needsYou.length} need${needsYou.length === 1 ? 's' : ''} you` : ''}.`
-                : 'No withdrawal is on its way. New requests go straight to RazorpayX.'}
+                ? `${d.queue.length} withdrawal${d.queue.length === 1 ? '' : 's'} already out of people’s earnings, waiting to be paid${needsYou.length ? `; ${needsYou.length} need${needsYou.length === 1 ? 's' : ''} you` : ''}.`
+                : 'No withdrawal is on its way. New requests appear here to be paid by hand or sent by RazorpayX.'}
             </p>
           </div>
           <div className="tile-foot">
             <Link href="/payouts">
-              {needsYou.length ? 'See what needs you' : 'Open worker payouts'} <Icon name="arrow" size={14} />
+              {needsYou.length ? 'See what needs you' : 'Open payouts'} <Icon name="arrow" size={14} />
             </Link>
           </div>
-        </div>
+        </ClickCard>
       </div>
 
       <div className="stats">
@@ -268,7 +269,7 @@ export function DashboardView({ d }: { d: DashboardData }) {
         <Card title="Things to do" right={<Pill tone={openTodos ? 'gold' : 'green'}>{openTodos ? `${openTodos} need you` : 'All clear'}</Pill>}>
           <ul className="todo">
             {todo.map((t) => (
-              <li key={t.href} className={t.n ? '' : 'todo-done'}>
+              <ClickCard as="li" key={t.href} className={t.n ? undefined : 'todo-done'} href={t.href}>
                 <span className="todo-icon" aria-hidden="true">
                   <Icon name={t.n ? t.icon : 'check'} size={18} />
                 </span>
@@ -279,7 +280,7 @@ export function DashboardView({ d }: { d: DashboardData }) {
                 <Link className={t.n ? 'btn btn-primary btn-small' : 'btn btn-small'} href={t.href}>
                   {t.n ? t.cta : 'Open'}
                 </Link>
-              </li>
+              </ClickCard>
             ))}
           </ul>
         </Card>
@@ -303,19 +304,28 @@ export function DashboardView({ d }: { d: DashboardData }) {
                 </tr>
               </thead>
               <tbody>
-                {d.movements.map((m, i) => (
-                  <tr key={i}>
-                    <td className="td nowrap muted">{timeAgo(m.at, now)}</td>
-                    <td className="td">{m.what}</td>
-                    <td className="td">{m.href ? <Link href={m.href}>{m.detail || 'Open'}</Link> : m.detail}</td>
-                    <td className="td num">
-                      <Money minor={m.amount} />
-                    </td>
-                    <td className="td">
-                      <Pill tone={m.tone}>{m.status}</Pill>
-                    </td>
-                  </tr>
-                ))}
+                {d.movements.map((m, i) => {
+                  const cells = (
+                    <>
+                      <td className="td nowrap muted">{timeAgo(m.at, now)}</td>
+                      <td className="td">{m.what}</td>
+                      <td className="td">{m.href ? <Link href={m.href}>{m.detail || 'Open'}</Link> : m.detail}</td>
+                      <td className="td num">
+                        <Money minor={m.amount} />
+                      </td>
+                      <td className="td">
+                        <Pill tone={m.tone}>{m.status}</Pill>
+                      </td>
+                    </>
+                  );
+                  return m.href ? (
+                    <ClickRow key={i} href={m.href}>
+                      {cells}
+                    </ClickRow>
+                  ) : (
+                    <tr key={i}>{cells}</tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

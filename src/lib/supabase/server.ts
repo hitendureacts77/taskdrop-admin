@@ -7,6 +7,14 @@ const URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
 /**
+ * Lets this server's queries past the database's gateway-only lockdown
+ * (taskdrop-claude-web/supabase/lockdown/gateway_only.sql). Server-only: it is
+ * not NEXT_PUBLIC_, so it can never reach a browser bundle.
+ */
+const GATEWAY_SECRET = process.env.API_GATEWAY_SECRET ?? '';
+const GATEWAY_HEADERS: Record<string, string> = GATEWAY_SECRET ? { 'x-taskdrop-gateway': GATEWAY_SECRET } : {};
+
+/**
  * A Supabase client bound to the request's cookies -- RLS applies as the
  * signed-in admin, not as service_role. Safe to call from a Server Component,
  * a Route Handler, or a Server Action.
@@ -25,6 +33,7 @@ export async function createClient(): Promise<SupabaseClient<Database>> {
   // the second slot differently, so every table and RPC typed as never. The
   // object is a real SupabaseClient; this restores its types.
   const client = createServerClient<Database>(URL, ANON_KEY, {
+    global: { headers: GATEWAY_HEADERS },
     cookies: {
       getAll() {
         return cookieStore.getAll();

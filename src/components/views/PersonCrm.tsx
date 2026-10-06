@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { PersonCrm, Tag, TimelineEvent } from '@/lib/crm';
-import { deleteNote, removeTag, suspendUser, unsuspendUser, updateNote } from '@/lib/crm-actions';
+import { deleteAccount, deleteNote, removeTag, suspendUser, unsuspendUser, updateNote } from '@/lib/crm-actions';
+import type { UserDetail } from '@/lib/data';
 import { istDate, istDateTime } from '@/lib/format';
 import { ConfirmAction } from '../ConfirmAction';
 import { BroadcastForm, MiniButton, NoteForm, TagForm } from '../CrmForms';
@@ -53,6 +54,72 @@ export function SuspendButton({ userId, name, isAdmin, crm }: { userId: string; 
       field={{ name: 'reason', label: 'Why? (kept on their record)', placeholder: 'e.g. posting spam jobs', required: true }}
       confirmLabel={`Yes, suspend ${first}`}
     />
+  );
+}
+
+/** The banner on a deleted account's page: when, by whom, and why. */
+export function DeletedBanner({ deletion }: { deletion: UserDetail['deletion'] }) {
+  if (!deletion) return null;
+  return (
+    <Notice tone="blue" title="This account is deleted" icon="alert">
+      <p>
+        {deletion.by ? <>Deleted by {deletion.by}</> : <>The person deleted it themselves</>}, {istDateTime(deletion.at)}
+        {deletion.reason ? <> — “{deletion.reason}”</> : null}. Their name, contact details and sign-in are gone and it can’t be
+        signed in to again. Paid jobs, payments and withdrawals stay below for the records, as “Deleted user”.
+      </p>
+    </Notice>
+  );
+}
+
+/** What each blocker means for the admin (the database words it for the person). */
+const BLOCKER_FOR_ADMIN: Record<string, (first: string) => string> = {
+  ADMIN: (f) => `${f} is an admin. Remove the admin role first.`,
+  BALANCE: (f) => `${f}’s wallet isn’t at zero. Pay it out to them, or settle it, first.`,
+  CLEARING: (f) => `Some of ${f}’s earnings are still clearing into their wallet.`,
+  PAYOUT: (f) => `A withdrawal is still on its way to ${f}.`,
+  TASKS_ACTIVE: (f) => `A job ${f} posted is in progress or in dispute.`,
+  TASKS_FUNDED: (f) => `An open job ${f} posted is already paid for. Cancel it so the money goes back to their wallet.`,
+  WORK_ACTIVE: (f) => `${f} is working on a job right now.`,
+  PROMOTION: (f) => `A promotion of ${f}’s is still running or not settled yet.`,
+  PAYMENT_PENDING: (f) => `A payment ${f} started in the last hour is still going through.`,
+};
+
+/**
+ * Deleting an account for someone who asked through support, or closing one
+ * for good. Shows what is in the way instead of the button when it can't go.
+ */
+export function DeleteAccountCard({ userId, name, blockers }: { userId: string; name: string; blockers: UserDetail['deletionBlockers'] }) {
+  const first = name.split(' ')[0] ?? name;
+  return (
+    <Card title="Delete account" sub="When someone asks through support, or to close an account for good.">
+      {blockers.length ? (
+        <>
+          <p className="small">Can’t delete it yet:</p>
+          <ul className="plain-list small">
+            {blockers.map((b) => (
+              <li key={b.code}>{BLOCKER_FOR_ADMIN[b.code]?.(first) ?? b.message}</li>
+            ))}
+          </ul>
+        </>
+      ) : (
+        <ConfirmAction
+          action={deleteAccount}
+          hidden={{ userId, name: first }}
+          trigger="Delete account"
+          tone="danger"
+          title={`Delete ${name}’s account?`}
+          consequence={
+            <>
+              {first} is signed out everywhere and their name, photo, contact details, saved payout details and sign-in methods are removed.
+              Jobs that went ahead, payments and withdrawals stay, shown as “Deleted user”. <strong>This can’t be undone.</strong> Their phone
+              number or Google account would make a new, empty account if used again.
+            </>
+          }
+          field={{ name: 'reason', label: 'Why? (kept on record)', placeholder: 'e.g. asked by email on 6 Oct', required: true }}
+          confirmLabel={`Yes, delete ${first}’s account`}
+        />
+      )}
+    </Card>
   );
 }
 
@@ -126,7 +193,7 @@ export function NotesCard({ userId, crm, now }: { userId: string; crm: PersonCrm
 export function MessageCard({ userId, name, crm }: { userId: string; name: string; crm: PersonCrm }) {
   const first = name.split(' ')[0] ?? name;
   return (
-    <Card title={`Message ${first}`} sub="Goes to their TaskDrop notifications, and a push on their phone.">
+    <Card title={`Message ${first}`} sub="Goes to their TaskDrop notifications, and a push on their phone." id="message">
       <BroadcastForm audiences={[]} fixedPerson={{ id: userId, name }} />
       {crm.messages.length ? (
         <>

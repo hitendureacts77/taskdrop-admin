@@ -1,10 +1,15 @@
-import type { MoneyPosition, PayoutTotals, QueuedPayout, RazorpayXState, SettledPayout } from '@/lib/data';
+import Link from 'next/link';
+import type { MfaState } from '@/lib/mfa';
+import type { MoneyPosition, PayoutMethod, PayoutTotals, QueuedPayout, RazorpayXState, SettledPayout, WithdrawalDay } from '@/lib/data';
 import { inr, istDateTime, timeAgo } from '@/lib/format';
-import { initials, payoutStage, payoutStatus, PAYOUT_STAGE, type PayoutStage } from '@/lib/labels';
+import { CHART_COLORS, payoutStage, payoutStatus, PAYOUT_STAGE, type PayoutStage, type Tone } from '@/lib/labels';
+import { MoneyLock } from '../MoneyLock';
+import { ClickRow } from '../Clickable';
 import { ConfirmAction, type FormAction } from '../ConfirmAction';
 import { CopyButton } from '../CopyButton';
 import { Icon } from '../Icon';
-import { Card, Empty, HowItWorks, Money, Notice, PageHeader, PersonLink, Pill } from '../ui';
+import { LineChart } from '../LineChart';
+import { Card, Empty, HowItWorks, KV, Money, Notice, PageHeader, Pager, PersonLink, Pill, SearchBox, StatLink, Tabs } from '../ui';
 
 export type PayoutsData = {
   now: string;
@@ -14,15 +19,39 @@ export type PayoutsData = {
   /** Null until migration 066 is applied. */
   position: MoneyPosition | null;
   rx: RazorpayXState;
+  /** How new withdrawals are paid: set by the switch on this page. */
+  method: PayoutMethod;
+  /** Withdrawal requests per Indian day, oldest first, for the chart. */
+  daily: WithdrawalDay[];
+  days: number;
+  /** The chart day that was clicked ("2026-10-04"), with its requests. */
+  day: string | null;
+  dayLabel: string;
+  dayRows: SettledPayout[];
+  /** 'worker' and/or 'poster' for each person who has asked to withdraw. */
+  roles: Record<string, string[]>;
+  /** Name filter from the search box. */
+  q: string;
+  /** Which settled withdrawals to list, and the page of them. */
+  hist: 'all' | 'paid' | 'failed' | 'cancelled';
+  histPage: number;
 };
 
-type Dest =
+/** "Worker", "Poster" or "Worker + poster": who is asking for the money. */
+export function RoleTag({ roles }: { roles: string[] | undefined }) {
+  const w = roles?.includes('worker');
+  const p = roles?.includes('poster');
+  const label = w && p ? 'Worker + poster' : w ? 'Worker' : p ? 'Poster' : null;
+  return label ? <span className="role-pill">{label}</span> : null;
+}
+
+export type Dest =
   | { how: 'UPI'; vpa: string }
   | { how: 'Bank'; name: string | null; account: string; ifsc: string | null }
   | { how: 'MISSING'; why: string };
 
 /** Where the money has to go, for a withdrawal a person pays by hand. */
-function destinationOf(p: QueuedPayout): Dest {
+export function destinationOf(p: QueuedPayout): Dest {
   if (p.kind === 'upi' && p.upi_id) return { how: 'UPI', vpa: p.upi_id };
   if (p.kind === 'bank' && p.account_number) return { how: 'Bank', name: p.account_name, account: p.account_number, ifsc: p.ifsc };
   if (p.snapshot && /@/.test(p.snapshot)) return { how: 'UPI', vpa: p.snapshot };
@@ -35,7 +64,7 @@ function destinationOf(p: QueuedPayout): Dest {
 }
 
 /** A upi:// link opens a UPI app with the payee, amount and note filled in. */
-function upiLink(vpa: string, name: string, minor: number, ref: string): string {
+export function upiLink(vpa: string, name: string, minor: number, ref: string): string {
   const q = new URLSearchParams({ pa: vpa, pn: name || 'TaskDrop worker', am: (minor / 100).toFixed(2), cu: 'INR', tn: `TaskDrop payout ${ref}` });
   return `upi://pay?${q.toString()}`;
 }
@@ -46,12 +75,14 @@ const MIN = 60 * 1000;
 const stageOf = (p: QueuedPayout, now: number, rxOn: boolean): Stage => payoutStage(p, now, rxOn);
 
 /** A note as a sentence: RazorpayX's reasons arrive without a full stop. */
-const sentence = (s: string) => (/[.!?]$/.test(s.trim()) ? s.trim() : `${s.trim()}.`);
+export const sentence = (s: string) => (/[.!?]$/.test(s.trim()) ? s.trim() : `${s.trim()}.`);
 
-function stageHelp(s: Stage, p: QueuedPayout, first: string): string {
+export function stageHelp(s: Stage, p: QueuedPayout, first: string, rxOn: boolean): string {
   switch (s) {
     case 'not-sent':
-      return `${first} asked, but it hasn’t reached RazorpayX yet. “Check with RazorpayX” sends it. ${first} can still cancel it until then.`;
+      return rxOn
+        ? `${first} asked, but it hasn’t reached RazorpayX yet. “Check with RazorpayX” sends it. ${first} can still cancel it until then.`
+        : `${first} asked to withdraw. Pay it by hand: press “Pay it by hand”, send the money from your UPI app or bank, then record the reference. ${first} can still cancel it until you start.`;
     case 'sending':
       return p.status === 'requested'
         ? `Asked a moment ago; ${first}’s app is handing it to RazorpayX.`
@@ -71,390 +102,465 @@ function stageHelp(s: Stage, p: QueuedPayout, first: string): string {
   }
 }
 
+const HIST_PAGE = 25;
+
+/** Where an open withdrawal stands, in two or three words for a table cell. */
+function stageLabel(p: QueuedPayout, stage: Stage, rxOn: boolean): { label: string; tone: Tone } {
+  if (stage === 'manual' || (stage === 'not-sent' && !rxOn)) {
+    return p.status === 'processing' ? { label: 'You’re paying', tone: 'blue' } : { label: 'Waiting', tone: 'gold' };
+  }
+  return { label: STAGE[stage].label, tone: STAGE[stage].tone };
+}
+
+/** The account to pay into, short enough for a table cell, with a copy button. */
+function PayTo({ p }: { p: QueuedPayout }) {
+  const dest = destinationOf(p);
+  if (dest.how === 'UPI') {
+    return (
+      <span className="payto">
+        <span className="payto-kind">UPI</span>
+        <code>{dest.vpa}</code>
+        <CopyButton value={dest.vpa} label="UPI id" compact />
+      </span>
+    );
+  }
+  if (dest.how === 'Bank') {
+    return (
+      <span className="payto">
+        <span className="payto-kind">Bank</span>
+        <code>{dest.account}</code>
+        <CopyButton value={dest.account} label="account number" compact />
+        {dest.ifsc ? <span className="muted small">{dest.ifsc}</span> : null}
+      </span>
+    );
+  }
+  return (
+    <span className="dest-missing small">
+      <Icon name="alert" size={14} /> No account to pay into
+    </span>
+  );
+}
+
+function QueueTable({ rows, rxOn, roles, now }: { rows: { p: QueuedPayout; stage: Stage }[]; rxOn: boolean; roles: Record<string, string[]>; now: Date }) {
+  return (
+    <div className="table-wrap">
+      <table className="table-compact">
+        <thead>
+          <tr>
+            <th className="th">Person</th>
+            <th className="th">Asked</th>
+            <th className="th">Pay to</th>
+            <th className="th num">Amount</th>
+            <th className="th">Status</th>
+            <th className="th" />
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(({ p, stage }) => {
+            const st = stageLabel(p, stage, rxOn);
+            const byHand = stage === 'manual' || (stage === 'not-sent' && !rxOn);
+            return (
+              <ClickRow key={p.id} href={`/payouts/${p.id}`}>
+                <td className="td">
+                  <PersonLink id={p.user_id} name={p.display_name ?? 'Someone'} />
+                  <RoleTag roles={roles[p.user_id]} />
+                </td>
+                <td className="td nowrap muted" title={istDateTime(p.requested_at)}>
+                  {timeAgo(p.requested_at, now)}
+                </td>
+                <td className="td">
+                  <PayTo p={p} />
+                </td>
+                <td className="td num nowrap">
+                  <strong>
+                    <Money minor={p.amount_minor} />
+                  </strong>
+                </td>
+                <td className="td">
+                  <Pill tone={st.tone}>{st.label}</Pill>
+                </td>
+                <td className="td right">
+                  <Link href={`/payouts/${p.id}`} className={`btn btn-small${byHand ? ' btn-primary' : ''}`}>
+                    {byHand ? 'Pay' : 'Open'}
+                  </Link>
+                </td>
+              </ClickRow>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function PayoutsView({
   d,
-  markPayout,
+  mfa,
   checkAll,
-  giveBack,
+  setMethod,
 }: {
   d: PayoutsData;
-  markPayout: FormAction;
+  mfa: MfaState;
   checkAll: FormAction;
-  giveBack: FormAction;
+  setMethod: FormAction;
 }) {
   const now = new Date(d.now);
   const nowMs = now.getTime();
-  const rxOn = d.rx.configured;
-  const staged = d.queue.map((p) => ({ p, stage: stageOf(p, nowMs, rxOn) }));
+  // RazorpayX sends new withdrawals only when the switch says so AND it is set up.
+  const rxOn = d.method === 'razorpayx' && d.rx.configured;
+  const rxInFlight = d.queue.some((p) => (p.via ?? 'manual') === 'razorpayx');
+  const q = d.q.trim().toLowerCase();
+  const match = (name: string | null) => !q || (name ?? '').toLowerCase().includes(q);
+
+  const staged = d.queue.filter((p) => match(p.display_name)).map((p) => ({ p, stage: stageOf(p, nowMs, rxOn) }));
   const needsYou = staged.filter((x) => STAGE[x.stage].needsYou);
   const onTheWay = staged.filter((x) => !STAGE[x.stage].needsYou);
-  const recentFailures = d.history.filter((h) => h.status === 'failed' && nowMs - Date.parse(h.updated_at) < 7 * 24 * 60 * MIN);
+  const needsMinor = needsYou.reduce((a, x) => a + x.p.amount_minor, 0);
+  const history = d.history.filter((h) => match(h.name));
+  const recentFailures = history.filter((h) => h.status === 'failed' && nowMs - Date.parse(h.updated_at) < 7 * 24 * 60 * MIN);
+
+  const histCounts = {
+    all: history.length,
+    paid: history.filter((h) => h.status === 'paid').length,
+    failed: history.filter((h) => h.status === 'failed').length,
+    cancelled: history.filter((h) => h.status === 'cancelled').length,
+  };
+  const histRows = d.hist === 'all' ? history : history.filter((h) => h.status === d.hist);
+  const histPages = Math.max(1, Math.ceil(histRows.length / HIST_PAGE));
+  const histPage = Math.min(d.histPage, histPages - 1);
+  const histShown = histRows.slice(histPage * HIST_PAGE, (histPage + 1) * HIST_PAGE);
+
+  const href = (over: Record<string, string | number | null>, hash = '') => {
+    const p = new URLSearchParams();
+    const merged: Record<string, string | number | null> = { days: d.days === 30 ? null : d.days, q: d.q || null, hist: d.hist === 'all' ? null : d.hist, hp: null, ...over };
+    for (const [k, v] of Object.entries(merged)) if (v !== null && v !== '' && v !== 0) p.set(k, String(v));
+    const s = p.toString();
+    return `/payouts${s ? `?${s}` : ''}${hash}`;
+  };
 
   const pos = d.position;
   const bal = d.rx.balanceMinor;
   const ready = pos?.readyToWithdrawMinor ?? d.queue.reduce((a, p) => a + p.amount_minor, 0);
   const shortBy = bal != null ? Math.max(ready - bal, 0) : 0;
   const ownMinor = bal != null && pos ? bal - pos.heldForPeopleMinor : null;
+  const periodMinor = d.daily.reduce((a, x) => a + x.minor, 0);
+  const periodCount = d.daily.reduce((a, x) => a + x.count, 0);
+  const oldest = needsYou[0]?.p.requested_at;
 
   return (
     <>
       <PageHeader
-        crumbs={[{ label: 'Worker payouts' }]}
-        title="Worker payouts"
-        sub="RazorpayX sends each withdrawal the moment a worker asks. This page shows whether the account can cover them, and anything that needs you."
+        crumbs={[{ label: 'Payouts' }]}
+        title="Payouts"
+        sub={rxOn ? 'RazorpayX sends withdrawals automatically. Anything that needs you is listed first.' : 'Workers and posters asking for their money. Pay each one from your UPI app or bank, then record it.'}
+        right={<SearchBox action="/payouts" defaultValue={d.q} placeholder="Find a person" hidden={d.days !== 30 ? { days: String(d.days) } : undefined} />}
       />
 
-      {!rxOn ? (
-        <Notice tone="gold" icon="alert" title="RazorpayX isn’t switched on yet.">
-          Withdrawals wait until it is. Add RAZORPAYX_ACCOUNT_NUMBER, the API keys and RAZORPAYX_WEBHOOK_SECRET in Supabase, then press “Check with
-          RazorpayX” to send the waiting ones. Until then you can pay a withdrawal by hand and record it below.
-        </Notice>
-      ) : d.rx.error ? (
+      <MoneyLock mfa={mfa} />
+
+      {rxOn && d.rx.error ? (
         <Notice tone="gold" icon="alert" title="Couldn’t read the RazorpayX balance.">
-          {d.rx.error}. Withdrawals still go out; only the balance check below is missing.
+          {d.rx.error}. Withdrawals still go out; only the balance check is missing.
         </Notice>
-      ) : shortBy > 0 ? (
+      ) : rxOn && shortBy > 0 ? (
         <Notice tone="red" title={`RazorpayX is ${inr(shortBy)} short.`}>
-          Workers can withdraw {inr(ready)} right now and the account holds {inr(bal ?? 0)}. Add at least {inr(shortBy)} to the RazorpayX account.
-          Withdrawals it can’t cover wait in RazorpayX’s queue and go out by themselves once the money arrives.
+          People can withdraw {inr(ready)} right now and the account holds {inr(bal ?? 0)}. Add at least {inr(shortBy)} to the RazorpayX account.
         </Notice>
       ) : null}
 
-      <div className="figures figures-cards">
-        <div className="figure card">
-          <span className="figure-label">
-            <Icon name="bank" size={16} /> In RazorpayX
-          </span>
-          {bal != null ? <Money minor={bal} className="figure-num" /> : <span className="figure-num">—</span>}
-          <span className="muted small">{rxOn ? (bal != null ? 'Read live from RazorpayX' : 'Balance unavailable') : 'Not connected yet'}</span>
-        </div>
-        <div className="figure card">
-          <span className="figure-label">
-            <Icon name="send" size={16} /> Ready to withdraw
-          </span>
-          <Money minor={ready} className="figure-num" />
-          <span className="muted small">Workers’ earnings plus withdrawals on the way. The balance must cover this.</span>
-        </div>
-        <div className="figure card">
-          <span className="figure-label">
-            <Icon name="people" size={16} /> Held for people
-          </span>
-          {pos ? <Money minor={pos.heldForPeopleMinor} className="figure-num" /> : <span className="figure-num">—</span>}
-          <span className="muted small">
-            {pos
-              ? `Posters’ wallets ${inr(pos.creditsMinor)} · locked in jobs ${inr(pos.lockedMinor)} · workers ${inr(pos.earningsMinor + pos.clearingMinor + pos.inFlightMinor)}` +
-                (pos.refundsOwedMinor + pos.unappliedMinor > 0
-                  ? ` · refunds owed ${inr(pos.refundsOwedMinor + pos.unappliedMinor)}`
-                  : '')
-              : 'Apply migration 066 to see this'}
-          </span>
-        </div>
-        <div className="figure card">
-          <span className="figure-label">
-            <Icon name="wallet" size={16} /> TaskDrop’s own
-          </span>
-          {ownMinor != null ? <Money minor={ownMinor} className="figure-num" /> : <span className="figure-num">—</span>}
-          <span className="muted small">
-            {ownMinor == null
-              ? 'In RazorpayX minus held for people'
-              : ownMinor >= 0
-                ? 'Commission and fees you can move to your bank'
-                : 'Negative: RazorpayX holds less than you owe people'}
-          </span>
-        </div>
+      <div className="stats">
+        <StatLink href="#queue" icon="clock" label="Waiting for you" value={needsYou.length} sub={needsYou.length ? inr(needsMinor) : 'All paid'} />
+        <StatLink href="#on-the-way" icon="send" label="On the way" value={onTheWay.length} sub={onTheWay.length ? inr(onTheWay.reduce((a, x) => a + x.p.amount_minor, 0)) : 'Nothing in flight'} />
+        <StatLink href="#history" icon="check" label="Paid today" value={inr(d.totals.todayMinor)} sub={`${d.totals.todayCount} payout${d.totals.todayCount === 1 ? '' : 's'}`} />
+        <StatLink href="/users?filter=money" icon="wallet" label="Ready to withdraw" value={inr(ready)} sub="Earnings people can still ask for" />
       </div>
 
-      <div className="page-actions">
-        <ConfirmAction
-          action={checkAll}
-          hidden={{}}
-          trigger="Check with RazorpayX"
-          tone="quiet"
-          title="Send waiting withdrawals and re-check the rest?"
-          consequence={
-            <>
-              Withdrawals that haven’t reached RazorpayX are sent now; RazorpayX is asked about the ones it has gone quiet on. Each withdrawal uses the same
-              key every time, so none can be paid twice, however often you press this.
-            </>
-          }
-          confirmLabel="Check now"
-        />
-      </div>
+      <Card
+        id="queue"
+        title={`Needs you${needsYou.length ? ` · ${needsYou.length}` : ''}`}
+        sub={
+          needsYou.length
+            ? `${inr(needsMinor)} to pay · oldest asked ${oldest ? timeAgo(oldest, now) : ''}. Press Pay to see the QR code and account, then record it.`
+            : q
+              ? `Nobody matching “${d.q}” is waiting.`
+              : undefined
+        }
+        right={
+          d.rx.configured && (rxOn || rxInFlight) ? (
+            <ConfirmAction
+              action={checkAll}
+              hidden={{}}
+              trigger="Check with RazorpayX"
+              tone="quiet"
+              title="Send waiting withdrawals and re-check the rest?"
+              consequence={<>Withdrawals that haven’t reached RazorpayX are sent now; quiet ones are re-checked. The same key is used every time, so none can be paid twice.</>}
+              confirmLabel="Check now"
+            />
+          ) : q ? (
+            <Link href={href({ q: null })} className="btn btn-small">
+              Clear search
+            </Link>
+          ) : undefined
+        }
+        flush={needsYou.length > 0}
+      >
+        {needsYou.length ? (
+          <QueueTable rows={needsYou} rxOn={rxOn} roles={d.roles} now={now} />
+        ) : (
+          <Empty title="Nothing to pay right now">
+            {rxOn ? 'Withdrawals are going out by themselves. Anything stuck shows up here.' : 'New withdrawal requests from workers and posters appear here.'}
+          </Empty>
+        )}
+      </Card>
 
-      <HowItWorks
-        steps={[
-          <>A worker asks to withdraw (their name and PAN are on file). The money leaves their earnings at once.</>,
-          <>RazorpayX sends it from TaskDrop’s RazorpayX account by IMPS or UPI, usually within minutes, any day of the week.</>,
-          <>
-            RazorpayX reports back. <strong>Paid</strong> comes with the bank’s reference (UTR). If the bank refuses it, or sends it back later, the money returns to{' '}
-            <em>that worker’s</em> earnings, once.
-          </>,
-        ]}
-      />
+      {onTheWay.length ? (
+        <Card id="on-the-way" title={`On the way · ${onTheWay.length}`} sub="Sent; waiting for the bank to confirm. Nothing to do unless one gets stuck." flush>
+          <QueueTable rows={onTheWay} rxOn={rxOn} roles={d.roles} now={now} />
+        </Card>
+      ) : null}
 
-      <Card title="Needs you" sub="Oldest first." id="queue">
-        {needsYou.length || recentFailures.length ? (
-          <ul className="payouts">
-            {needsYou.map(({ p, stage }) => (
-              <PayoutItem key={p.id} p={p} stage={stage} now={now} markPayout={markPayout} giveBack={giveBack} />
-            ))}
-            {recentFailures.map((h) => (
-              <li key={h.id} className="payout">
-                <div className="payout-top">
-                  <span className="avatar" aria-hidden="true">
-                    {initials(h.name)}
-                  </span>
-                  <div className="payout-who">
-                    <strong>
+      {recentFailures.length ? (
+        <Card id="came-back" title={`Came back · ${recentFailures.length}`} sub="Last 7 days. The money is already back in their earnings, so there’s nothing to pay." flush>
+          <div className="table-wrap">
+            <table className="table-compact">
+              <thead>
+                <tr>
+                  <th className="th">When</th>
+                  <th className="th">Person</th>
+                  <th className="th num">Amount</th>
+                  <th className="th">Why</th>
+                  <th className="th" />
+                </tr>
+              </thead>
+              <tbody>
+                {recentFailures.map((h) => (
+                  <ClickRow key={h.id} href={`/payouts/${h.id}`}>
+                    <td className="td nowrap muted">{timeAgo(h.updated_at, now)}</td>
+                    <td className="td">
                       <PersonLink id={h.user_id} name={h.name} />
-                    </strong>
-                    <span className="muted small">
-                      {istDateTime(h.updated_at)} · {h.destination ?? 'no account recorded'}
-                    </span>
-                  </div>
-                  <Pill tone="red">{h.reversed_at ? 'Bank sent it back' : 'Came back'}</Pill>
-                  <Money minor={h.amount_minor} className="payout-amount" />
-                </div>
-                <p className="muted small">
-                  {sentence(h.failure_note ?? 'It didn’t go through')} The money is back in {h.name.split(' ')[0]}’s earnings. If it keeps failing, ask them to
-                  check their account details.
-                </p>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <Empty title="Nothing needs you">Withdrawals are going out by themselves. Anything stuck, short of money or refused shows up here.</Empty>
-        )}
-      </Card>
-
-      <Card title="On the way" sub="Accepted by RazorpayX; waiting for the bank to confirm." id="on-the-way">
-        {onTheWay.length ? (
-          <ul className="payouts">
-            {onTheWay.map(({ p, stage }) => (
-              <PayoutItem key={p.id} p={p} stage={stage} now={now} markPayout={markPayout} giveBack={giveBack} />
-            ))}
-          </ul>
-        ) : (
-          <Empty title="Nothing on the way" />
-        )}
-      </Card>
+                      <RoleTag roles={d.roles[h.user_id]} />
+                    </td>
+                    <td className="td num nowrap">
+                      <Money minor={h.amount_minor} />
+                    </td>
+                    <td className="td small">{h.reversed_at ? 'Bank sent it back' : (h.failure_note ?? 'Didn’t go through')}</td>
+                    <td className="td right nowrap">
+                      <Link href={`/users/${h.user_id}#message`} className="btn btn-small">
+                        Message
+                      </Link>
+                    </td>
+                  </ClickRow>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      ) : null}
 
       <Card
         id="history"
         title="Settled"
-        sub={`Last 30 days. Sent today ${inr(d.totals.todayMinor)} (${d.totals.todayCount}) · in total ${inr(d.totals.totalMinor)} (${d.totals.totalCount}).`}
+        sub={`Last 30 days · paid in total ${inr(d.totals.totalMinor)} (${d.totals.totalCount}).`}
+        right={
+          <Tabs
+            label="Show"
+            small
+            items={(
+              [
+                ['all', 'All'],
+                ['paid', 'Paid'],
+                ['failed', 'Came back'],
+                ['cancelled', 'Cancelled'],
+              ] as const
+            ).map(([k, label]) => ({ href: href({ hist: k === 'all' ? null : k }, '#history'), label, active: d.hist === k, count: histCounts[k] }))}
+          />
+        }
         flush
       >
-        {d.history.length ? (
+        {histShown.length ? (
           <div className="table-wrap">
-            <table>
+            <table className="table-compact">
               <thead>
                 <tr>
                   <th className="th">When</th>
-                  <th className="th">Worker</th>
-                  <th className="th">Sent to</th>
+                  <th className="th">Person</th>
                   <th className="th num">Amount</th>
-                  <th className="th">What happened</th>
-                  <th className="th">Bank reference or reason</th>
-                  <th className="th num">RazorpayX fee</th>
+                  <th className="th">Result</th>
+                  <th className="th">Reference or reason</th>
                 </tr>
               </thead>
               <tbody>
-                {d.history.map((h) => {
-                  const st = payoutStatus(h.status, h.name.split(' ')[0] ?? h.name);
+                {histShown.map((h) => {
+                  const first = h.name.split(' ')[0] ?? h.name;
+                  const st = payoutStatus(h.status, first);
                   const label =
                     h.status === 'paid'
-                      ? h.via === 'manual'
-                        ? 'Paid by hand'
-                        : 'Paid by RazorpayX'
+                      ? h.via === 'razorpayx'
+                        ? 'Paid by RazorpayX'
+                        : 'Paid'
                       : h.status === 'failed'
-                        ? h.reversed_at
-                          ? 'Bank sent it back · in their earnings'
-                          : 'Came back · in their earnings'
-                        : st.label;
+                        ? 'Came back'
+                        : h.status === 'cancelled'
+                          ? 'Cancelled'
+                          : st.label;
                   return (
-                    <tr key={h.id}>
-                      <td className="td nowrap">{istDateTime(h.updated_at)}</td>
+                    <ClickRow key={h.id} href={`/payouts/${h.id}`}>
+                      <td className="td nowrap muted" title={istDateTime(h.updated_at)}>
+                        {istDateTime(h.updated_at)}
+                      </td>
                       <td className="td">
                         <PersonLink id={h.user_id} name={h.name} />
                       </td>
-                      <td className="td small">{h.destination ?? '—'}</td>
-                      <td className="td num">
+                      <td className="td num nowrap">
                         <Money minor={h.amount_minor} />
                       </td>
                       <td className="td">
                         <Pill tone={st.tone}>{label}</Pill>
                       </td>
-                      <td className="td small">{h.reference ?? h.failure_note ?? '—'}</td>
-                      <td className="td num small">{h.fee_minor != null ? inr(h.fee_minor + (h.tax_minor ?? 0)) : '—'}</td>
-                    </tr>
+                      <td className="td small muted">{h.reference ?? h.failure_note ?? '—'}</td>
+                    </ClickRow>
                   );
                 })}
               </tbody>
             </table>
           </div>
         ) : (
-          <Empty title="Nothing settled in the last 30 days" />
+          <Empty title={q ? `Nothing settled for “${d.q}”` : 'Nothing here in the last 30 days'} />
         )}
+        <Pager page={histPage} pageSize={HIST_PAGE} total={histRows.length} hrefFor={(p) => href({ hp: p }, '#history')} />
       </Card>
-    </>
-  );
-}
 
-function PayoutItem({
-  p,
-  stage,
-  now,
-  markPayout,
-  giveBack,
-}: {
-  p: QueuedPayout;
-  stage: Stage;
-  now: Date;
-  markPayout: FormAction;
-  giveBack: FormAction;
-}) {
-  const name = p.display_name ?? 'this worker';
-  const first = (p.display_name ?? 'the worker').split(' ')[0] ?? 'the worker';
-  const amount = inr(p.amount_minor);
-  const ref = p.id.slice(0, 8);
-  const st = STAGE[stage];
-  const manual = stage === 'manual';
-  const dest = destinationOf(p);
+      <Card
+        id="requests"
+        title="Withdrawal requests per day"
+        sub={`Last ${d.days} days: ${inr(periodMinor)} in ${periodCount} ${periodCount === 1 ? 'request' : 'requests'}. Click a day to see who asked.`}
+        right={<Tabs label="Chart range" small items={[7, 30, 90].map((n) => ({ href: href({ days: n === 30 ? null : n }, '#requests'), label: `${n} days`, active: n === d.days }))} />}
+      >
+        <LineChart
+          labels={d.daily.map((x) => `${x.long} · ${x.count} ${x.count === 1 ? 'request' : 'requests'}`)}
+          ticks={d.daily
+            .map((x, index) => ({ index, text: x.short }))
+            .filter((_, i, all) => i === 0 || i === all.length - 1 || i % Math.max(1, Math.round(all.length / 6)) === 0)}
+          series={[{ name: 'Requested', color: CHART_COLORS.total, values: d.daily.map((x) => x.minor), area: true }]}
+          summary={`Total withdrawal requests per day, last ${d.days} days.`}
+          emptyText="Nobody has asked to withdraw in this range."
+          pointHrefs={d.daily.map((x) => href({ days: d.days === 30 ? null : d.days, day: x.key }, '#day'))}
+          height={200}
+        />
+        {d.day ? (
+          <div id="day" className="day-list">
+            <div className="day-list-head">
+              <h3 className="sub-head">
+                {d.dayLabel} · {d.dayRows.length} {d.dayRows.length === 1 ? 'request' : 'requests'} · {inr(d.dayRows.reduce((a, r) => a + r.amount_minor, 0))}
+              </h3>
+              <Link href={href({}, '#requests')} className="btn btn-small" scroll={false}>
+                Close
+              </Link>
+            </div>
+            {d.dayRows.length ? (
+              <div className="table-wrap">
+                <table className="table-compact">
+                  <tbody>
+                    {d.dayRows.map((r) => {
+                      const st = payoutStatus(r.status, r.name.split(' ')[0] ?? r.name);
+                      return (
+                        <ClickRow key={r.id} href={`/payouts/${r.id}`}>
+                          <td className="td nowrap muted">{istDateTime(r.created_at ?? r.updated_at)}</td>
+                          <td className="td">
+                            <PersonLink id={r.user_id} name={r.name} />
+                          </td>
+                          <td className="td num nowrap">
+                            <Money minor={r.amount_minor} />
+                          </td>
+                          <td className="td">
+                            <Pill tone={st.tone}>{st.label}</Pill>
+                          </td>
+                        </ClickRow>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="muted small">Nobody asked to withdraw that day.</p>
+            )}
+          </div>
+        ) : null}
+      </Card>
 
-  return (
-    <li className="payout">
-      <div className="payout-top">
-        <span className="avatar" aria-hidden="true">
-          {initials(p.display_name)}
-        </span>
-        <div className="payout-who">
-          <strong>
-            <PersonLink id={p.user_id} name={name} />
-          </strong>
-          <span className="muted small">
-            Asked {timeAgo(p.requested_at, now)} · ref {ref}
-            {p.snapshot ? ` · ${p.snapshot}` : ''}
-          </span>
-        </div>
-        <Pill tone={st.tone}>{manual ? payoutStatus(p.status, first).label : st.label}</Pill>
-        <Money minor={p.amount_minor} className="payout-amount" />
-      </div>
-
-      {!manual ? <p className="muted small">{stageHelp(stage, p, first)}</p> : null}
-
-      {manual ? (
-        <div className="payout-dest">
-          {dest.how === 'UPI' ? (
-            <>
-              <span className="dest-label">Send by UPI to</span>
-              <code>{dest.vpa}</code>
-              <CopyButton value={dest.vpa} label="UPI id" />
-              <a className="btn btn-small btn-ghost" href={upiLink(dest.vpa, p.display_name ?? '', p.amount_minor, ref)}>
-                <Icon name="external" size={14} /> Open in UPI app
-              </a>
-            </>
-          ) : dest.how === 'Bank' ? (
-            <>
-              <span className="dest-label">Send by bank transfer to</span>
-              <span>{dest.name ?? name}</span>
-              <span className="dest-kv">
-                Account <code>{dest.account}</code> <CopyButton value={dest.account} label="account number" />
-              </span>
-              {dest.ifsc ? (
-                <span className="dest-kv">
-                  IFSC <code>{dest.ifsc}</code> <CopyButton value={dest.ifsc} label="IFSC" />
-                </span>
+      <div className="grid-2">
+        <Card title="How withdrawals are paid" sub="Applies to every new withdrawal." id="method">
+          <div className="method-switch method-switch-tight">
+            <div className={`method-option${d.method === 'manual' ? ' on' : ''}`}>
+              <div className="method-option-head">
+                <strong>Manual</strong>
+                {d.method === 'manual' ? <Pill tone="green">In use</Pill> : null}
+              </div>
+              <p className="muted small">You pay each one yourself and record the reference.</p>
+              {d.method !== 'manual' ? (
+                <ConfirmAction
+                  action={setMethod}
+                  hidden={{ method: 'manual' }}
+                  trigger="Switch to manual"
+                  tone="quiet"
+                  title="Pay withdrawals by hand from now on?"
+                  consequence={<>New withdrawals will wait here for you. Ones RazorpayX already has keep going through RazorpayX; nothing is sent twice.</>}
+                  confirmLabel="Yes, pay by hand"
+                />
               ) : null}
-            </>
-          ) : (
-            <span className="dest-missing">
-              <Icon name="alert" size={16} /> Can’t send yet. {dest.why}
-            </span>
-          )}
-        </div>
-      ) : null}
+            </div>
+            <div className={`method-option${d.method === 'razorpayx' ? ' on' : ''}`}>
+              <div className="method-option-head">
+                <strong>RazorpayX</strong>
+                {d.method === 'razorpayx' ? <Pill tone="green">In use</Pill> : !d.rx.configured ? <Pill tone="grey">Not set up</Pill> : null}
+              </div>
+              <p className="muted small">Sent automatically by IMPS or UPI the moment it’s asked for.</p>
+              {d.method !== 'razorpayx' && !d.rx.configured ? (
+                <button type="button" className="btn btn-small" disabled title="Add RAZORPAYX_ACCOUNT_NUMBER, the API keys and RAZORPAYX_WEBHOOK_SECRET in Supabase first.">
+                  Set up RazorpayX first
+                </button>
+              ) : null}
+              {d.method !== 'razorpayx' && d.rx.configured ? (
+                <ConfirmAction
+                  action={setMethod}
+                  hidden={{ method: 'razorpayx' }}
+                  trigger="Switch to RazorpayX"
+                  title="Let RazorpayX send withdrawals?"
+                  consequence={<>New withdrawals go out straight away, and ones still waiting for you are handed to RazorpayX now. The account must hold enough money.</>}
+                  confirmLabel="Yes, use RazorpayX"
+                />
+              ) : null}
+            </div>
+          </div>
+        </Card>
 
-      <div className="payout-actions">
-        {manual && dest.how !== 'MISSING' ? (
-          <ConfirmAction
-            action={markPayout}
-            hidden={{ id: p.id, status: 'paid', name, amount }}
-            trigger={`I’ve sent ${amount} to ${first}`}
-            title={`Record ${amount} as sent to ${name}?`}
-            consequence={
-              <>
-                This only records the payment. It does <strong>not</strong> send money. Confirm only after {amount} has left your account. It can’t be undone.
-              </>
-            }
-            field={{ name: 'note', label: 'UPI / bank reference (UTR)', placeholder: 'e.g. 624100983317', required: true, help: 'Shown in your UPI app or bank statement.' }}
-            confirmLabel={`Yes, I sent ${amount}`}
+        <Card title="Money position" sub="Whose money is in the account.">
+          <KV
+            rows={[
+              { label: 'In RazorpayX', value: bal != null ? <Money minor={bal} /> : <span className="muted">{d.rx.configured ? 'Unavailable' : 'Not connected'}</span> },
+              { label: 'Ready to withdraw', value: <Money minor={ready} />, hint: 'Earnings plus withdrawals on the way' },
+              { label: 'Held for people', value: pos ? <Money minor={pos.heldForPeopleMinor} /> : <span className="muted">—</span> },
+              { label: 'TaskDrop’s own', value: ownMinor != null ? <Money minor={ownMinor} /> : <span className="muted">—</span> },
+            ]}
           />
-        ) : null}
-
-        {stage === 'not-sent' ? (
-          <ConfirmAction
-            action={markPayout}
-            hidden={{ id: p.id, status: 'processing', name, amount }}
-            trigger="Pay it by hand instead"
-            tone="quiet"
-            title={`Pay ${amount} to ${name} yourself?`}
-            consequence={
-              <>
-                RazorpayX will never send this one. It moves to “Pay by hand”, where you send it from your own UPI app or bank and record the reference.
-                {` ${first}`} can no longer cancel it.
-              </>
-            }
-            confirmLabel="Yes, I’ll pay it by hand"
-          />
-        ) : null}
-
-        {manual || stage === 'not-sent' ? (
-          <ConfirmAction
-            action={markPayout}
-            hidden={{ id: p.id, status: 'failed', name, amount }}
-            trigger={
-              dest.how === 'MISSING' && manual
-                ? `Can’t pay: put ${amount} back in ${first}’s earnings`
-                : p.status === 'processing'
-                  ? 'It didn’t go through'
-                  : `Don’t send: put it back in ${first}’s earnings`
-            }
-            tone="danger"
-            title={`Put ${amount} back in ${name}’s earnings?`}
-            consequence={
-              <>
-                {amount} goes back into <strong>{name}’s own TaskDrop earnings</strong>. Not the poster’s, and not TaskDrop’s. They can withdraw it again. Only
-                do this if the money did not leave your account.
-              </>
-            }
-            field={{
-              name: 'note',
-              label: p.status === 'processing' ? 'Why didn’t it go through?' : 'Why isn’t it being sent?',
-              placeholder: 'e.g. bank rejected the UPI id',
-              required: true,
-            }}
-            confirmLabel={`Put ${amount} back in ${first}’s earnings`}
-          />
-        ) : null}
-
-        {stage === 'stuck' ? (
-          <ConfirmAction
-            action={giveBack}
-            hidden={{ id: p.id, name, amount }}
-            trigger={`Give ${amount} back to ${first}`}
-            tone="danger"
-            title={`Stop this withdrawal and give ${amount} back to ${name}?`}
-            consequence={
-              <>
-                RazorpayX is asked first. Only if it confirms it never made this payout does {amount} go back into {first}’s earnings. If RazorpayX has it,
-                nothing is given back and its real status is recorded instead, so {first} can’t be paid twice.
-              </>
-            }
-            confirmLabel="Ask RazorpayX, then give it back"
-          />
-        ) : null}
+          <Link href="/money#whose" className="figure-link">
+            Full breakdown →
+          </Link>
+        </Card>
       </div>
-    </li>
+
+      <HowItWorks
+        open={false}
+        steps={[
+          <>A worker or poster asks to withdraw their earnings to their UPI id or bank account. The money leaves their earnings at once.</>,
+          rxOn ? (
+            <>RazorpayX sends it, usually within minutes. Or open it and pay it by hand.</>
+          ) : (
+            <>Press <strong>Pay</strong>, scan the QR with your phone’s UPI app (or copy the bank details), send the money, then record the UTR.</>
+          ),
+          <>If it can’t be paid, put it back in their earnings with a reason. They’re told why and can ask again.</>,
+        ]}
+      />
+    </>
   );
 }

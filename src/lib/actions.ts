@@ -1,7 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { requireAdmin, isUuid } from './data';
+import { requireAdmin, isUuid, getRazorpayXState } from './data';
+import { moneyMfaGate } from './mfa';
 import { createClient } from './supabase/server';
 import type { ActionResult } from '@/components/ConfirmAction';
 
@@ -13,6 +14,7 @@ import type { ActionResult } from '@/components/ConfirmAction';
  */
 
 function friendly(message: string): string {
+  if (/authenticator code/i.test(message)) return 'Enter your authenticator code on the Security page first, then try again.';
   if (/already (paid|failed|cancelled)/i.test(message)) return 'Someone already settled this one. Refresh to see where it stands.';
   if (/no longer exists/i.test(message)) return 'That no longer exists. Refresh the page.';
   if (/admins only/i.test(message)) return 'Only admins can do this. Sign in again with an admin account.';
@@ -27,16 +29,23 @@ function friendly(message: string): string {
 
 export async function markPayout(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   await requireAdmin();
+  // Money needs an authenticator code on top of sign-in (lib/mfa.ts).
+  const mfa = await moneyMfaGate();
+  if (mfa) return { ok: false, message: mfa };
   const id = String(form.get('id') ?? '');
   const status = String(form.get('status') ?? '');
   const name = String(form.get('name') ?? 'the worker').slice(0, 80);
   const amount = String(form.get('amount') ?? '').slice(0, 30);
-  const note = String(form.get('note') ?? '').trim().slice(0, 200);
+  const typed = String(form.get('note') ?? '').trim().slice(0, 160);
+  // How it was sent, kept with the bank reference so the Settled list says "UPI · 6241…".
+  const CHANNEL: Record<string, string> = { upi: 'UPI', bank: 'Bank transfer', other: 'Other' };
+  const channel = CHANNEL[String(form.get('channel') ?? '')];
+  const note = status === 'paid' && channel && typed ? `${channel} · ${typed}` : typed;
 
   if (!isUuid(id)) return { ok: false, message: 'That payout id looks wrong. Refresh the page.' };
   if (status !== 'processing' && status !== 'paid' && status !== 'failed') return { ok: false, message: 'Unknown action.' };
-  if (status === 'paid' && !note) return { ok: false, message: 'Type the UPI or bank reference (UTR) so this transfer can be traced later.' };
-  if (status === 'failed' && !note) return { ok: false, message: "Say why it didn't go through, so the worker can be told." };
+  if (status === 'paid' && !typed) return { ok: false, message: 'Type the UPI or bank reference (UTR) so this transfer can be traced later.' };
+  if (status === 'failed' && !typed) return { ok: false, message: "Say why it didn't go through, so the worker can be told." };
 
   const supabase = await createClient();
   const { error } = await supabase.rpc('admin_mark_payout', {
@@ -46,16 +55,51 @@ export async function markPayout(_prev: ActionResult, form: FormData): Promise<A
   });
   if (error) return { ok: false, message: friendly(error.message) };
 
-  revalidatePath('/payouts');
+  revalidatePath('/payouts', 'layout');
   revalidatePath('/');
   revalidatePath('/money');
   const msg =
     status === 'paid'
-      ? `Recorded: ${amount} sent to ${name}.`
+      ? `Recorded: ${amount} sent to ${name}${channel ? ` by ${channel.toLowerCase()}` : ''}.`
       : status === 'failed'
         ? `${amount} is back in ${name}'s TaskDrop wallet. They can withdraw it again.`
         : `Marked as being sent. ${name} can no longer cancel it.`;
   return { ok: true, message: msg };
+}
+
+/** The Payouts page's switch: pay withdrawals by hand, or let RazorpayX send them. */
+export async function setPayoutMethod(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  await requireAdmin();
+  const mfa = await moneyMfaGate();
+  if (mfa) return { ok: false, message: mfa };
+  const method = String(form.get('method') ?? '');
+  if (method !== 'manual' && method !== 'razorpayx') return { ok: false, message: 'Unknown payout method.' };
+
+  if (method === 'razorpayx') {
+    const rx = await getRazorpayXState();
+    if (!rx.configured) {
+      return { ok: false, message: 'RazorpayX is not set up yet. Add RAZORPAYX_ACCOUNT_NUMBER, the API keys and the webhook secret in Supabase first.' };
+    }
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('admin_set_payout_method' as never, { p_method: method } as never);
+  if (error) {
+    if (/could not find the function|does not exist/i.test(error.message)) {
+      return { ok: false, message: 'Apply migration 086 (payout method) to the database first, then try again.' };
+    }
+    return { ok: false, message: friendly(error.message) };
+  }
+
+  revalidatePath('/payouts', 'layout');
+  revalidatePath('/');
+  return {
+    ok: true,
+    message:
+      method === 'razorpayx'
+        ? 'RazorpayX now sends every new withdrawal. Withdrawals still waiting were handed to RazorpayX too.'
+        : 'Withdrawals are now paid by hand. New requests wait here for you.',
+  };
 }
 
 type Outcome = { id: string; status: string; providerStatus?: string | null; note?: string | null; retryLater?: boolean };
@@ -68,6 +112,9 @@ type Outcome = { id: string; status: string; providerStatus?: string | null; not
  */
 export async function checkWithRazorpayX(_prev: ActionResult, _form: FormData): Promise<ActionResult> {
   await requireAdmin();
+  // Money needs an authenticator code on top of sign-in (lib/mfa.ts).
+  const mfa = await moneyMfaGate();
+  if (mfa) return { ok: false, message: mfa };
   const supabase = await createClient();
   const { data, error } = await supabase.functions.invoke('razorpayx-payouts', { body: { action: 'check-all' } });
   if (error) return { ok: false, message: `Could not reach the payout service: ${error.message}` };
@@ -75,7 +122,7 @@ export async function checkWithRazorpayX(_prev: ActionResult, _form: FormData): 
     return { ok: false, message: 'RazorpayX is not set up yet. Add RAZORPAYX_ACCOUNT_NUMBER, the API keys and the webhook secret first.' };
   }
   const rows = (data?.payouts ?? []) as Outcome[];
-  revalidatePath('/payouts');
+  revalidatePath('/payouts', 'layout');
   revalidatePath('/money');
   if (!rows.length) return { ok: true, message: 'Nothing is waiting: every withdrawal is settled.' };
   const paid = rows.filter((r) => r.status === 'paid').length;
@@ -98,6 +145,9 @@ export async function checkWithRazorpayX(_prev: ActionResult, _form: FormData): 
  */
 export async function giveBackPayout(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   await requireAdmin();
+  // Money needs an authenticator code on top of sign-in (lib/mfa.ts).
+  const mfa = await moneyMfaGate();
+  if (mfa) return { ok: false, message: mfa };
   const id = String(form.get('id') ?? '');
   const name = String(form.get('name') ?? 'the worker').slice(0, 80);
   const amount = String(form.get('amount') ?? '').slice(0, 30);
@@ -108,7 +158,7 @@ export async function giveBackPayout(_prev: ActionResult, form: FormData): Promi
   if (error) return { ok: false, message: `Could not reach the payout service: ${error.message}` };
   if (data?.configured === false) return { ok: false, message: 'RazorpayX is not set up yet, so it cannot be asked about this withdrawal.' };
   const out = (data ?? {}) as Outcome;
-  revalidatePath('/payouts');
+  revalidatePath('/payouts', 'layout');
   revalidatePath('/money');
   if (out.status === 'failed') return { ok: true, message: `${amount} is back in ${name}’s earnings. RazorpayX confirmed it never sent it.` };
   if (out.status === 'paid') return { ok: false, message: `RazorpayX already paid this one, so it was recorded as paid instead.` };
@@ -118,6 +168,9 @@ export async function giveBackPayout(_prev: ActionResult, form: FormData): Promi
 
 export async function resolveDispute(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   await requireAdmin();
+  // Money needs an authenticator code on top of sign-in (lib/mfa.ts).
+  const mfa = await moneyMfaGate();
+  if (mfa) return { ok: false, message: mfa };
   const taskId = String(form.get('taskId') ?? '');
   const outcome = String(form.get('outcome') ?? '');
   const note = String(form.get('note') ?? '').trim().slice(0, 200);
@@ -153,6 +206,9 @@ export async function resolveDispute(_prev: ActionResult, form: FormData): Promi
  */
 export async function sendRefund(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   await requireAdmin();
+  // Money needs an authenticator code on top of sign-in (lib/mfa.ts).
+  const mfa = await moneyMfaGate();
+  if (mfa) return { ok: false, message: mfa };
   const taskId = String(form.get('taskId') ?? '');
   const poster = String(form.get('poster') ?? 'the poster').slice(0, 80);
   if (!isUuid(taskId)) return { ok: false, message: 'That job id looks wrong. Refresh the page.' };
@@ -227,6 +283,9 @@ const EDITABLE: Record<string, { kind: 'percent' | 'days' | 'count' | 'bool'; mi
 
 export async function updateSetting(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   await requireAdmin();
+  // Money needs an authenticator code on top of sign-in (lib/mfa.ts).
+  const mfa = await moneyMfaGate();
+  if (mfa) return { ok: false, message: mfa };
   const key = String(form.get('key') ?? '');
   const raw = String(form.get('value') ?? '').trim().replace('%', '');
   const rule = EDITABLE[key];

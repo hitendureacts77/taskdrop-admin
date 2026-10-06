@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ClickRow } from '../Clickable';
 import type { DisputeRow, RefundOwed, TicketDetail, TicketRow } from '@/lib/data';
 import { inr, istDateTime, timeAgo } from '@/lib/format';
 import { TICKET_STATUS } from '@/lib/labels';
@@ -50,6 +51,7 @@ export function DisputesView({ rows, now: nowIso }: { rows: DisputeRow[]; now: s
                   <th className="th">Job</th>
                   <th className="th">Poster</th>
                   <th className="th">Worker</th>
+                  <th className="th">Reason given</th>
                   <th className="th num">Frozen</th>
                   <th className="th">Waiting</th>
                   <th className="th" />
@@ -57,7 +59,7 @@ export function DisputesView({ rows, now: nowIso }: { rows: DisputeRow[]; now: s
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr key={r.taskId}>
+                  <ClickRow key={r.taskId} href={`/tasks/${r.taskId}`}>
                     <td className="td">
                       <JobLink id={r.taskId} title={r.title} />
                     </td>
@@ -65,6 +67,16 @@ export function DisputesView({ rows, now: nowIso }: { rows: DisputeRow[]; now: s
                       <PersonLink id={r.posterId} name={r.poster} />
                     </td>
                     <td className="td">{r.workerId ? <PersonLink id={r.workerId} name={r.worker} /> : '—'}</td>
+                    <td className="td small">
+                      {r.reason ? (
+                        <>
+                          “{r.reason.length > 120 ? `${r.reason.slice(0, 120)}…` : r.reason}”
+                          {r.reasonBy ? <span className="muted"> · {r.reasonBy}</span> : null}
+                        </>
+                      ) : (
+                        <span className="muted">None given</span>
+                      )}
+                    </td>
                     <td className="td num">{r.funded ? <Money minor={r.escrowMinor} /> : <span className="muted">Never paid</span>}</td>
                     <td className="td nowrap">{timeAgo(r.since, now)}</td>
                     <td className="td">
@@ -72,7 +84,7 @@ export function DisputesView({ rows, now: nowIso }: { rows: DisputeRow[]; now: s
                         Decide
                       </Link>
                     </td>
-                  </tr>
+                  </ClickRow>
                 ))}
               </tbody>
             </table>
@@ -130,7 +142,7 @@ export function RefundsView({ rows, sendRefund }: { rows: RefundOwed[] | null; s
                   </thead>
                   <tbody>
                     {rows.map((r) => (
-                      <tr key={r.taskId}>
+                      <ClickRow key={r.taskId} href={`/tasks/${r.taskId}`}>
                         <td className="td">
                           <JobLink id={r.taskId} title={r.title} />
                         </td>
@@ -173,7 +185,7 @@ export function RefundsView({ rows, sendRefund }: { rows: RefundOwed[] | null; s
                             confirmLabel={`Yes, refund ${inr(r.dueMinor)}`}
                           />
                         </td>
-                      </tr>
+                      </ClickRow>
                     ))}
                   </tbody>
                 </table>
@@ -219,7 +231,7 @@ export function SupportView({ rows, status, now: nowIso }: { rows: TicketRow[]; 
                 {rows.map((t) => {
                   const st = TICKET_STATUS[t.status] ?? { label: t.status, tone: 'grey' as const };
                   return (
-                    <tr key={t.id}>
+                    <ClickRow key={t.id} href={`/support/${t.id}`}>
                       <td className="td">
                         <Link href={`/support/${t.id}`} className="job-link">
                           {t.subject}
@@ -233,7 +245,7 @@ export function SupportView({ rows, status, now: nowIso }: { rows: TicketRow[]; 
                         <Pill tone={st.tone}>{st.label}</Pill>
                       </td>
                       <td className="td nowrap muted">{timeAgo(t.updatedAt, now)}</td>
-                    </tr>
+                    </ClickRow>
                   );
                 })}
               </tbody>

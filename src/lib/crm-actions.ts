@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { requireAdmin, isUuid } from './data';
 import { createClient } from './supabase/server';
+import { createClient as createServiceClient } from './supabase/service';
 import { parseCriteria, type Criteria } from './crm';
 import type { ActionResult } from '@/components/ConfirmAction';
 
@@ -148,6 +149,51 @@ export async function unsuspendUser(_prev: ActionResult, form: FormData): Promis
   revalidatePath('/users');
   revalidatePath('/crm');
   return { ok: true, message: `${name} can sign in again, and has been told.` };
+}
+
+// -------------------------------------------------------------- deletion --
+
+/**
+ * Deletes someone's account for them (migration 087: admin_delete_account).
+ * The database empties the account and hands back the storage paths no kept
+ * record needs; it cannot delete storage objects itself, so they go here with
+ * the service role -- only paths inside that person's own folder.
+ */
+export async function deleteAccount(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  await requireAdmin();
+  const userId = str(form, 'userId');
+  const name = str(form, 'name').slice(0, 80) || 'Their';
+  const reason = str(form, 'reason');
+  if (!isUuid(userId)) return { ok: false, message: 'That person id looks wrong. Refresh the page.' };
+  if (!reason) return { ok: false, message: 'Say why, so the next admin knows.' };
+  const r = await call('admin_delete_account', { p_user: userId, p_reason: reason.slice(0, 500) });
+  if (r.error) return { ok: false, message: r.error };
+
+  const listed = (r.data as { files?: unknown } | null)?.files;
+  const files = (Array.isArray(listed) ? listed : []).filter(
+    (p): p is string => typeof p === 'string' && p.startsWith(`${userId}/`) && !p.includes('..'),
+  );
+  let leftBehind = 0;
+  if (files.length) {
+    try {
+      const service = createServiceClient();
+      for (let i = 0; i < files.length; i += 100) {
+        const chunk = files.slice(i, i + 100);
+        const { error } = await service.storage.from('task-media').remove(chunk);
+        if (error) leftBehind += chunk.length;
+      }
+    } catch {
+      leftBehind = files.length; // no SUPABASE_SERVICE_ROLE_KEY on this server
+    }
+  }
+
+  revalidatePath(`/users/${userId}`);
+  revalidatePath('/users');
+  revalidatePath('/crm');
+  const done = `${name}’s account is deleted. They are signed out everywhere and can’t sign in to it again.`;
+  return leftBehind
+    ? { ok: true, message: `${done} ${leftBehind} of their photos could not be removed: delete the folder ${userId}/ in Supabase Storage → task-media.` }
+    : { ok: true, message: done };
 }
 
 // -------------------------------------------------------------- segments --

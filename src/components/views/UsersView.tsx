@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ClickRow } from '../Clickable';
 import type { Tag, TagWithCount } from '@/lib/crm';
 import type { UserFilter, UserRow } from '@/lib/data';
 import { USER_FILTERS } from '@/lib/data';
@@ -29,6 +30,7 @@ const INTRO: Partial<Record<UserFilter, string>> = {
   money: 'People with money in their TaskDrop wallet, ready or still clearing.',
   admins: 'People who can open this panel.',
   suspended: 'People who can’t sign in or withdraw right now.',
+  deleted: 'Accounts that were deleted, by the person or by an admin. Their paid jobs and money records stay.',
 };
 
 export function UsersView({ d }: { d: UsersData }) {
@@ -117,7 +119,7 @@ export function UsersView({ d }: { d: UsersData }) {
               </thead>
               <tbody>
                 {d.rows.map((u) => (
-                  <tr key={u.id}>
+                  <ClickRow key={u.id} href={`/users/${u.id}`}>
                     <td className="td">
                       <span className="person">
                         <span className="avatar" aria-hidden="true">
@@ -142,6 +144,7 @@ export function UsersView({ d }: { d: UsersData }) {
                         {u.posterReviews > 0 || !u.isWorker ? <Pill tone="grey">Poster</Pill> : null}
                         {u.availableNow ? <Pill tone="green">Available now</Pill> : null}
                         {d.suspended[u.id] !== undefined ? <Pill tone="red" title={d.suspended[u.id]}>Suspended</Pill> : null}
+                        {u.deletedAt ? <Pill tone="grey">Deleted</Pill> : null}
                       </span>
                     </td>
                     <td className="td small">
@@ -160,7 +163,7 @@ export function UsersView({ d }: { d: UsersData }) {
                     </td>
                     <td className="td nowrap">{istDate(u.joinedAt)}</td>
                     <td className="td nowrap muted">{u.lastSeenAt ? timeAgo(u.lastSeenAt, now) : '—'}</td>
-                  </tr>
+                  </ClickRow>
                 ))}
               </tbody>
             </table>

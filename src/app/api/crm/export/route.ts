@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { checkAdmin } from '@/lib/auth';
 import { exportCsv, idsForCriteria, idsSuspended, idsWithTag, parseCriteria } from '@/lib/crm';
 import { getUsers, isUuid, parseUserFilter } from '@/lib/data';
+import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,6 +38,23 @@ export async function GET(req: Request) {
       ids.push(...rows.map((r) => r.id));
       if (ids.length >= total || !rows.length) break;
     }
+  }
+
+  // Every export of people's details is recorded: who, which view, how many.
+  // A failure to record it stops the export -- an unaudited download of personal
+  // data is worse than a failed one.
+  const supabase = await createClient();
+  // `as never`: the generated types predate migration 076, like admin_money_position in data.ts.
+  const { error: auditError } = await supabase.rpc(
+    'admin_log_event' as never,
+    {
+      p_action: 'crm.export',
+      p_target: sp.get('segment') === '1' ? 'segment' : `people:${sp.get('filter') ?? 'all'}`,
+      p_detail: `${ids.length} people; ${req.url.split('?')[1] ?? ''}`.slice(0, 480),
+    } as never,
+  );
+  if (auditError) {
+    return NextResponse.json({ error: 'Could not record this export, so it was not produced' }, { status: 500 });
   }
 
   const csv = await exportCsv(ids);

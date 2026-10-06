@@ -29,12 +29,12 @@ export function WhoseMoney({
       href: '/money',
     },
     { label: 'Posters’ money held for jobs (escrow)', hint: 'Not yours yet. Released to the worker when the poster approves.', value: escrowMinor, color: CHART_COLORS.escrow, href: '/tasks?filter=escrow' },
-    { label: 'Earnings, ready to withdraw', hint: 'Workers’ earnings. Theirs to withdraw any time; RazorpayX sends it.', value: held.walletBalances, color: '#2F5BEA', href: '/users?filter=money' },
+    { label: 'Earnings, ready to withdraw', hint: 'Workers’ earnings. Theirs to withdraw any time; you pay it by hand or RazorpayX sends it.', value: held.walletBalances, color: '#2F5BEA', href: '/users?filter=money' },
     ...(held.credits
       ? [{ label: 'Posters’ wallet money', hint: 'Top-ups and refunds. Spent on jobs only; it can’t be withdrawn.', value: held.credits, color: '#5B7BE0', href: '/users?filter=money' }]
       : []),
     { label: 'Workers’ earnings still clearing', hint: `The workers’. Can be withdrawn ${clearingDays} days after a job is approved.`, value: held.clearing, color: '#8FA8F5', href: '/users?filter=money' },
-    { label: 'Withdrawals on their way', hint: 'The workers’. Already out of their wallets; RazorpayX is sending them.', value: queueMinor, color: '#E0724A', href: '/payouts' },
+    { label: 'Withdrawals on their way', hint: 'The workers’. Already out of their wallets, waiting to be paid.', value: queueMinor, color: '#E0724A', href: '/payouts' },
     ...(held.refundsOwed !== null
       ? [{ label: 'Refunds owed to posters', hint: 'The posters’. From cancelled jobs.', value: held.refundsOwed, color: '#E0A85A', href: '/refunds' }]
       : []),

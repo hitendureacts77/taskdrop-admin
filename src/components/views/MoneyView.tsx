@@ -3,6 +3,7 @@ import type { AllTime, EscrowJob, LedgerEntry, MoneyHeld, MoneySettings } from '
 import type { EarningsSeries, RangeKey, Split } from '@/lib/earnings';
 import { istDateTime, pct, prettyDayKey } from '@/lib/format';
 import { CHART_COLORS, ledgerKind, taskStatus } from '@/lib/labels';
+import { ClickCard, ClickRow } from '../Clickable';
 import { Icon } from '../Icon';
 import { LineChart } from '../LineChart';
 import { Card, Delta, Empty, HowItWorks, JobLink, Money, Notice, PageHeader, PersonLink, Pill, Swatch, Tabs } from '../ui';
@@ -76,15 +77,15 @@ export function MoneyView({ d }: { d: MoneyData }) {
             wallet. TaskDrop keeps <strong>{pct(s.commissionPct)} commission</strong> plus the service fee.
           </>,
           <>
-            {s.clearingDays > 0 ? `${s.clearingDays} days later` : 'Straight away'} the worker can withdraw. RazorpayX sends it to their bank or UPI; follow it
-            on <Link href="/payouts">Worker payouts</Link>.
+            {s.clearingDays > 0 ? `${s.clearingDays} days later` : 'Straight away'} the worker can withdraw. It is paid to their bank or UPI, by RazorpayX or by hand; follow it
+            on <Link href="/payouts">Payouts</Link>.
           </>,
         ]}
       />
 
       <Card title="1. What TaskDrop earned" sub="TaskDrop’s own money: commission, service fees and promotions.">
         <div className="figures">
-          <div className="figure">
+          <ClickCard className="figure" href="/money/entries?when=today">
             <span className="figure-label">
               <Icon name="clock" size={16} /> Earned today
             </span>
@@ -93,8 +94,8 @@ export function MoneyView({ d }: { d: MoneyData }) {
             <Link href="/money/entries?when=today" className="figure-link">
               Today’s entries →
             </Link>
-          </div>
-          <div className="figure">
+          </ClickCard>
+          <ClickCard className="figure" href={`/money/entries?when=${when ?? 'all'}`}>
             <span className="figure-label">
               <Icon name="chart" size={16} /> {rangeName}
             </span>
@@ -103,8 +104,8 @@ export function MoneyView({ d }: { d: MoneyData }) {
             <Link href={`/money/entries?when=${when ?? 'all'}`} className="figure-link">
               Entries →
             </Link>
-          </div>
-          <div className="figure">
+          </ClickCard>
+          <ClickCard className="figure" href="/money/entries?when=all">
             <span className="figure-label">
               <Icon name="bank" size={16} /> Earned in total
             </span>
@@ -115,7 +116,7 @@ export function MoneyView({ d }: { d: MoneyData }) {
             <Link href="/money/entries?when=all" className="figure-link">
               All entries →
             </Link>
-          </div>
+          </ClickCard>
         </div>
 
         <h3 className="sub-head">Where the earnings came from</h3>
@@ -133,7 +134,7 @@ export function MoneyView({ d }: { d: MoneyData }) {
               {kinds
                 .filter((k) => k.key !== 'other' || d.allSplit.other !== 0)
                 .map((k) => (
-                  <tr key={k.k}>
+                  <ClickRow key={k.k} href={`/money/entries?when=${when ?? 'all'}&kind=${k.k}`}>
                     <td className="td">
                       <span className="type-cell">
                         <Swatch color={k.color} />
@@ -158,7 +159,7 @@ export function MoneyView({ d }: { d: MoneyData }) {
                         <Money minor={d.allSplit[k.key]} />
                       </Link>
                     </td>
-                  </tr>
+                  </ClickRow>
                 ))}
               <tr className="row-total">
                 <td className="td">Total</td>
@@ -213,7 +214,7 @@ export function MoneyView({ d }: { d: MoneyData }) {
           becomes the worker’s ({pct(1 - s.commissionPct)}) and TaskDrop’s ({pct(s.commissionPct)} + fee). If the job is cancelled, it goes back to the poster.
         </Notice>
         <div className="figures">
-          <div className="figure">
+          <ClickCard className="figure" href="/tasks?filter=escrow">
             <span className="figure-label">
               <Icon name="shield" size={16} /> Held right now
             </span>
@@ -224,8 +225,8 @@ export function MoneyView({ d }: { d: MoneyData }) {
             <Link href="/tasks?filter=escrow" className="figure-link">
               See these jobs →
             </Link>
-          </div>
-          <div className="figure">
+          </ClickCard>
+          <ClickCard className="figure" href="/tasks?filter=waiting">
             <span className="figure-label">
               <Icon name="clock" size={16} /> Releases in the next 24 hours
             </span>
@@ -233,14 +234,20 @@ export function MoneyView({ d }: { d: MoneyData }) {
             <span className="muted small">
               {soon.length} job{soon.length === 1 ? '' : 's'} where the poster hasn’t replied in time
             </span>
-          </div>
-          <div className="figure">
+            <Link href="/tasks?filter=waiting" className="figure-link">
+              Jobs waiting for the poster →
+            </Link>
+          </ClickCard>
+          <ClickCard className="figure" href="/tasks?filter=active">
             <span className="figure-label">
               <Icon name="jobs" size={16} /> Hired, not paid for yet
             </span>
             <span className="figure-num plain">{unfunded.length}</span>
             <span className="muted small">No money held for these until the poster pays.</span>
-          </div>
+            <Link href="/tasks?filter=active" className="figure-link">
+              Hired jobs →
+            </Link>
+          </ClickCard>
         </div>
 
         {d.escrow.length ? (
@@ -260,7 +267,7 @@ export function MoneyView({ d }: { d: MoneyData }) {
                 {[...funded, ...unfunded].map((j) => {
                   const st = taskStatus(j.taskStatus);
                   return (
-                    <tr key={j.assignmentId}>
+                    <ClickRow key={j.assignmentId} href={`/tasks/${j.taskId}`}>
                       <td className="td">
                         <JobLink id={j.taskId} title={j.title} />
                       </td>
@@ -277,7 +284,7 @@ export function MoneyView({ d }: { d: MoneyData }) {
                       </td>
                       <td className="td num">{j.funded ? <Money minor={j.escrowMinor} /> : <span className="muted">Not paid</span>}</td>
                       <td className="td small">{nextStep(j, now)}</td>
-                    </tr>
+                    </ClickRow>
                   );
                 })}
               </tbody>
@@ -312,7 +319,7 @@ export function MoneyView({ d }: { d: MoneyData }) {
                 {d.ledger.map((l) => {
                   const k = ledgerKind(l.kind);
                   return (
-                    <tr key={l.id}>
+                    <ClickRow key={l.id} href={l.taskId ? `/tasks/${l.taskId}` : `/money/entries?kind=${l.kind}`}>
                       <td className="td nowrap">{istDateTime(l.at)}</td>
                       <td className="td">
                         <Pill tone={k.tone}>{k.label}</Pill>
@@ -321,7 +328,7 @@ export function MoneyView({ d }: { d: MoneyData }) {
                       <td className="td num">
                         <Money minor={l.amount} />
                       </td>
-                    </tr>
+                    </ClickRow>
                   );
                 })}
               </tbody>

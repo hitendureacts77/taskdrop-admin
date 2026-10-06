@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useActionState, useEffect, useState, type ChangeEvent, type ReactNode } from 'react';
 
 export type ActionResult = { ok: boolean; message: string } | null;
@@ -84,6 +85,14 @@ export function ConfirmAction({
       {state && !state.ok ? (
         <p className="confirm-error" role="alert">
           {state.message}
+          {/Security page/i.test(state.message) ? (
+            <>
+              {' '}
+              <Link href="/security" className="btn btn-small btn-primary">
+                Open the Security page
+              </Link>
+            </>
+          ) : null}
         </p>
       ) : null}
       <div className="confirm-actions">

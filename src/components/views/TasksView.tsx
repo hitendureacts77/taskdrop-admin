@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ClickRow } from '../Clickable';
 import type { TaskFilter, TaskRow } from '@/lib/data';
 import { TASK_FILTERS } from '@/lib/data';
 import { istDate, timeAgo } from '@/lib/format';
@@ -91,7 +92,7 @@ export function TasksView({ d }: { d: TasksData }) {
                 {d.rows.map((t) => {
                   const st = taskStatus(t.status);
                   return (
-                    <tr key={t.id}>
+                    <ClickRow key={t.id} href={`/tasks/${t.id}`}>
                       <td className="td">
                         <JobLink id={t.id} title={t.title} />
                         <span className="muted small block">{[t.category, t.place].filter(Boolean).join(' · ') || `Posted ${istDate(t.createdAt)}`}</span>
@@ -111,7 +112,7 @@ export function TasksView({ d }: { d: TasksData }) {
                       </td>
                       <td className="td num">{t.heldMinor !== null ? <Money minor={t.heldMinor} /> : <span className="muted">—</span>}</td>
                       <td className="td nowrap muted">{timeAgo(t.updatedAt, now)}</td>
-                    </tr>
+                    </ClickRow>
                   );
                 })}
               </tbody>

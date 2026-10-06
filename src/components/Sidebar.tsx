@@ -14,7 +14,7 @@ const SECTIONS: { title: string | null; items: Item[] }[] = [
     title: 'Money',
     items: [
       { href: '/money', label: 'Earnings & escrow', icon: 'money' },
-      { href: '/payouts', label: 'Worker payouts', icon: 'send', badge: 'payouts', alert: true },
+      { href: '/payouts', label: 'Payouts', icon: 'send', badge: 'payouts', alert: true },
       { href: '/refunds', label: 'Refunds', icon: 'undo', badge: 'refunds', alert: true },
     ],
   },
@@ -25,6 +25,7 @@ const SECTIONS: { title: string | null; items: Item[] }[] = [
       { href: '/users', label: 'People', icon: 'people' },
       { href: '/disputes', label: 'Disputes', icon: 'scale', badge: 'disputes', alert: true },
       { href: '/support', label: 'Help requests', icon: 'help', badge: 'support' },
+      { href: '/copyright', label: 'Copyright notices', icon: 'alert' },
       { href: '/promotions', label: 'Promotions', icon: 'megaphone' },
     ],
   },
@@ -41,6 +42,7 @@ const SECTIONS: { title: string | null; items: Item[] }[] = [
     items: [
       { href: '/reports', label: 'Reports', icon: 'chart' },
       { href: '/settings', label: 'Settings', icon: 'settings' },
+      { href: '/security', label: 'Security', icon: 'shield' },
     ],
   },
 ];

@@ -1,6 +1,7 @@
 import Link from 'next/link';
+import { ClickCard, ClickRow } from '../Clickable';
 import type { ReactNode } from 'react';
-import type { MoneySettings, TaskDetail } from '@/lib/data';
+import type { DisputeReason, MoneySettings, TaskDetail } from '@/lib/data';
 import { inr, istDateTime, pct } from '@/lib/format';
 import { ledgerKind, taskStatus } from '@/lib/labels';
 import { ConfirmAction, type FormAction } from '../ConfirmAction';
@@ -9,7 +10,20 @@ import { Card, Empty, KV, Money, Notice, PageHeader, PersonLink, Pill } from '..
 
 const HOLDING = new Set(['assigned', 'started']);
 
-export function TaskView({ t, settings, now: nowIso, resolveDispute }: { t: TaskDetail; settings: MoneySettings; now: string; resolveDispute: FormAction }) {
+export function TaskView({
+  t,
+  settings,
+  now: nowIso,
+  resolveDispute,
+  dispute = null,
+}: {
+  t: TaskDetail;
+  settings: MoneySettings;
+  now: string;
+  resolveDispute: FormAction;
+  /** Why the job was reported, when it is in dispute and the report carried a reason. */
+  dispute?: DisputeReason | null;
+}) {
   const now = new Date(nowIso);
   const st = taskStatus(t.status);
   const a = t.assignment;
@@ -73,6 +87,12 @@ export function TaskView({ t, settings, now: nowIso, resolveDispute }: { t: Task
           </span>
         }
       />
+
+      {t.status === 'DISPUTED' ? (
+        <Notice tone="red" icon="alert" title={dispute ? `Why it was reported${dispute.by ? ` · ${dispute.by}` : ''} · ${istDateTime(dispute.at)}` : 'Why it was reported'}>
+          {dispute ? `“${dispute.reason}”` : 'No reason was recorded for this one. It was reported before reasons were kept.'}
+        </Notice>
+      ) : null}
 
       {t.status === 'DISPUTED' && a && !t.fundedAt ? (
         <Notice tone="gold" title="This dispute has no money to decide over">
@@ -180,7 +200,7 @@ export function TaskView({ t, settings, now: nowIso, resolveDispute }: { t: Task
                   </thead>
                   <tbody>
                     {t.quotes.map((q) => (
-                      <tr key={q.id}>
+                      <ClickRow key={q.id} href={`/users/${q.workerId}`}>
                         <td className="td">
                           <PersonLink id={q.workerId} name={q.worker} /> {q.chosen ? <Pill tone="green">Chosen</Pill> : null}
                         </td>
@@ -189,7 +209,7 @@ export function TaskView({ t, settings, now: nowIso, resolveDispute }: { t: Task
                         </td>
                         <td className="td small">{q.message ?? '—'}</td>
                         <td className="td nowrap muted">{istDateTime(q.createdAt)}</td>
-                      </tr>
+                      </ClickRow>
                     ))}
                   </tbody>
                 </table>
@@ -230,13 +250,13 @@ export function TaskView({ t, settings, now: nowIso, resolveDispute }: { t: Task
             {t.ledger.length ? (
               <ul className="plain-list">
                 {t.ledger.map((l) => (
-                  <li key={l.id}>
+                  <ClickCard as="li" key={l.id} href={`/money/entries?when=all&kind=${l.kind}`}>
                     <span>
                       {ledgerKind(l.kind).label}
                       <span className="muted small block">{istDateTime(l.at)}</span>
                     </span>
                     <Money minor={l.amount} />
-                  </li>
+                  </ClickCard>
                 ))}
               </ul>
             ) : (

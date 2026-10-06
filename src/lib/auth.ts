@@ -4,10 +4,11 @@ export type AdminUser = { id: string; email: string | null };
 
 /**
  * Who may open this panel, on top of holding the admin role in the database.
- * ADMIN_EMAIL is the Google account; ADMIN_PHONE is the mobile number. A phone
- * account sits on a placeholder email (p<number>@phone.taskdrop.app), so the
- * number is matched through that. When neither is set the database role alone
- * decides, as before.
+ * ADMIN_EMAIL is the Google account. ADMIN_PHONE is for an admin account that
+ * was created with a mobile number (it sits on a placeholder email,
+ * p<number>@phone.taskdrop.app, and signs in here with its @username and
+ * password -- the panel has no text-message sign-in). When neither is set the
+ * database role alone decides, as before.
  */
 const digits10 = (s: string | undefined | null) => String(s ?? '').replace(/[^0-9]/g, '').slice(-10);
 

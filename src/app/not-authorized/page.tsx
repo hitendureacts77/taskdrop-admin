@@ -21,7 +21,7 @@ export default async function NotAuthorizedPage() {
         <p style={{ fontSize: 13.5, color: 'var(--muted)', lineHeight: 1.6, margin: 0 }}>
           {user?.email ? <>Signed in as <b style={{ color: 'var(--ink)' }}>{user.email}</b>, but that
           account is not an admin account. </> : null}
-          Only the TaskDrop owner’s accounts can open this panel. Sign in with the admin Google account or the admin mobile number.
+          Only the TaskDrop owner’s accounts can open this panel. Sign in with the admin Google account or the admin username.
         </p>
       </div>
     </main>

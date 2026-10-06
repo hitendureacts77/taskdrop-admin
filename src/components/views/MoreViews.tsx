@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ClickCard, ClickRow } from '../Clickable';
 import type { PlatformStats, PromotionRow, SettingRow, TaskRow, UserRow } from '@/lib/data';
 import { inr, istDate, istDateTime, pct } from '@/lib/format';
 import { PROMOTION_STATUS, taskStatus } from '@/lib/labels';
@@ -18,20 +19,23 @@ export function PromotionsView({ rows }: { rows: PromotionRow[] }) {
         sub="Posters paying to show their job higher. What they pay is TaskDrop’s own earnings (the “Promotions” line)."
       />
       <div className="figures figures-cards">
-        <div className="figure card">
+        <ClickCard className="figure card" href="#latest">
           <span className="figure-label">Showing now</span>
           <span className="figure-num plain">{active.length}</span>
           <span className="muted small">promoted jobs</span>
-        </div>
-        <div className="figure card">
+          <a href="#latest" className="figure-link">
+            See them below →
+          </a>
+        </ClickCard>
+        <ClickCard className="figure card" href="/money/entries?when=all&kind=ad_revenue">
           <span className="figure-label">Paid for (latest {rows.length})</span>
           <Money minor={paid.reduce((a, r) => a + r.amountMinor, 0)} className="figure-num" />
           <Link href="/money/entries?when=all&kind=ad_revenue" className="figure-link">
             Promotion earnings →
           </Link>
-        </div>
+        </ClickCard>
       </div>
-      <Card title="Latest promotions" flush>
+      <Card title="Latest promotions" id="latest" flush>
         {rows.length ? (
           <div className="table-wrap">
             <table>
@@ -49,7 +53,7 @@ export function PromotionsView({ rows }: { rows: PromotionRow[] }) {
                 {rows.map((r) => {
                   const st = PROMOTION_STATUS[r.status] ?? { label: r.status, tone: 'grey' as const };
                   return (
-                    <tr key={r.id}>
+                    <ClickRow key={r.id} href={`/tasks/${r.taskId}`}>
                       <td className="td">
                         <JobLink id={r.taskId} title={r.title} />
                       </td>
@@ -66,7 +70,7 @@ export function PromotionsView({ rows }: { rows: PromotionRow[] }) {
                         <Pill tone={st.tone}>{st.label}</Pill>
                       </td>
                       <td className="td nowrap small">{r.startsAt ? `${istDate(r.startsAt)} – ${r.endsAt ? istDate(r.endsAt) : '…'}` : 'Not started'}</td>
-                    </tr>
+                    </ClickRow>
                   );
                 })}
               </tbody>
@@ -217,18 +221,21 @@ export function ReportsView({ s, days, earnedMinor }: { s: PlatformStats; days: 
       <Tabs label="Period" items={tabs} />
       <Card title="Money">
         <div className="figures">
-          <div className="figure">
+          <ClickCard className="figure" href="/tasks?filter=finished">
             <span className="figure-label">Value of jobs finished</span>
             <Money minor={s.gmvMinor} className="figure-num" />
             <span className="muted small">Agreed prices of jobs approved in this period</span>
-          </div>
-          <div className="figure">
+            <Link href="/tasks?filter=finished" className="figure-link">
+              Finished jobs →
+            </Link>
+          </ClickCard>
+          <ClickCard className="figure" href="/money">
             <span className="figure-label">TaskDrop earned</span>
             <Money minor={earnedMinor} className="figure-num" />
             <Link href="/money" className="figure-link">
               Earnings →
             </Link>
-          </div>
+          </ClickCard>
         </div>
       </Card>
       <div className="stats">
@@ -264,10 +271,10 @@ export function SearchView({ q, tasks, people }: { q: string; tasks: TaskRow[]; 
                 {tasks.map((t) => {
                   const st = taskStatus(t.status);
                   return (
-                    <li key={t.id}>
+                    <ClickCard as="li" key={t.id} href={`/tasks/${t.id}`}>
                       <JobLink id={t.id} title={t.title} />
                       <Pill tone={st.tone}>{st.label}</Pill>
-                    </li>
+                    </ClickCard>
                   );
                 })}
               </ul>
@@ -279,10 +286,10 @@ export function SearchView({ q, tasks, people }: { q: string; tasks: TaskRow[]; 
             {people.length ? (
               <ul className="plain-list">
                 {people.map((u) => (
-                  <li key={u.id}>
+                  <ClickCard as="li" key={u.id} href={`/users/${u.id}`}>
                     <PersonLink id={u.id} name={u.name} />
                     <span className="muted small">{u.walletMinor ? inr(u.walletMinor) : ''}</span>
-                  </li>
+                  </ClickCard>
                 ))}
               </ul>
             ) : (

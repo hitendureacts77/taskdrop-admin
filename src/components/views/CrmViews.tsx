@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ClickCard, ClickRow } from '../Clickable';
 import { criteriaToQuery, describeCriteria, hasFilters, type Audience, type Broadcast, type CrmOverview, type Criteria, type MemberRow, type Segment, type TagWithCount } from '@/lib/crm';
 import { deleteSegment, deleteTag, updateNote } from '@/lib/crm-actions';
 import { istDate, istDateTime, timeAgo } from '@/lib/format';
@@ -60,7 +61,7 @@ export function CrmHubView({ o, now: nowIso }: { o: CrmOverview; now: string }) 
             {o.followUps.length ? (
               <ul className="plain-list">
                 {o.followUps.map((f) => (
-                  <li key={f.id}>
+                  <ClickCard as="li" key={f.id} href={`/users/${f.userId}`}>
                     <span>
                       <Link href={`/users/${f.userId}`}>{f.person}</Link> — {f.body.length > 120 ? `${f.body.slice(0, 120)}…` : f.body}
                       <span className="muted small block">
@@ -70,7 +71,7 @@ export function CrmHubView({ o, now: nowIso }: { o: CrmOverview; now: string }) 
                     <MiniButton action={updateNote} hidden={{ noteId: f.id, userId: f.userId, what: 'done' }}>
                       Done
                     </MiniButton>
-                  </li>
+                  </ClickCard>
                 ))}
               </ul>
             ) : (
@@ -82,12 +83,12 @@ export function CrmHubView({ o, now: nowIso }: { o: CrmOverview; now: string }) 
             {o.notes.length ? (
               <ul className="plain-list">
                 {o.notes.map((n) => (
-                  <li key={n.id}>
+                  <ClickCard as="li" key={n.id} href={`/users/${n.userId}`}>
                     <span>
                       <Link href={`/users/${n.userId}`}>{n.person}</Link> — {n.body.length > 140 ? `${n.body.slice(0, 140)}…` : n.body}
                       <span className="muted small block">{timeAgo(n.at, now)}</span>
                     </span>
-                  </li>
+                  </ClickCard>
                 ))}
               </ul>
             ) : (
@@ -103,14 +104,14 @@ export function CrmHubView({ o, now: nowIso }: { o: CrmOverview; now: string }) 
             {o.suspended.length ? (
               <ul className="plain-list">
                 {o.suspended.map((s) => (
-                  <li key={s.id}>
+                  <ClickCard as="li" key={s.id} href={`/users/${s.id}`}>
                     <span>
                       <Link href={`/users/${s.id}`}>{s.name}</Link>
                       <span className="muted small block">
                         “{s.reason}” · {istDate(s.at)}
                       </span>
                     </span>
-                  </li>
+                  </ClickCard>
                 ))}
               </ul>
             ) : (
@@ -221,7 +222,7 @@ export function SegmentsView({ d }: { d: SegmentsData }) {
       />
 
       <Card title="Find people" sub="Leave anything blank to ignore it. Suspended people are left out unless you tick the box.">
-        <form action="/crm/segments" method="get" className="seg-form">
+        <form key={query} action="/crm/segments" method="get" className="seg-form">
           <label className="confirm-field">
             <span>Who</span>
             <select name="role" defaultValue={c.role ?? 'any'} className="field">
@@ -308,7 +309,7 @@ export function SegmentsView({ d }: { d: SegmentsData }) {
               </thead>
               <tbody>
                 {d.rows.map((u) => (
-                  <tr key={u.id}>
+                  <ClickRow key={u.id} href={`/users/${u.id}`}>
                     <td className="td">
                       <span className="person">
                         <span className="avatar" aria-hidden="true">
@@ -337,7 +338,7 @@ export function SegmentsView({ d }: { d: SegmentsData }) {
                     </td>
                     <td className="td nowrap">{istDate(u.joinedAt)}</td>
                     <td className="td nowrap muted">{u.lastSeenAt ? timeAgo(u.lastSeenAt, now) : '—'}</td>
-                  </tr>
+                  </ClickRow>
                 ))}
               </tbody>
             </table>
@@ -369,7 +370,7 @@ export function SegmentsView({ d }: { d: SegmentsData }) {
               </thead>
               <tbody>
                 {d.segments.map((s) => (
-                  <tr key={s.id}>
+                  <ClickRow key={s.id} href={`/crm/segments?${criteriaToQuery(s.criteria)}`}>
                     <td className="td">
                       <strong>{s.name}</strong>
                       <span className="muted small block">{s.description}</span>
@@ -395,7 +396,7 @@ export function SegmentsView({ d }: { d: SegmentsData }) {
                         />
                       </span>
                     </td>
-                  </tr>
+                  </ClickRow>
                 ))}
               </tbody>
             </table>

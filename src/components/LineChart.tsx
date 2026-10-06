@@ -1,6 +1,7 @@
 'use client';
 
-import { useId, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { useRouter } from 'next/navigation';
+import { useId, useState, useTransition, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
 import { inr, inrShort } from '@/lib/format';
 
 export type ChartSeries = {
@@ -24,6 +25,8 @@ type Props = {
   summary: string;
   height?: number;
   emptyText?: string;
+  /** Where clicking (or pressing Enter on) each point goes, e.g. that day's list. */
+  pointHrefs?: string[];
 };
 
 function niceScale(max: number): { top: number; step: number } {
@@ -34,7 +37,9 @@ function niceScale(max: number): { top: number; step: number } {
   return { top: step * Math.ceil(max / step), step };
 }
 
-export function LineChart({ labels, ticks, series, summary, height = 260, emptyText }: Props) {
+export function LineChart({ labels, ticks, series, summary, height = 260, emptyText, pointHrefs }: Props) {
+  const router = useRouter();
+  const [opening, startTransition] = useTransition();
   const [active, setActive] = useState<number | null>(null);
   const id = useId();
   const n = labels.length;
@@ -72,10 +77,15 @@ export function LineChart({ labels, ticks, series, summary, height = 260, emptyT
     return `M${pts[0]!.x} ${base} ${pts.map((p) => `L${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ')} L${pts[pts.length - 1]!.x} ${base} Z`;
   };
 
-  const pick = (e: PointerEvent<HTMLDivElement>) => {
+  const indexAt = (e: PointerEvent<HTMLDivElement> | MouseEvent<HTMLDivElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
     const frac = r.width ? (e.clientX - r.left) / r.width : 0;
-    setActive(Math.max(0, Math.min(n - 1, Math.round(frac * (n - 1)))));
+    return Math.max(0, Math.min(n - 1, Math.round(frac * (n - 1))));
+  };
+  const pick = (e: PointerEvent<HTMLDivElement>) => setActive(indexAt(e));
+  const go = (i: number) => {
+    const href = pointHrefs?.[i];
+    if (href) startTransition(() => router.push(href, { scroll: false }));
   };
 
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -85,7 +95,11 @@ export function LineChart({ labels, ticks, series, summary, height = 260, emptyT
     else if (e.key === 'ArrowRight') next = Math.min(n - 1, cur + 1);
     else if (e.key === 'Home') next = 0;
     else if (e.key === 'End') next = n - 1;
-    else if (e.key === 'Escape') {
+    else if (e.key === 'Enter' && pointHrefs) {
+      e.preventDefault();
+      go(cur);
+      return;
+    } else if (e.key === 'Escape') {
       setActive(null);
       return;
     }
@@ -136,14 +150,15 @@ export function LineChart({ labels, ticks, series, summary, height = 260, emptyT
           ))}
         </div>
         <div
-          className="chart-plot"
+          className={`chart-plot${pointHrefs ? ' chart-clickable' : ''}${opening ? ' chart-opening' : ''}`}
           tabIndex={0}
           role="group"
-          aria-label={`${summary} Use the left and right arrow keys to read each point.`}
+          aria-label={`${summary} Use the left and right arrow keys to read each point${pointHrefs ? ', and Enter to open it' : ''}.`}
           aria-describedby={`${id}-live`}
           onPointerMove={pick}
           onPointerDown={pick}
           onPointerLeave={() => setActive(null)}
+          onClick={pointHrefs ? (e) => go(indexAt(e)) : undefined}
           onKeyDown={onKey}
           onFocus={() => setActive((a) => (a === null ? n - 1 : a))}
           onBlur={() => setActive(null)}

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ClickRow } from '../Clickable';
 import type { LedgerEntry } from '@/lib/data';
 import { istDateTime } from '@/lib/format';
 import { LEDGER_KIND, ledgerKind } from '@/lib/labels';
@@ -78,7 +79,7 @@ export function EntriesView({ d }: { d: EntriesData }) {
                 {d.entries.map((l) => {
                   const k = ledgerKind(l.kind);
                   return (
-                    <tr key={l.id}>
+                    <ClickRow key={l.id} href={l.taskId ? `/tasks/${l.taskId}` : qs({ kind: l.kind, before: null })}>
                       <td className="td nowrap">{istDateTime(l.at)}</td>
                       <td className="td">
                         <Pill tone={k.tone}>{k.label}</Pill>
@@ -88,7 +89,7 @@ export function EntriesView({ d }: { d: EntriesData }) {
                       <td className="td num">
                         <Money minor={l.amount} />
                       </td>
-                    </tr>
+                    </ClickRow>
                   );
                 })}
               </tbody>
