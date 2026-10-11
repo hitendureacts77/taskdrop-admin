@@ -20,6 +20,7 @@ export function ConfirmAction({
   consequence,
   field,
   confirmLabel,
+  asSwitch,
 }: {
   action: FormAction;
   hidden: Record<string, string>;
@@ -31,6 +32,8 @@ export function ConfirmAction({
   consequence: ReactNode;
   field?: { name: string; label: string; placeholder?: string; required?: boolean; help?: string; defaultValue?: string; inputMode?: 'text' | 'decimal' | 'numeric' };
   confirmLabel: string;
+  /** Show the first button as an on/off switch in this state; `trigger` becomes its label for screen readers. */
+  asSwitch?: { on: boolean };
 }) {
   const [open, setOpen] = useState(false);
   // Controlled, because React resets an action form's fields after every submit -- a typed UTR must survive an error.
@@ -46,9 +49,15 @@ export function ConfirmAction({
   if (!open) {
     return (
       <div className="confirm-wrap">
-        <button type="button" className={triggerClass} onClick={() => setOpen(true)}>
-          {trigger}
-        </button>
+        {asSwitch ? (
+          <button type="button" role="switch" aria-checked={asSwitch.on} aria-label={trigger} title={trigger} className="switch" onClick={() => setOpen(true)}>
+            <span className="switch-knob" aria-hidden="true" />
+          </button>
+        ) : (
+          <button type="button" className={triggerClass} onClick={() => setOpen(true)}>
+            {trigger}
+          </button>
+        )}
         {state?.ok ? (
           <p className="confirm-done" role="status">
             {state.message}

@@ -1,5 +1,6 @@
 import { MfaPanel } from '@/components/MfaPanel';
-import { Card, Notice, PageHeader } from '@/components/ui';
+import { Card, Notice } from '@/components/ui';
+import { ConfigHeader } from '@/components/views/AdminConfigViews';
 import { requireAdmin } from '@/lib/data';
 import { mfaState } from '@/lib/mfa';
 
@@ -8,17 +9,13 @@ export default async function SecurityPage() {
   const state = await mfaState();
   return (
     <>
-      <PageHeader
-        crumbs={[{ label: 'Security' }]}
-        title="Security"
-        sub="Signing in proves who you are once. Moving money asks again, with a code from your phone."
-      />
+      <ConfigHeader active="security" />
       {state.required && !state.verified ? (
         <Notice tone="gold" icon="alert" title="Money actions are locked for this session.">
           Payouts, refunds, dispute decisions, wallet changes, settings and admin roles need a code from your authenticator app.
         </Notice>
       ) : null}
-      <Card title="Authenticator app">
+      <Card title="Authenticator app" sub="Signing in proves who you are once. Moving money asks again, with a code from your phone.">
         <MfaPanel {...state} />
       </Card>
     </>
