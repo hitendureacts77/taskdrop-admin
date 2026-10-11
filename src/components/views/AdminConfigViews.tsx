@@ -4,8 +4,10 @@ import type { AuditRow, Health, Integrations, Switch, SwitchKey, TeamMember } fr
 import { AUDIT_TABLES } from '@/lib/admin-config';
 import type { PayoutMethod } from '@/lib/data';
 import { inr, istDateTime, phone as prettyPhone, timeAgo } from '@/lib/format';
+import { AREA_LABEL, STAFF_ROLES, roleLabel, staffCan, type StaffArea, type StaffRole } from '@/lib/staff-roles';
 import { ConfirmAction, type FormAction } from '../ConfirmAction';
 import { Icon } from '../Icon';
+import { NotifyToggle, StaffRoleForm } from '../StaffControls';
 import { Card, Empty, Notice, PageHeader, Pager, Pill, Tabs } from '../ui';
 
 // ------------------------------------------------------------------ header --
@@ -52,28 +54,40 @@ const ROLE_LABEL: Record<string, string> = { poster: 'Posts jobs', worker: 'Work
 export function TeamView({
   team,
   meId,
+  meRole,
   allowlist,
   serviceKey,
   add,
   remove,
+  setRole,
+  setNotify,
 }: {
   team: TeamMember[];
   meId: string;
+  meRole: StaffRole;
   allowlist: { email: string; phone: string };
   serviceKey: boolean;
   add: FormAction;
   remove: FormAction;
+  setRole: FormAction;
+  setNotify: FormAction;
 }) {
   const locked = Boolean(allowlist.email || allowlist.phone.length === 10);
   const withMfa = team.filter((m) => m.authenticator).length;
+  const manage = meRole === 'admin';
   return (
     <>
       <ConfigHeader active="team" />
       <div className="figures figures-cards">
         <div className="figure card">
-          <span className="figure-label">Admins</span>
+          <span className="figure-label">Team</span>
           <span className="figure-num plain">{team.length}</span>
-          <span className="muted small">people with the admin role</span>
+          <span className="muted small">
+            {STAFF_ROLES.map((r) => ({ r, n: team.filter((m) => m.staffRole === r.value).length }))
+              .filter((x) => x.n)
+              .map((x) => `${x.n} ${x.r.label}`)
+              .join(' · ') || 'nobody yet'}
+          </span>
         </div>
         <div className="figure card">
           <span className="figure-label">Authenticator set up</span>
@@ -95,16 +109,19 @@ export function TeamView({
 
       <Card
         title="Team"
-        sub="Everyone who can run TaskDrop from this panel. Adding or removing someone asks for your authenticator code and is written to the audit log."
+        sub="Everyone who can run TaskDrop from this panel. Adding, removing or changing someone’s role asks for your authenticator code and is written to the audit log."
         right={
+          !manage ? (
+            <span className="muted small">You’re {roleLabel(meRole)}: only a full Admin can change the team.</span>
+          ) : (
           <ConfirmAction
             action={add}
             hidden={{}}
             trigger="+ Add admin"
-            title="Give someone admin access?"
+            title="Add someone to the team?"
             consequence={
               <>
-                They will see every person, job and rupee in TaskDrop, and can send payouts, refunds and messages.
+                They will see every person, job and rupee in TaskDrop. What they can change depends on the role you pick.
                 {locked ? (
                   <>
                     {' '}
@@ -113,9 +130,11 @@ export function TeamView({
                 ) : null}
               </>
             }
+            choice={{ name: 'role', label: 'Role', defaultValue: 'viewer', options: STAFF_ROLES.map((r) => ({ value: r.value, label: `${r.label}: ${r.short}` })) }}
             field={{ name: 'who', label: 'Their @username', placeholder: '@username', required: true, help: 'They must already have a TaskDrop account.' }}
-            confirmLabel="Make them an admin"
+            confirmLabel="Add to the team"
           />
+          )
         }
         flush
       >
@@ -127,6 +146,7 @@ export function TeamView({
                   <th className="th">Name</th>
                   <th className="th">Signs in with</th>
                   <th className="th">Role</th>
+                  <th className="th">Alerts</th>
                   <th className="th">Panel access</th>
                   <th className="th">Authenticator</th>
                   <th className="th">Last signed in</th>
@@ -156,14 +176,23 @@ export function TeamView({
                       </td>
                       <td className="td small">{m.email && !m.email.endsWith('@phone.taskdrop.app') ? m.email : m.phone ? prettyPhone(m.phone) : m.email ? 'Phone account' : <span className="muted">—</span>}</td>
                       <td className="td">
-                        <span className="role-badges">
-                          <span className="role-badge role-admin">Admin</span>
-                          {m.otherRoles.map((r) => (
-                            <span key={r} className="role-badge">
-                              {ROLE_LABEL[r] ?? r}
-                            </span>
-                          ))}
-                        </span>
+                        {manage && !me ? (
+                          <StaffRoleForm userId={m.id} role={m.staffRole} name={m.name} action={setRole} />
+                        ) : (
+                          <span className={`role-badge role-${m.staffRole}`}>{roleLabel(m.staffRole)}</span>
+                        )}
+                        {m.otherRoles.length ? (
+                          <span className="role-badges role-also">
+                            {m.otherRoles.map((r) => (
+                              <span key={r} className="role-badge">
+                                {ROLE_LABEL[r] ?? r}
+                              </span>
+                            ))}
+                          </span>
+                        ) : null}
+                      </td>
+                      <td className="td">
+                        <NotifyToggle userId={m.id} role={m.staffRole} on={m.notify} name={m.name} action={setNotify} disabled={!me && !manage} />
                       </td>
                       <td className="td">
                         {m.canOpenPanel === null ? (
@@ -185,7 +214,7 @@ export function TeamView({
                           <Link href={`/users/${m.id}`} className="btn btn-small btn-icon" title={`Open ${m.name}`} aria-label={`Open ${m.name}`}>
                             <Icon name="external" size={15} />
                           </Link>
-                          {me ? null : (
+                          {me || !manage ? null : (
                             <ConfirmAction
                               action={remove}
                               hidden={{ userId: m.id }}
@@ -209,27 +238,43 @@ export function TeamView({
         )}
       </Card>
 
-      <Card title="What an admin can do" sub="TaskDrop has one staff role today. Everything below asks for an authenticator code first.">
-        <ul className="perm-grid">
-          {[
-            ['money', 'Send payouts and refunds', 'Pay withdrawals by hand or through RazorpayX, and return money to posters.'],
-            ['scale', 'Decide disputes', 'Release or refund the money held for a disputed job.'],
-            ['people', 'Manage people', 'Notes, tags, suspensions, account deletion and messages.'],
-            ['settings', 'Change settings', 'Fees, waiting periods and the app switches.'],
-            ['shield', 'Manage admins', 'Add and remove people on this page.'],
-            ['chart', 'See everything', 'Every job, person, wallet and ledger line.'],
-          ].map(([icon, title, text]) => (
-            <li key={title}>
-              <span className="stat-icon" aria-hidden="true">
-                <Icon name={icon!} size={17} />
-              </span>
-              <span>
-                <strong>{title}</strong>
-                <span className="muted small block">{text}</span>
-              </span>
-            </li>
-          ))}
-        </ul>
+      <Card
+        title="What each role can do"
+        sub="Enforced by the database, not just this panel. Everyone can see everything and switch their own alerts. Alerts are an in-app notification and phone push: withdrawals and disputes go to Admin and Finance, help requests to Admin and Support."
+        flush
+      >
+        <div className="table-wrap">
+          <table className="table-compact roles-matrix">
+            <thead>
+              <tr>
+                <th className="th">Role</th>
+                {(Object.keys(AREA_LABEL) as StaffArea[]).map((a) => (
+                  <th key={a} className="th" title={AREA_LABEL[a]}>
+                    {AREA_LABEL[a].split(':')[0]}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {STAFF_ROLES.map((r) => (
+                <tr key={r.value}>
+                  <td className="td">
+                    <span className={`role-badge role-${r.value}`}>{r.label}</span>
+                    <span className="muted small block">{r.short}</span>
+                  </td>
+                  {(Object.keys(AREA_LABEL) as StaffArea[]).map((a) => (
+                    <td key={a} className="td" title={AREA_LABEL[a]}>
+                      {staffCan(r.value, a) ? <Pill tone="green">Can change</Pill> : <span className="muted small">View only</span>}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="card-body muted small roles-note">
+          Money: payouts, refunds, wallet changes, disputes. People: help requests, customer notes, tags, messages, suspensions, copyright. Admin: settings, app switches, the team and deleting accounts.
+        </p>
       </Card>
     </>
   );

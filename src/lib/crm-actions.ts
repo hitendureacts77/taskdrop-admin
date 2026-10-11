@@ -5,6 +5,7 @@ import { requireAdmin, isUuid } from './data';
 import { createClient } from './supabase/server';
 import { createClient as createServiceClient } from './supabase/service';
 import { parseCriteria, type Criteria } from './crm';
+import { staffGate } from './staff';
 import type { ActionResult } from '@/components/ConfirmAction';
 
 /**
@@ -30,6 +31,8 @@ const str = (f: FormData, k: string) => String(f.get(k) ?? '').trim();
 
 export async function addNote(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   await requireAdmin();
+  const denied = await staffGate('people');
+  if (denied) return { ok: false, message: denied };
   const userId = str(form, 'userId');
   const body = str(form, 'body');
   const due = str(form, 'followUp');
@@ -51,6 +54,8 @@ export async function addNote(_prev: ActionResult, form: FormData): Promise<Acti
 
 export async function updateNote(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   await requireAdmin();
+  const denied = await staffGate('people');
+  if (denied) return { ok: false, message: denied };
   const id = str(form, 'noteId');
   const userId = str(form, 'userId');
   const what = str(form, 'what');
@@ -70,6 +75,8 @@ export async function updateNote(_prev: ActionResult, form: FormData): Promise<A
 
 export async function deleteNote(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   await requireAdmin();
+  const denied = await staffGate('people');
+  if (denied) return { ok: false, message: denied };
   const id = str(form, 'noteId');
   const userId = str(form, 'userId');
   if (!isUuid(id)) return { ok: false, message: 'That note id looks wrong. Refresh the page.' };
@@ -84,6 +91,8 @@ export async function deleteNote(_prev: ActionResult, form: FormData): Promise<A
 
 export async function assignTag(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   await requireAdmin();
+  const denied = await staffGate('people');
+  if (denied) return { ok: false, message: denied };
   const userId = str(form, 'userId');
   const name = str(form, 'name');
   if (!isUuid(userId)) return { ok: false, message: 'That person id looks wrong. Refresh the page.' };
@@ -98,6 +107,8 @@ export async function assignTag(_prev: ActionResult, form: FormData): Promise<Ac
 
 export async function removeTag(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   await requireAdmin();
+  const denied = await staffGate('people');
+  if (denied) return { ok: false, message: denied };
   const userId = str(form, 'userId');
   const tagId = str(form, 'tagId');
   if (!isUuid(userId) || !isUuid(tagId)) return { ok: false, message: 'That id looks wrong. Refresh the page.' };
@@ -111,6 +122,8 @@ export async function removeTag(_prev: ActionResult, form: FormData): Promise<Ac
 
 export async function deleteTag(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   await requireAdmin();
+  const denied = await staffGate('people');
+  if (denied) return { ok: false, message: denied };
   const tagId = str(form, 'tagId');
   if (!isUuid(tagId)) return { ok: false, message: 'That tag id looks wrong. Refresh the page.' };
   const r = await call('crm_delete_tag', { p_tag: tagId });
@@ -124,6 +137,8 @@ export async function deleteTag(_prev: ActionResult, form: FormData): Promise<Ac
 
 export async function suspendUser(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   await requireAdmin();
+  const denied = await staffGate('people');
+  if (denied) return { ok: false, message: denied };
   const userId = str(form, 'userId');
   const name = str(form, 'name').slice(0, 80) || 'They';
   const reason = str(form, 'reason');
@@ -139,6 +154,8 @@ export async function suspendUser(_prev: ActionResult, form: FormData): Promise<
 
 export async function unsuspendUser(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   await requireAdmin();
+  const denied = await staffGate('people');
+  if (denied) return { ok: false, message: denied };
   const userId = str(form, 'userId');
   const name = str(form, 'name').slice(0, 80) || 'They';
   const note = str(form, 'note');
@@ -161,6 +178,8 @@ export async function unsuspendUser(_prev: ActionResult, form: FormData): Promis
  */
 export async function deleteAccount(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   await requireAdmin();
+  const denied = await staffGate('admin');
+  if (denied) return { ok: false, message: denied };
   const userId = str(form, 'userId');
   const name = str(form, 'name').slice(0, 80) || 'Their';
   const reason = str(form, 'reason');
@@ -205,6 +224,8 @@ function criteriaFrom(form: FormData): Criteria {
 
 export async function saveSegment(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   await requireAdmin();
+  const denied = await staffGate('people');
+  if (denied) return { ok: false, message: denied };
   const name = str(form, 'name');
   const criteria = criteriaFrom(form);
   if (!name) return { ok: false, message: 'Give the segment a name.' };
@@ -217,6 +238,8 @@ export async function saveSegment(_prev: ActionResult, form: FormData): Promise<
 
 export async function deleteSegment(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   await requireAdmin();
+  const denied = await staffGate('people');
+  if (denied) return { ok: false, message: denied };
   const id = str(form, 'segmentId');
   if (!isUuid(id)) return { ok: false, message: 'That segment id looks wrong. Refresh the page.' };
   const r = await call('crm_delete_segment', { p_id: id });
@@ -234,6 +257,8 @@ export async function deleteSegment(_prev: ActionResult, form: FormData): Promis
  */
 export async function sendBroadcast(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   await requireAdmin();
+  const denied = await staffGate('people');
+  if (denied) return { ok: false, message: denied };
   const title = str(form, 'title');
   const body = str(form, 'body');
   const audience = str(form, 'audience');

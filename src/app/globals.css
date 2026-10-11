@@ -2064,3 +2064,16 @@ select.field { appearance: auto; }
 .audit-filters { padding-top: 12px; padding-bottom: 12px; }
 .audit-raw summary { cursor: pointer; color: var(--muted); font-weight: 600; }
 .audit-raw pre { margin: 8px 0 0; max-width: 420px; max-height: 260px; overflow: auto; padding: 10px; border-radius: 8px; background: var(--sunk); font-size: 11.5px; white-space: pre-wrap; word-break: break-word; }
+
+.role-badge.role-finance { background: var(--blue-soft); color: var(--blue-deep); border-color: var(--blue-line); }
+.role-badge.role-support { background: #f1ebfc; color: #5a32a3; border-color: #d9c9f6; }
+.role-badge.role-viewer { background: var(--sunk); color: var(--ink2); }
+.role-also { display: flex; margin-top: 4px; }
+.staff-role-form { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.field-compact { width: auto; min-height: 32px; padding: 4px 8px; font-size: 13px; }
+.staff-notify { display: inline-flex; flex-direction: column; gap: 4px; }
+.switch:disabled { opacity: 0.5; cursor: not-allowed; }
+.staff-msg { font-size: 12px; max-width: 260px; }
+.staff-msg.bad { color: #a1281f; }
+.roles-matrix .td { vertical-align: top; }
+.roles-note { margin: 0; border-top: 1px solid var(--line); }

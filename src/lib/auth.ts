@@ -1,6 +1,9 @@
+import { cache } from 'react';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { asStaffRole, type StaffRole } from './staff-roles';
 import { createClient } from './supabase/server';
 
-export type AdminUser = { id: string; email: string | null };
+export type AdminUser = { id: string; email: string | null; staffRole: StaffRole };
 
 /**
  * Who may open this panel, on top of holding the admin role in the database.
@@ -43,7 +46,7 @@ export type AdminCheck =
  * every gated page, since this is the check standing in front of every
  * money-moving screen.
  */
-export async function checkAdmin(): Promise<AdminCheck> {
+export const checkAdmin = cache(async function checkAdmin(): Promise<AdminCheck> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -60,5 +63,12 @@ export async function checkAdmin(): Promise<AdminCheck> {
   if (!role) return { status: 'forbidden' };
   // A database admin outside the allowlist is still turned away here.
   if (!isAllowedIdentity(user.email ?? null)) return { status: 'forbidden' };
-  return { status: 'ok', user: { id: user.id, email: user.email ?? null } };
-}
+  // No admin_staff row (or no migration 089 yet) means a full admin.
+  const { data: staff } = await (supabase as unknown as SupabaseClient)
+    .from('admin_staff')
+    .select('staff_role')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  const staffRole = asStaffRole((staff as { staff_role?: string } | null)?.staff_role);
+  return { status: 'ok', user: { id: user.id, email: user.email ?? null, staffRole } };
+});

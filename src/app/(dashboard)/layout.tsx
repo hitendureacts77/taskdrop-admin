@@ -5,6 +5,7 @@ import { Icon } from '@/components/Icon';
 import { IdleGuard } from '@/components/IdleGuard';
 import { getNavCounts, requireAdmin } from '@/lib/data';
 import { mfaState } from '@/lib/mfa';
+import { roleLabel } from '@/lib/staff-roles';
 import { createClient } from '@/lib/supabase/server';
 
 async function signOutAction() {
@@ -51,6 +52,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
             <Link href="/security" className="top-user" title={`${user.email ?? 'Admin'}: your sign-in and authenticator code`}>
               {user.email ?? 'Admin'}
             </Link>
+            {user.staffRole !== 'admin' ? (
+              <Link href="/settings/team" className="chip" title="Your staff role: what you can change in this panel">
+                {roleLabel(user.staffRole)}
+              </Link>
+            ) : null}
             <form action={signOutAction}>
               <button type="submit" className="btn btn-small">
                 <Icon name="logout" size={14} /> Sign out

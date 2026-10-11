@@ -4,6 +4,7 @@ import { adminAllowlist, isAllowedIdentity } from './auth';
 import { getNavCounts, getRazorpayXState, getPayoutMethod, hasServiceKey, type NavCounts, type PayoutMethod, type RazorpayXState } from './data';
 import { createClient as createSessionClient } from './supabase/server';
 import { createClient as createServiceClient } from './supabase/service';
+import { asStaffRole, type StaffRole } from './staff-roles';
 
 /**
  * Reads for the Admin & configuration screens (team, switches, integrations,
@@ -29,6 +30,9 @@ export type TeamMember = {
   username: string | null;
   /** Also posts or works in the app. */
   otherRoles: string[];
+  staffRole: StaffRole;
+  /** Gets staff alerts (withdrawals, disputes, help requests) in the app. */
+  notify: boolean;
   email: string | null;
   phone: string | null;
   lastSignIn: string | null;
@@ -45,10 +49,13 @@ export async function getTeam(): Promise<TeamMember[]> {
   const ids = [...new Set(((admins ?? []) as { user_id: string }[]).map((r) => r.user_id))];
   if (!ids.length) return [];
 
-  const [{ data: roles }, { data: profs }] = await Promise.all([
+  const [{ data: roles }, { data: profs }, { data: staffRows }] = await Promise.all([
     supabase.from('user_roles').select('user_id, role').in('user_id', ids),
     supabase.from('profiles').select('id, display_name, username').in('id', ids),
+    // Newer than the generated types (migration 089).
+    (supabase as unknown as SupabaseClient).from('admin_staff').select('user_id, staff_role, notify').in('user_id', ids),
   ]);
+  const staff = new Map(((staffRows ?? []) as { user_id: string; staff_role: string; notify: boolean }[]).map((r) => [r.user_id, r]));
   const all = (roles ?? []) as { user_id: string; role: string }[];
   const byId = new Map(((profs ?? []) as { id: string; display_name: string; username: string | null }[]).map((p) => [p.id, p]));
 
@@ -79,6 +86,8 @@ export async function getTeam(): Promise<TeamMember[]> {
         name: p?.display_name || 'No name yet',
         username: p?.username ?? null,
         otherRoles: all.filter((r) => r.user_id === id && r.role !== 'admin').map((r) => r.role),
+        staffRole: asStaffRole(staff.get(id)?.staff_role),
+        notify: staff.get(id)?.notify ?? true,
         email: a?.email ?? null,
         phone: a?.phone ?? null,
         lastSignIn: a?.last ?? null,

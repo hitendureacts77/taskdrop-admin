@@ -58,13 +58,28 @@ The database schema lives in the TaskDrop app repo (`supabase/migrations/`). Thr
 | Help requests | Read and reply (they get a notification in the app), mark resolved |
 | Promotions | Paid job boosts |
 | Reports | Jobs, people and earnings over 7 days to a year |
-| Admin & configuration | Tabs: **Team & access** (every admin, their sign-in, allowlist and authenticator status; add or remove an admin), **Money & timing** (service fee, waiting periods and more, each change confirmed first), **App switches** (authenticator requirement, developer sign-in), **Integrations** (Supabase, service key, sign-in allowlist, RazorpayX, Razorpay, push), **System health** (each feature's table or function checked live, queues, latest activity), **Audit log** (every change the database records, with before and after) and **My security** |
+| Admin & configuration | Tabs: **Team & access** (every admin with their staff role, alerts switch, sign-in, allowlist and authenticator status; add someone with a role, change a role, remove someone), **Money & timing** (service fee, waiting periods and more, each change confirmed first), **App switches** (authenticator requirement, developer sign-in), **Integrations** (Supabase, service key, sign-in allowlist, RazorpayX, Razorpay, push), **System health** (each feature's table or function checked live, queues, latest activity), **Audit log** (every change the database records, with before and after) and **My security** |
 | Customer hub (CRM) | Follow-ups that are due, people who are suspended, every tag, recent notes and the latest messages |
 | Segments (CRM) | Find a group by what they do (role, joined, not seen for N days, tag, wallet, never posted, available now), save it, message it, download it |
 | Messages (CRM) | Send a message to a person, a tag, a saved segment, everyone or your current filters. The count is shown before you confirm; it lands in their notifications and sends a phone push |
 | Search | Jobs and people by name |
 
 Every button that moves money first shows exactly what will happen to whose money, and asks you to confirm.
+
+## Staff roles
+
+Every admin holds `admin` in `user_roles`; `admin_staff` (migration `089_staff_roles`, in the TaskDrop app repo) narrows what they may change:
+
+| Role | Can change |
+| --- | --- |
+| Admin (default, no row) | Everything |
+| Finance | Payouts, refunds, wallet changes, dispute decisions |
+| Support | Help requests, CRM notes, tags, segments and messages, suspensions, copyright |
+| Viewer | Nothing; sees everything |
+
+Settings, app switches, the team and deleting accounts are Admin only. The database enforces this with a trigger on each table those actions write (`private.require_staff_permission`), so it holds whatever client calls. The panel checks first (`src/lib/staff.ts`) to say so plainly, and is the only check for refunds and RazorpayX, which run through edge functions as the service role. Changing a role needs an authenticator code; there is always at least one full Admin, and nobody can change their own role.
+
+`admin_staff.notify` sends staff alerts (an in-app notification and push, kind `staff_alert`): withdrawals and disputes to Admin and Finance, help requests to Admin and Support. Anyone can switch their own alerts on or off.
 
 ## CRM
 
