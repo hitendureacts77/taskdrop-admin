@@ -20,6 +20,8 @@ export function ConfirmAction({
   consequence,
   field,
   confirmLabel,
+  asSwitch,
+  choice,
 }: {
   action: FormAction;
   hidden: Record<string, string>;
@@ -31,10 +33,15 @@ export function ConfirmAction({
   consequence: ReactNode;
   field?: { name: string; label: string; placeholder?: string; required?: boolean; help?: string; defaultValue?: string; inputMode?: 'text' | 'decimal' | 'numeric' };
   confirmLabel: string;
+  /** Show the first button as an on/off switch in this state; `trigger` becomes its label for screen readers. */
+  asSwitch?: { on: boolean };
+  /** A pick-one list shown above the text field, e.g. a staff role. */
+  choice?: { name: string; label: string; options: { value: string; label: string }[]; defaultValue: string; help?: string };
 }) {
   const [open, setOpen] = useState(false);
   // Controlled, because React resets an action form's fields after every submit -- a typed UTR must survive an error.
   const [value, setValue] = useState(field?.defaultValue ?? '');
+  const [picked, setPicked] = useState(choice?.defaultValue ?? '');
   const [state, formAction, pending] = useActionState(action, null);
 
   useEffect(() => {
@@ -46,9 +53,15 @@ export function ConfirmAction({
   if (!open) {
     return (
       <div className="confirm-wrap">
-        <button type="button" className={triggerClass} onClick={() => setOpen(true)}>
-          {trigger}
-        </button>
+        {asSwitch ? (
+          <button type="button" role="switch" aria-checked={asSwitch.on} aria-label={trigger} title={trigger} className="switch" onClick={() => setOpen(true)}>
+            <span className="switch-knob" aria-hidden="true" />
+          </button>
+        ) : (
+          <button type="button" className={triggerClass} onClick={() => setOpen(true)}>
+            {trigger}
+          </button>
+        )}
         {state?.ok ? (
           <p className="confirm-done" role="status">
             {state.message}
@@ -65,6 +78,19 @@ export function ConfirmAction({
       ))}
       <strong className="confirm-title">{title}</strong>
       <div className="confirm-body">{consequence}</div>
+      {choice ? (
+        <label className="confirm-field">
+          <span>{choice.label}</span>
+          <select className="field" name={choice.name} value={picked} onChange={(e: ChangeEvent<HTMLSelectElement>) => setPicked(e.target.value)}>
+            {choice.options.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          {choice.help ? <small>{choice.help}</small> : null}
+        </label>
+      ) : null}
       {field ? (
         <label className="confirm-field">
           <span>{field.label}</span>

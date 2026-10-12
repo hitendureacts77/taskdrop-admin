@@ -4,6 +4,7 @@ import type { PlatformStats, PromotionRow, SettingRow, TaskRow, UserRow } from '
 import { inr, istDate, istDateTime, pct } from '@/lib/format';
 import { PROMOTION_STATUS, taskStatus } from '@/lib/labels';
 import { ConfirmAction, type FormAction } from '../ConfirmAction';
+import { ConfigHeader } from './AdminConfigViews';
 import { Card, Empty, JobLink, Money, Notice, PageHeader, PersonLink, Pill, SearchBox, StatLink, Tabs } from '../ui';
 
 // -------------------------------------------------------------- promotions --
@@ -127,7 +128,7 @@ const SETTINGS: Record<string, Info> = {
   max_video_seconds: { label: 'Longest video on a job post', help: 'In seconds.', kind: 'seconds', editable: true },
   dev_otp_for_all: {
     label: 'Developer sign-in switch (dev_otp_for_all)',
-    help: 'A testing switch for sign-in codes that affects every account. Read-only here on purpose. Check what it does in your app code; switches like this are normally Off once real people use the app.',
+    help: 'A testing switch for sign-in codes that affects every account. Turn it on or off on the App switches tab; it should be Off once real people use the app.',
     kind: 'bool',
     editable: false,
   },
@@ -155,11 +156,11 @@ export function SettingsView({ rows, update }: { rows: SettingRow[]; update: For
   const other = rows.filter((r) => !SETTINGS[r.key]);
   return (
     <>
-      <PageHeader crumbs={[{ label: 'Settings' }]} title="Settings" sub="The numbers the whole app runs on. Every change asks you to confirm, and says what it affects." />
+      <ConfigHeader active="settings" />
       <Notice tone="gold" icon="alert" title="These change the app for everyone, straight away.">
         The database reads them every time money moves, so a change here is live the moment you confirm it.
       </Notice>
-      <Card title="Money and timing" flush>
+      <Card title="Money and timing" sub="The numbers the whole app runs on. Every change asks you to confirm, and says what it affects." flush>
         <ul className="settings">
           {known.map((r) => {
             const info = SETTINGS[r.key]!;

@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { requireAdmin, isUuid, getRazorpayXState } from './data';
 import { moneyMfaGate } from './mfa';
 import { createClient } from './supabase/server';
+import { staffGate } from './staff';
 import type { ActionResult } from '@/components/ConfirmAction';
 
 /**
@@ -29,6 +30,8 @@ function friendly(message: string): string {
 
 export async function markPayout(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   await requireAdmin();
+  const denied = await staffGate('money');
+  if (denied) return { ok: false, message: denied };
   // Money needs an authenticator code on top of sign-in (lib/mfa.ts).
   const mfa = await moneyMfaGate();
   if (mfa) return { ok: false, message: mfa };
@@ -70,6 +73,8 @@ export async function markPayout(_prev: ActionResult, form: FormData): Promise<A
 /** The Payouts page's switch: pay withdrawals by hand, or let RazorpayX send them. */
 export async function setPayoutMethod(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   await requireAdmin();
+  const denied = await staffGate('admin');
+  if (denied) return { ok: false, message: denied };
   const mfa = await moneyMfaGate();
   if (mfa) return { ok: false, message: mfa };
   const method = String(form.get('method') ?? '');
@@ -112,6 +117,8 @@ type Outcome = { id: string; status: string; providerStatus?: string | null; not
  */
 export async function checkWithRazorpayX(_prev: ActionResult, _form: FormData): Promise<ActionResult> {
   await requireAdmin();
+  const denied = await staffGate('money');
+  if (denied) return { ok: false, message: denied };
   // Money needs an authenticator code on top of sign-in (lib/mfa.ts).
   const mfa = await moneyMfaGate();
   if (mfa) return { ok: false, message: mfa };
@@ -145,6 +152,8 @@ export async function checkWithRazorpayX(_prev: ActionResult, _form: FormData): 
  */
 export async function giveBackPayout(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   await requireAdmin();
+  const denied = await staffGate('money');
+  if (denied) return { ok: false, message: denied };
   // Money needs an authenticator code on top of sign-in (lib/mfa.ts).
   const mfa = await moneyMfaGate();
   if (mfa) return { ok: false, message: mfa };
@@ -168,6 +177,8 @@ export async function giveBackPayout(_prev: ActionResult, form: FormData): Promi
 
 export async function resolveDispute(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   await requireAdmin();
+  const denied = await staffGate('money');
+  if (denied) return { ok: false, message: denied };
   // Money needs an authenticator code on top of sign-in (lib/mfa.ts).
   const mfa = await moneyMfaGate();
   if (mfa) return { ok: false, message: mfa };
@@ -206,6 +217,8 @@ export async function resolveDispute(_prev: ActionResult, form: FormData): Promi
  */
 export async function sendRefund(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   await requireAdmin();
+  const denied = await staffGate('money');
+  if (denied) return { ok: false, message: denied };
   // Money needs an authenticator code on top of sign-in (lib/mfa.ts).
   const mfa = await moneyMfaGate();
   if (mfa) return { ok: false, message: mfa };
@@ -241,6 +254,8 @@ export async function sendRefund(_prev: ActionResult, form: FormData): Promise<A
 
 export async function replyTicket(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   await requireAdmin();
+  const denied = await staffGate('people');
+  if (denied) return { ok: false, message: denied };
   const id = String(form.get('ticketId') ?? '');
   const body = String(form.get('body') ?? '').trim();
   if (!isUuid(id)) return { ok: false, message: 'That conversation id looks wrong.' };
@@ -255,6 +270,8 @@ export async function replyTicket(_prev: ActionResult, form: FormData): Promise<
 
 export async function resolveTicket(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   await requireAdmin();
+  const denied = await staffGate('people');
+  if (denied) return { ok: false, message: denied };
   const id = String(form.get('ticketId') ?? '');
   if (!isUuid(id)) return { ok: false, message: 'That conversation id looks wrong.' };
   const supabase = await createClient();
@@ -283,6 +300,8 @@ const EDITABLE: Record<string, { kind: 'percent' | 'days' | 'count' | 'bool'; mi
 
 export async function updateSetting(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   await requireAdmin();
+  const denied = await staffGate('admin');
+  if (denied) return { ok: false, message: denied };
   // Money needs an authenticator code on top of sign-in (lib/mfa.ts).
   const mfa = await moneyMfaGate();
   if (mfa) return { ok: false, message: mfa };

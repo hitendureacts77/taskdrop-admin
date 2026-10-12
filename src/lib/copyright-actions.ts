@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { requireAdmin, isUuid } from './data';
 import { createClient } from './supabase/server';
+import { staffGate } from './staff';
 import type { ActionResult } from '@/components/ConfirmAction';
 
 /**
@@ -36,6 +37,8 @@ function done(message: string): ActionResult {
 
 export async function logNotice(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   await requireAdmin();
+  const denied = await staffGate('people');
+  if (denied) return { ok: false, message: denied };
   const complainant = str(form, 'complainant');
   const email = str(form, 'email');
   const work = str(form, 'work');
@@ -64,6 +67,8 @@ export async function logNotice(_prev: ActionResult, form: FormData): Promise<Ac
 
 export async function takeDown(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   await requireAdmin();
+  const denied = await staffGate('people');
+  if (denied) return { ok: false, message: denied };
   const id = str(form, 'id');
   const what = str(form, 'what');
   if (!isUuid(id)) return { ok: false, message: 'That notice id looks wrong. Refresh the page.' };
@@ -75,6 +80,8 @@ export async function takeDown(_prev: ActionResult, form: FormData): Promise<Act
 
 export async function rejectNotice(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   await requireAdmin();
+  const denied = await staffGate('people');
+  if (denied) return { ok: false, message: denied };
   const id = str(form, 'id');
   const note = str(form, 'note');
   if (!isUuid(id)) return { ok: false, message: 'That notice id looks wrong. Refresh the page.' };
@@ -86,6 +93,8 @@ export async function rejectNotice(_prev: ActionResult, form: FormData): Promise
 
 export async function recordCounter(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   await requireAdmin();
+  const denied = await staffGate('people');
+  if (denied) return { ok: false, message: denied };
   const id = str(form, 'id');
   if (!isUuid(id)) return { ok: false, message: 'That notice id looks wrong. Refresh the page.' };
   const r = await call<string>('admin_copyright_counter', { p_notice: id, p_note: str(form, 'note').slice(0, 1000) || null });
@@ -96,6 +105,8 @@ export async function recordCounter(_prev: ActionResult, form: FormData): Promis
 
 export async function restoreNotice(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   await requireAdmin();
+  const denied = await staffGate('people');
+  if (denied) return { ok: false, message: denied };
   const id = str(form, 'id');
   if (!isUuid(id)) return { ok: false, message: 'That notice id looks wrong. Refresh the page.' };
   const r = await call('admin_copyright_restore', { p_notice: id });

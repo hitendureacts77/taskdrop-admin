@@ -41,7 +41,7 @@ const SECTIONS: { title: string | null; items: Item[] }[] = [
     title: 'Reports & settings',
     items: [
       { href: '/reports', label: 'Reports', icon: 'chart' },
-      { href: '/settings', label: 'Settings', icon: 'settings' },
+      { href: '/settings/team', label: 'Admin & configuration', icon: 'settings' },
       { href: '/security', label: 'Security', icon: 'shield' },
     ],
   },
@@ -49,7 +49,12 @@ const SECTIONS: { title: string | null; items: Item[] }[] = [
 
 export function Sidebar({ counts }: { counts: Counts }) {
   const pathname = usePathname() ?? '/';
-  const isActive = (href: string) => (href === '/' || href === '/crm' ? pathname === href : pathname === href || pathname.startsWith(`${href}/`));
+  const isActive = (href: string) =>
+    href === '/settings/team'
+      ? pathname === '/settings' || pathname.startsWith('/settings/')
+      : href === '/' || href === '/crm'
+        ? pathname === href
+        : pathname === href || pathname.startsWith(`${href}/`);
 
   return (
     <aside className="sidebar" aria-label="Main">
