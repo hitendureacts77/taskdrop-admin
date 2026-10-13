@@ -248,10 +248,25 @@ h3 {
   color: #fff;
   text-decoration: none;
 }
+/* Active item -- design from 21st.dev "Sidebar Nav Group": filled row with an accent bar. */
+.nav-link {
+  position: relative;
+  transition: background 0.12s;
+}
 .nav-link[aria-current='page'] {
   background: var(--brand-strong);
   color: #fff;
   font-weight: 700;
+}
+.nav-link[aria-current='page']::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 8px;
+  bottom: 8px;
+  width: 4px;
+  border-radius: 0 4px 4px 0;
+  background: var(--brand-line);
 }
 .nav-badge {
   margin-left: auto;
@@ -614,16 +629,29 @@ h3 {
   color: #fff;
 }
 
+/* Change badge -- design from 21st.dev "Statistics Card 7" (sean0205): a tinted pill, words kept. */
 .delta {
   font-size: 12.5px;
   font-weight: 700;
   color: var(--muted);
 }
+.delta.up,
+.delta.down {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
 .delta.up {
   color: var(--brand-strong);
+  background: var(--brand-soft);
+  border-color: var(--brand-line);
 }
 .delta.down {
   color: var(--signal-deep);
+  background: var(--signal-soft);
+  border-color: var(--signal-line);
 }
 .delta.on-dark {
   display: inline-flex;
@@ -1102,15 +1130,14 @@ h3 {
 .table-wrap {
   overflow-x: auto;
 }
+/* Table head -- design from 21st.dev "Card Table" (felipemenezes098): quiet sentence-case head over a hair rule. */
 .th {
-  font-size: 11.5px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-size: 12.5px;
+  font-weight: 600;
   color: var(--muted);
-  text-transform: uppercase;
   text-align: left;
-  padding: 10px 16px;
-  background: var(--sunk);
+  padding: 11px 16px;
+  background: transparent;
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
   white-space: nowrap;
@@ -1164,44 +1191,86 @@ tbody tr:hover .td {
 
 /* ------------------------------------------------------------------ pills -- */
 
+/*
+ * Status pills -- design from 21st.dev "Status" by diceui: a tinted, hair-lined
+ * pill with a dot that sits in a soft halo. The halo only pulses for states
+ * that are waiting on someone (gold, red), and never for people who ask the
+ * browser for reduced motion.
+ */
 .pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   min-height: 24px;
-  padding: 2px 10px;
+  padding: 2px 10px 2px 8px;
   border-radius: 999px;
+  border: 1px solid transparent;
   font-size: 12px;
   font-weight: 700;
   line-height: 1.25;
+  white-space: nowrap;
 }
 .pill-dot {
-  width: 7px;
-  height: 7px;
+  position: relative;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: currentColor;
   flex: none;
 }
+.pill-dot::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.16;
+}
+.pill-gold .pill-dot::before,
+.pill-red .pill-dot::before {
+  animation: pill-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+@keyframes pill-ping {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.32;
+  }
+  75%,
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pill-gold .pill-dot::before,
+  .pill-red .pill-dot::before {
+    animation: none;
+  }
+}
 .pill-green {
   background: var(--brand-soft);
+  border-color: var(--brand-line);
   color: var(--brand-strong);
 }
 .pill-gold {
   background: var(--gold-soft);
+  border-color: var(--gold-line);
   color: var(--gold-ink);
 }
 .pill-blue {
   background: var(--blue-soft);
+  border-color: var(--blue-line);
   color: var(--blue-deep);
 }
 .pill-red {
   background: var(--signal-soft);
+  border-color: var(--signal-line);
   color: var(--signal-deep);
 }
 .pill-grey {
   background: var(--sunk);
   color: var(--ink2);
-  border: 1px solid var(--line);
+  border-color: var(--line);
 }
 .pill-row {
   display: inline-flex;
@@ -1859,6 +1928,9 @@ tbody tr:hover .td {
   }
   .nav-link {
     white-space: nowrap;
+  }
+  .nav-link[aria-current='page']::before {
+    display: none;
   }
   .topbar {
     position: static;
