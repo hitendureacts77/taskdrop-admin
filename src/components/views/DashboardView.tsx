@@ -6,6 +6,8 @@ import { CHART_COLORS, payoutStage, PAYOUT_STAGE } from '@/lib/labels';
 import { ClickCard, ClickRow } from '../Clickable';
 import { Icon } from '../Icon';
 import { LineChart } from '../LineChart';
+import { LiveFeed } from '../LiveFeed';
+import { LiveStrip } from '../LiveStrip';
 import { Card, Delta, Empty, Money, PageHeader, Pill, StatLink, Swatch, Tabs } from '../ui';
 import { WhoseMoney } from '../WhoseMoney';
 import { earningsChart, rangeTabs, versus } from '../earningsChart';
@@ -94,13 +96,15 @@ export function DashboardView({ d }: { d: DashboardData }) {
         sub={`${greeting(now)}. Here is TaskDrop today, ${now.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'long', day: 'numeric', month: 'long' })}.`}
         right={
           <span className="updated">
-            Updated {istTime(d.now)} ·{' '}
+            Money figures as of {istTime(d.now)} ·{' '}
             <Link href="/" prefetch={false}>
               <Icon name="refresh" size={14} /> Refresh
             </Link>
           </span>
         }
       />
+
+      <LiveStrip />
 
       <div className="tiles">
         <ClickCard className="tile tile-earn" href="/money">
@@ -264,6 +268,8 @@ export function DashboardView({ d }: { d: DashboardData }) {
           </div>
         </Card>
       </div>
+
+      <LiveFeed />
 
       <div className="grid-2">
         <Card title="Things to do" right={<Pill tone={openTodos ? 'gold' : 'green'}>{openTodos ? `${openTodos} need you` : 'All clear'}</Pill>}>

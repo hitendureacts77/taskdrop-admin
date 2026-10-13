@@ -772,6 +772,7 @@ export const TASK_FILTERS = [
   { key: 'escrow', label: 'Money held' },
   { key: 'open', label: 'Getting quotes' },
   { key: 'active', label: 'Hired & in progress' },
+  { key: 'overdue', label: 'Overdue' },
   { key: 'waiting', label: "Waiting for poster's OK" },
   { key: 'disputed', label: 'Disputed' },
   { key: 'finished', label: 'Finished' },
@@ -826,6 +827,11 @@ export async function getTasks(filter: TaskFilter, search: string | undefined, p
       break;
     case 'active':
       q = q.in('status', ACTIVE as never);
+      break;
+    case 'overdue':
+      // Same rule as admin_live_counters() (migration 091): marked overdue, or
+      // still in progress past its due time.
+      q = q.or(`status.eq.OVERDUE,and(status.in.(LOCKED,TASK_STARTED,REVISION_REQUESTED),due_at.lt.${new Date().toISOString()})`);
       break;
     case 'waiting':
       q = q.eq('status', 'WORK_DONE');
@@ -1047,6 +1053,7 @@ export async function getTask(id: string): Promise<TaskDetail | null> {
 export const USER_FILTERS = [
   { key: 'all', label: 'Everyone' },
   { key: 'new_today', label: 'Joined today' },
+  { key: 'online', label: 'Online now' },
   { key: 'available', label: 'Available now' },
   { key: 'workers', label: 'Workers' },
   { key: 'money', label: 'Money in wallet' },
@@ -1170,6 +1177,8 @@ export async function getUsers(
   if (restrictTo) q = q.in('id', restrictTo);
   if (filter === 'new_today') q = q.gte('created_at', startOfIstDay().toISOString());
   if (filter === 'available') q = q.gt('live_until', new Date().toISOString());
+  // Same window as the app's "Active now" (apps/mobile/src/lib/presence.ts).
+  if (filter === 'online') q = q.gt('last_seen_at', new Date(Date.now() - 3 * 60_000).toISOString()).is('deleted_at', null);
   if (filter === 'workers') q = q.not('worker_onboarded_at', 'is', null);
   if (filter === 'deleted') q = q.not('deleted_at', 'is', null);
   const s = cleanSearch(search);
