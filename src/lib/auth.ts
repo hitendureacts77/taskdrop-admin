@@ -3,7 +3,13 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { asStaffRole, type StaffRole } from './staff-roles';
 import { createClient } from './supabase/server';
 
-export type AdminUser = { id: string; email: string | null; staffRole: StaffRole };
+export type AdminUser = {
+  id: string;
+  email: string | null;
+  staffRole: StaffRole;
+  /** admin_staff.notify: whether this person wants staff alerts (default on). */
+  notify: boolean;
+};
 
 /**
  * Who may open this panel, on top of holding the admin role in the database.
@@ -66,9 +72,10 @@ export const checkAdmin = cache(async function checkAdmin(): Promise<AdminCheck>
   // No admin_staff row (or no migration 089 yet) means a full admin.
   const { data: staff } = await (supabase as unknown as SupabaseClient)
     .from('admin_staff')
-    .select('staff_role')
+    .select('staff_role, notify')
     .eq('user_id', user.id)
     .maybeSingle();
-  const staffRole = asStaffRole((staff as { staff_role?: string } | null)?.staff_role);
-  return { status: 'ok', user: { id: user.id, email: user.email ?? null, staffRole } };
+  const row = staff as { staff_role?: string; notify?: boolean } | null;
+  const staffRole = asStaffRole(row?.staff_role);
+  return { status: 'ok', user: { id: user.id, email: user.email ?? null, staffRole, notify: row?.notify !== false } };
 });

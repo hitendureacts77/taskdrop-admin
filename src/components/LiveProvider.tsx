@@ -1,10 +1,13 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import type { RealtimeChannel } from '@supabase/supabase-js';
-import { createClient } from '@/lib/supabase/browser';
+import { alertFor, type LiveAlert } from '@/lib/live-alerts';
 import type { LiveCounters, LiveEvent, LiveNav, LiveSnapshot } from '@/lib/live-types';
+import { needsSummary, rankNeeds, type NeedsItem, type RankedNeed } from '@/lib/needs-you';
+import type { StaffRole } from '@/lib/staff-roles';
+import { createClient } from '@/lib/supabase/browser';
 
 /**
  * The panel's one live connection (migration 091 in the TaskDrop app repo).
@@ -19,21 +22,43 @@ import type { LiveCounters, LiveEvent, LiveNav, LiveSnapshot } from '@/lib/live-
  * - Server-rendered pages (money tiles, lists) refresh only while someone is
  *   actually using the panel. Background re-reads carry x-td-background so
  *   the idle sign-out still happens when nobody is there.
+ *
+ * It also holds "Needs you now" (ranked against this browser's clock, so the
+ * deadlines tick without a re-read) and the alerts: a chime and a desktop
+ * notification when something arrives that this person can act on. Alerts are
+ * the person's own choice (the Alerts button), kept in this browser only, and
+ * switched off for good by their `notify` setting on the team page.
  */
 
 export type LiveStatus = 'connecting' | 'live' | 'reconnecting' | 'unavailable';
+
+export type AlertsState = {
+  /** This browser can show notifications / play sound. */
+  supported: boolean;
+  /** Notification permission: 'unsupported' when the browser has none. */
+  permission: NotificationPermission | 'unsupported';
+  /** The person has switched alerts on in this browser. */
+  enabled: boolean;
+  /** False when their team setting turns alerts off for them. */
+  allowed: boolean;
+  setEnabled: (on: boolean) => Promise<void>;
+};
 
 type LiveState = {
   status: LiveStatus;
   counters: LiveCounters | null;
   nav: LiveNav | null;
   events: LiveEvent[];
+  /** Waiting on a person, most urgent first. Null until the first read. */
+  needs: RankedNeed[] | null;
+  needsSummary: { total: number; late: number; soon: number };
   /** False until the first snapshot arrives. */
   loaded: boolean;
-  /** Feed events that arrived while paused. */
   paused: boolean;
   setPaused: (on: boolean) => void;
+  /** Feed events that arrived while paused. */
   held: number;
+  alerts: AlertsState;
 };
 
 const LiveContext = createContext<LiveState | null>(null);
@@ -49,7 +74,10 @@ const SETTLE_MS = 1_200;
 const REFRESH_MS = 8_000;
 /** Someone who touched the panel this recently is "using it". */
 const ACTIVE_MS = 2 * 60_000;
+/** Re-rank the queue against the clock this often. */
+const TICK_MS = 30_000;
 const KEEP = 100;
+const ALERTS_KEY = 'td_admin_alerts';
 
 function merge(current: LiveEvent[], incoming: LiveEvent[]): LiveEvent[] {
   if (!incoming.length) return current;
@@ -58,8 +86,44 @@ function merge(current: LiveEvent[], incoming: LiveEvent[]): LiveEvent[] {
   return [...byId.values()].sort((a, b) => b.id - a.id).slice(0, KEEP);
 }
 
-export function LiveProvider({ initialNav, children }: { initialNav: LiveNav; children: ReactNode }) {
+type AudioCtor = typeof AudioContext;
+const audioCtor = (): AudioCtor | null => {
+  if (typeof window === 'undefined') return null;
+  return window.AudioContext ?? (window as unknown as { webkitAudioContext?: AudioCtor }).webkitAudioContext ?? null;
+};
+
+/** A short two-tone chime (three tones when it's urgent). No sound file needed. */
+function chime(ctx: AudioContext, urgent: boolean) {
+  if (ctx.state === 'suspended') void ctx.resume();
+  const t0 = ctx.currentTime;
+  (urgent ? [880, 660, 880] : [740, 990]).forEach((hz, i) => {
+    const start = t0 + i * 0.18;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = hz;
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(0.18, start + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.16);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(start);
+    osc.stop(start + 0.17);
+  });
+}
+
+export function LiveProvider({
+  initialNav,
+  alertRole,
+  alertsAllowed,
+  children,
+}: {
+  initialNav: LiveNav;
+  alertRole: StaffRole;
+  alertsAllowed: boolean;
+  children: ReactNode;
+}) {
   const router = useRouter();
+  const pathname = usePathname();
   const supabase = useMemo(() => createClient(), []);
   const [status, setStatus] = useState<LiveStatus>('connecting');
   const [counters, setCounters] = useState<LiveCounters | null>(null);
@@ -68,6 +132,12 @@ export function LiveProvider({ initialNav, children }: { initialNav: LiveNav; ch
   const [held, setHeld] = useState<LiveEvent[]>([]);
   const [paused, setPausedState] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [rawNeeds, setRawNeeds] = useState<NeedsItem[] | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>('unsupported');
+  const [alertsOn, setAlertsOn] = useState(false);
+  // Set after mount: the server can't know what this browser supports.
+  const [supported, setSupported] = useState(false);
 
   const pausedRef = useRef(false);
   const lastInput = useRef(Date.now());
@@ -75,6 +145,14 @@ export function LiveProvider({ initialNav, children }: { initialNav: LiveNav; ch
   const settleTimer = useRef<number | null>(null);
   const inFlight = useRef(false);
   const again = useRef(false);
+  const audio = useRef<AudioContext | null>(null);
+  const alertedIds = useRef<Set<number>>(new Set());
+  // The channel callback is created once; it reads the latest values from here.
+  const live = useRef({ alertsOn: false, allowed: alertsAllowed, role: alertRole });
+  live.current = { alertsOn, allowed: alertsAllowed, role: alertRole };
+
+  const ranked = useMemo(() => (rawNeeds ? rankNeeds(rawNeeds, nowMs) : null), [rawNeeds, nowMs]);
+  const summary = useMemo(() => (ranked ? needsSummary(ranked) : { total: 0, late: 0, soon: 0 }), [ranked]);
 
   const resync = useCallback(async () => {
     if (inFlight.current) {
@@ -92,6 +170,8 @@ export function LiveProvider({ initialNav, children }: { initialNav: LiveNav; ch
       const snap = (await res.json()) as LiveSnapshot;
       if (snap.counters) setCounters(snap.counters);
       if (snap.nav) setNav(snap.nav);
+      // A failed read leaves the last queue on screen rather than showing "all clear".
+      if (snap.needs) setRawNeeds(snap.needs);
       if (snap.events) {
         const list = snap.events;
         if (pausedRef.current) setHeld((h) => merge(h, list));
@@ -120,10 +200,38 @@ export function LiveProvider({ initialNav, children }: { initialNav: LiveNav; ch
     router.refresh();
   }, [router]);
 
+  /** Chime, and a desktop notification when the tab isn't in front. */
+  const raise = useCallback(
+    (a: LiveAlert) => {
+      if (audio.current) chime(audio.current, a.urgent);
+      if (typeof Notification === 'undefined' || Notification.permission !== 'granted' || !document.hidden) return;
+      try {
+        const n = new Notification(a.title, { body: a.body, tag: a.tag, requireInteraction: a.urgent });
+        n.onclick = () => {
+          window.focus();
+          if (a.href) router.push(a.href);
+          n.close();
+        };
+      } catch {
+        // Some browsers refuse constructed notifications; the chime already played.
+      }
+    },
+    [router],
+  );
+
   const onEvent = useCallback(
     (e: LiveEvent) => {
       if (pausedRef.current) setHeld((h) => merge(h, [e]));
       else setEvents((cur) => merge(cur, [e]));
+
+      const l = live.current;
+      if (l.alertsOn && l.allowed && !alertedIds.current.has(e.id)) {
+        alertedIds.current.add(e.id);
+        if (alertedIds.current.size > 200) alertedIds.current = new Set([...alertedIds.current].slice(-100));
+        const a = alertFor(e, l.role);
+        if (a) raise(a);
+      }
+
       if (settleTimer.current) window.clearTimeout(settleTimer.current);
       settleTimer.current = window.setTimeout(() => {
         settleTimer.current = null;
@@ -131,7 +239,7 @@ export function LiveProvider({ initialNav, children }: { initialNav: LiveNav; ch
         maybeRefreshPage();
       }, SETTLE_MS);
     },
-    [resync, maybeRefreshPage],
+    [resync, maybeRefreshPage, raise],
   );
 
   const setPaused = useCallback((on: boolean) => {
@@ -142,6 +250,51 @@ export function LiveProvider({ initialNav, children }: { initialNav: LiveNav; ch
         if (h.length) setEvents((cur) => merge(cur, h));
         return [];
       });
+    }
+  }, []);
+
+  const ensureAudio = useCallback(() => {
+    if (audio.current) {
+      if (audio.current.state === 'suspended') void audio.current.resume();
+      return;
+    }
+    const Ctor = audioCtor();
+    if (Ctor) audio.current = new Ctor();
+  }, []);
+
+  /** The Alerts button. Switching on needs a click: browsers only allow sound and the permission prompt after one. */
+  const setEnabled = useCallback(
+    async (on: boolean) => {
+      if (on) {
+        ensureAudio();
+        if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+          try {
+            setPermission(await Notification.requestPermission());
+          } catch {
+            // Older browsers use a callback form; leave the permission as it was.
+          }
+        }
+        // A short confirmation chime so the person knows it works.
+        if (audio.current) chime(audio.current, false);
+      }
+      setAlertsOn(on);
+      try {
+        window.localStorage.setItem(ALERTS_KEY, on ? '1' : '0');
+      } catch {
+        // Private windows can refuse storage; the choice then lasts until reload.
+      }
+    },
+    [ensureAudio],
+  );
+
+  // What this browser can do, and what the person chose last time.
+  useEffect(() => {
+    setSupported(audioCtor() !== null || typeof Notification !== 'undefined');
+    try {
+      if (typeof Notification !== 'undefined') setPermission(Notification.permission);
+      setAlertsOn(window.localStorage.getItem(ALERTS_KEY) === '1');
+    } catch {
+      // No storage: alerts start off.
     }
   }, []);
 
@@ -190,6 +343,8 @@ export function LiveProvider({ initialNav, children }: { initialNav: LiveNav; ch
     };
     const onInput = () => {
       lastInput.current = Date.now();
+      // After a reload, sound can only start once the person has touched the page.
+      if (live.current.alertsOn && live.current.allowed) ensureAudio();
     };
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', onVisible);
@@ -201,11 +356,42 @@ export function LiveProvider({ initialNav, children }: { initialNav: LiveNav; ch
       for (const ev of ['pointerdown', 'keydown', 'scroll'] as const) window.removeEventListener(ev, onInput);
       if (settleTimer.current) window.clearTimeout(settleTimer.current);
     };
-  }, [resync]);
+  }, [resync, ensureAudio]);
+
+  // Deadlines tick without a re-read.
+  useEffect(() => {
+    const t = window.setInterval(() => setNowMs(Date.now()), TICK_MS);
+    return () => window.clearInterval(t);
+  }, []);
+
+  // The overdue count in the tab title, so a background tab still shows it.
+  const late = summary.late;
+  useEffect(() => {
+    const apply = () => {
+      const base = document.title.replace(/^\(\d+\)\s+/, '');
+      const next = late > 0 ? `(${late}) ${base}` : base;
+      if (document.title !== next) document.title = next;
+    };
+    apply();
+    // Navigating can reset the title after this runs; re-apply shortly after.
+    const t = window.setTimeout(apply, 600);
+    return () => window.clearTimeout(t);
+  }, [late, pathname]);
+
+  const alerts = useMemo<AlertsState>(
+    () => ({
+      supported,
+      permission,
+      enabled: alertsOn && alertsAllowed,
+      allowed: alertsAllowed,
+      setEnabled,
+    }),
+    [supported, permission, alertsOn, alertsAllowed, setEnabled],
+  );
 
   const value = useMemo<LiveState>(
-    () => ({ status, counters, nav, events, loaded, paused, setPaused, held: held.length }),
-    [status, counters, nav, events, loaded, paused, setPaused, held.length],
+    () => ({ status, counters, nav, events, needs: ranked, needsSummary: summary, loaded, paused, setPaused, held: held.length, alerts }),
+    [status, counters, nav, events, ranked, summary, loaded, paused, setPaused, held.length, alerts],
   );
 
   return <LiveContext.Provider value={value}>{children}</LiveContext.Provider>;

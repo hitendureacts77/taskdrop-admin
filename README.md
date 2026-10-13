@@ -49,6 +49,7 @@ The database schema lives in the TaskDrop app repo (`supabase/migrations/`). Thr
 | Screen | What you can do |
 | --- | --- |
 | Dashboard | **Live:** a "Right now" strip (online now, getting quotes, in progress, overdue, waiting for OK, disputes, help requests, posted today) and a live feed of everything happening in the app, updating by itself. Then TaskDrop's earnings today and in total, money held in escrow, paid to workers today and in total, what's waiting for you, whose money is in the account |
+| Needs you now | One list of everything waiting on a person (withdrawals, refunds, disputes, help requests, copyright notices), most urgent first, each with how long it has waited and how long is left of TaskDrop's promise (24 hours, 48 for disputes). On the Dashboard and its own page; updates by itself. The **Alerts** button in the top bar gives a chime and a desktop notification for new ones (only the kinds your staff role can act on; your own choice, remembered in this browser; switched off for you if your team setting turns alerts off) |
 | Earnings & escrow | Earnings by type (today / chosen range / total), chart from 7 days to all time with a comparison line, every job in escrow, who each rupee belongs to |
 | Earnings entries | Every line in the company ledger, filterable by day and type |
 | Worker payouts | Withdrawals that need you, ones on the way, and settled ones; check with RazorpayX, pay by hand, or put money back in a worker's earnings |

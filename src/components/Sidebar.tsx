@@ -7,10 +7,16 @@ import { useLive } from './LiveProvider';
 
 type Counts = { payouts: number; disputes: number; refunds: number; support: number };
 
-type Item = { href: string; label: string; icon: string; badge?: keyof Counts; alert?: boolean };
+type Item = { href: string; label: string; icon: string; badge?: keyof Counts; alert?: boolean; /** The live "Needs you now" total. */ needs?: boolean };
 
 const SECTIONS: { title: string | null; items: Item[] }[] = [
-  { title: null, items: [{ href: '/', label: 'Dashboard', icon: 'home' }] },
+  {
+    title: null,
+    items: [
+      { href: '/', label: 'Dashboard', icon: 'home' },
+      { href: '/needs-you', label: 'Needs you now', icon: 'bolt', needs: true },
+    ],
+  },
   {
     title: 'Money',
     items: [
@@ -51,7 +57,9 @@ const SECTIONS: { title: string | null; items: Item[] }[] = [
 export function Sidebar({ counts: initial }: { counts: Counts }) {
   const pathname = usePathname() ?? '/';
   // The live re-reads keep the badges current between page loads.
-  const counts = useLive()?.nav ?? initial;
+  const live = useLive();
+  const counts = live?.nav ?? initial;
+  const needs = live?.needs ? live.needsSummary : null;
   const isActive = (href: string) =>
     href === '/settings/team'
       ? pathname === '/settings' || pathname.startsWith('/settings/')
@@ -75,13 +83,14 @@ export function Sidebar({ counts: initial }: { counts: Counts }) {
           <div key={section.title ?? 'top'}>
             {section.title ? <div className="nav-section">{section.title}</div> : null}
             {section.items.map((item) => {
-              const n = item.badge ? counts[item.badge] : 0;
+              const n = item.needs ? (needs?.total ?? 0) : item.badge ? counts[item.badge] : 0;
+              const urgent = item.needs ? (needs?.late ?? 0) > 0 : item.alert;
               return (
                 <Link key={item.href} href={item.href} className="nav-link" aria-current={isActive(item.href) ? 'page' : undefined}>
                   <Icon name={item.icon} />
                   <span>{item.label}</span>
                   {n > 0 ? (
-                    <span className={`nav-badge${item.alert ? ' alert' : ''}`} aria-label={`${n} waiting`}>
+                    <span className={`nav-badge${urgent ? ' alert' : ''}`} aria-label={item.needs && needs?.late ? `${n} waiting, ${needs.late} late` : `${n} waiting`}>
                       {n}
                     </span>
                   ) : null}

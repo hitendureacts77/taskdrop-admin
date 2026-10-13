@@ -32,6 +32,8 @@ export type LiveCounters = {
 /** The sidebar's badges (same shape as data.ts NavCounts). */
 export type LiveNav = { payouts: number; disputes: number; refunds: number; support: number };
 
+import type { NeedsItem } from './needs-you.ts';
+
 /**
  * What /api/live returns. Each part is null when it could not be read, e.g.
  * counters and events before migration 091 is applied.
@@ -40,4 +42,6 @@ export type LiveSnapshot = {
   counters: LiveCounters | null;
   events: LiveEvent[] | null;
   nav: LiveNav | null;
+  /** Everything waiting on a person, unranked (the browser ranks it against its own clock). */
+  needs: NeedsItem[] | null;
 };
