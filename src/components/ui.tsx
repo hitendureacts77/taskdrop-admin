@@ -197,9 +197,13 @@ export function Pager({ page, pageSize, total, hrefFor }: { page: number; pageSi
   );
 }
 
-export function Empty({ title, children }: { title: ReactNode; children?: ReactNode }) {
+/** Nothing here yet. Icon tile design from 21st.dev "Empty Background" (uiable). */
+export function Empty({ title, children, icon = 'inbox' }: { title: ReactNode; children?: ReactNode; icon?: string }) {
   return (
     <div className="empty">
+      <span className="empty-icon" aria-hidden="true">
+        <Icon name={icon} size={22} />
+      </span>
       <strong>{title}</strong>
       {children ? <p>{children}</p> : null}
     </div>
