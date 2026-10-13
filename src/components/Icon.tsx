@@ -25,7 +25,8 @@ const PATHS: Record<string, string> = {
   star: 'M12 4l2.4 5 5.4.6-4 3.7 1.1 5.4L12 16l-4.9 2.7 1.1-5.4-4-3.7 5.4-.6Z',
   bolt: 'M13 3 5 13.5h6L10 21l8-10.5h-6z',
   logout: 'M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10',
-  refresh: 'M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5',
+  inbox: 'M4 13l2.5-7h11L20 13M4 13v6h16v-6M4 13h4.5l1 2h5l1-2H20',
+  refresh:'M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5',
   external: 'M14 5h5v5M19 5l-8 8M18 14v5H5V6h5',
 };
 
