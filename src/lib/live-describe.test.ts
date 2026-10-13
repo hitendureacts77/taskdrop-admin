@@ -14,13 +14,13 @@ const ev = (kind: string, summary: Record<string, unknown>, record_id: string | 
 });
 
 test('a posted task names the poster, the job and the price in rupees', () => {
-  const l = describeLive(ev('task_posted', { title: 'Fix my tap', who: 'Priya', amount_minor: 45000, area: 'Indiranagar' }));
-  assert.equal(l.text, 'Priya posted “Fix my tap” in Indiranagar · ₹450.00');
+  const l = describeLive(ev('task_posted', { title: 'Fix my tap', who: 'Priya', amount_minor: 45000 }));
+  assert.equal(l.text, 'Priya posted “Fix my tap” · ₹450.00');
   assert.equal(l.href, '/tasks/abc');
   assert.equal(l.group, 'tasks');
 });
 
-test('a remote task says remote instead of an area', () => {
+test('a remote task says remote', () => {
   const l = describeLive(ev('task_posted', { title: 'Logo', who: 'Ravi', kind: 'remote', amount_minor: 100 }));
   assert.match(l.text, /\(remote\)/);
 });

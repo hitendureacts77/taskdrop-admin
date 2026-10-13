@@ -71,7 +71,7 @@ export function describeLive(e: LiveEvent): LiveLine {
     case 'signup':
       return { icon: 'people', text: `${who} joined TaskDrop`, href: id ? `/users/${id}` : null, tone: 'blue', group: 'people' };
     case 'task_posted': {
-      const where = str(s.kind) === 'remote' ? ' (remote)' : str(s.area) ? ` in ${str(s.area)}` : '';
+      const where = str(s.kind) === 'remote' ? ' (remote)' : '';
       return { icon: 'jobs', text: `${who} posted ${job(s)}${where}${amount(s)}`, href: id ? `/tasks/${id}` : null, tone: 'blue', group: 'tasks' };
     }
     case 'quote': {
