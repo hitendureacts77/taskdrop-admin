@@ -41,13 +41,14 @@ The database schema lives in the TaskDrop app repo (`supabase/migrations/`). Thr
 - **060_admin_earnings_daily**: adds up earnings per day in the database, so the 1-year, 5-year and all-time charts stay fast. The panel works without it; it just reads more rows.
 - **061_fix_admin_resolve_dispute**: without it, `admin_resolve_dispute` fails, so the "Decide this dispute" buttons show an error and nothing changes.
 - **071_crm**: adds the CRM tables and functions above. Without it the Customers pages and the notes, tags and Suspend panels on a person's page show an error.
+- **091_admin_live_events**: the Dashboard's live strip and feed, and the "Live" light in the top bar. Without it they stay hidden and the top bar says "Live off"; everything else works.
 - **066_razorpayx_hardening**: adds `admin_money_position`, which fills in the RazorpayX cards on Worker payouts. Until it's applied, those cards show "—".
 
 ## What each screen does
 
 | Screen | What you can do |
 | --- | --- |
-| Dashboard | TaskDrop's earnings today and in total, money held in escrow, paid to workers today and in total, what's waiting for you, whose money is in the account |
+| Dashboard | **Live:** a "Right now" strip (online now, getting quotes, in progress, overdue, waiting for OK, disputes, help requests, posted today) and a live feed of everything happening in the app, updating by itself. Then TaskDrop's earnings today and in total, money held in escrow, paid to workers today and in total, what's waiting for you, whose money is in the account |
 | Earnings & escrow | Earnings by type (today / chosen range / total), chart from 7 days to all time with a comparison line, every job in escrow, who each rupee belongs to |
 | Earnings entries | Every line in the company ledger, filterable by day and type |
 | Worker payouts | Withdrawals that need you, ones on the way, and settled ones; check with RazorpayX, pay by hand, or put money back in a worker's earnings |

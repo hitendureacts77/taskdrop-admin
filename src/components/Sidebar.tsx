@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Icon } from './Icon';
+import { useLive } from './LiveProvider';
 
 type Counts = { payouts: number; disputes: number; refunds: number; support: number };
 
@@ -47,8 +48,10 @@ const SECTIONS: { title: string | null; items: Item[] }[] = [
   },
 ];
 
-export function Sidebar({ counts }: { counts: Counts }) {
+export function Sidebar({ counts: initial }: { counts: Counts }) {
   const pathname = usePathname() ?? '/';
+  // The live re-reads keep the badges current between page loads.
+  const counts = useLive()?.nav ?? initial;
   const isActive = (href: string) =>
     href === '/settings/team'
       ? pathname === '/settings' || pathname.startsWith('/settings/')

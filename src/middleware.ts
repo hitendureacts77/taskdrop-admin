@@ -115,9 +115,14 @@ function loginWith(request: NextRequest, message: string) {
   return to;
 }
 
-/** Background fetches that are not a person doing something. */
+/**
+ * Background fetches that are not a person doing something: prefetches, and
+ * the live panel's own re-reads (LiveProvider sends x-td-background), which
+ * would otherwise keep an unattended panel signed in forever.
+ */
 function isPrefetch(request: NextRequest): boolean {
   return (
+    request.headers.get('x-td-background') === '1' ||
     request.headers.get('next-router-prefetch') === '1' ||
     request.headers.get('purpose') === 'prefetch' ||
     (request.headers.get('sec-purpose') ?? '').includes('prefetch')
