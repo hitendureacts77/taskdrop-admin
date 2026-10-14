@@ -12,9 +12,9 @@
     "db:types": "supabase gen types typescript --project-id wjxvingpfbfvkfqhrguj --schema public > src/lib/db/database.types.ts"
   },
   "dependencies": {
-    "@supabase/ssr": "^0.5.2",
-    "@supabase/supabase-js": "^2.45.4",
-    "next": "^16.3.8",
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.117.3",
+    "next": "^16.4.0",
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
