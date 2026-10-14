@@ -1,6 +1,7 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getNavCounts } from './data';
+import { getNeedsYou } from './needs-you-data';
 import type { LiveCounters, LiveEvent, LiveSnapshot } from './live-types';
 import { createClient as createSessionClient } from './supabase/server';
 
@@ -37,10 +38,11 @@ export async function getLiveEvents(limit = 40): Promise<LiveEvent[] | null> {
 
 /** Everything the live parts of the panel need, in one round trip. */
 export async function getLiveSnapshot(): Promise<LiveSnapshot> {
-  const [counters, events, nav] = await Promise.all([
+  const [counters, events, nav, needs] = await Promise.all([
     getLiveCounters().catch(() => null),
     getLiveEvents().catch(() => null),
     getNavCounts().catch(() => null),
+    getNeedsYou().catch(() => null),
   ]);
-  return { counters, events, nav };
+  return { counters, events, nav, needs };
 }

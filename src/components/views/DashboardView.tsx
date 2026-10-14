@@ -8,6 +8,7 @@ import { Icon } from '../Icon';
 import { LineChart } from '../LineChart';
 import { LiveFeed } from '../LiveFeed';
 import { LiveStrip } from '../LiveStrip';
+import { NeedsYou } from '../NeedsYou';
 import { Card, Delta, Empty, Money, PageHeader, Pill, StatLink, Swatch, Tabs } from '../ui';
 import { WhoseMoney } from '../WhoseMoney';
 import { earningsChart, rangeTabs, versus } from '../earningsChart';
@@ -105,6 +106,10 @@ export function DashboardView({ d }: { d: DashboardData }) {
       />
 
       <LiveStrip />
+
+      <div className="needs-wrap">
+        <NeedsYou limit={6} />
+      </div>
 
       <div className="tiles">
         <ClickCard className="tile tile-earn" href="/money">

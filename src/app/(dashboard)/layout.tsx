@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { Sidebar } from '@/components/Sidebar';
 import { Icon } from '@/components/Icon';
 import { IdleGuard } from '@/components/IdleGuard';
+import { AlertsToggle } from '@/components/AlertsToggle';
 import { LiveIndicator } from '@/components/LiveIndicator';
 import { LiveProvider } from '@/components/LiveProvider';
 import { getNavCounts, requireAdmin } from '@/lib/data';
@@ -29,7 +30,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const today = new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'short', day: 'numeric', month: 'short' });
 
   return (
-    <LiveProvider initialNav={counts}>
+    <LiveProvider initialNav={counts} alertRole={user.staffRole} alertsAllowed={user.notify}>
       <div className="shell">
         <IdleGuard idleMinutes={Math.max(1, Number(process.env.ADMIN_IDLE_MINUTES) || 30)} />
         <a href="#content" className="skip">
@@ -44,6 +45,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
             </form>
             <div className="top-right">
               <LiveIndicator />
+            <AlertsToggle />
               <Link href="/payouts" className="chip" title="Workers' withdrawals are sent by RazorpayX or paid by hand. Open Payouts for anything that needs you.">
                 <span className="chip-dot" aria-hidden="true" /> Payouts
               </Link>

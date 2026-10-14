@@ -2280,3 +2280,53 @@ a.live-link:hover { background: var(--sunk); text-decoration: none; color: var(-
   .live-flash,
   .skeleton-row { animation: none; }
 }
+
+/* -------------------------------------------------------------- needs you -- */
+
+.needs-wrap { margin-bottom: 18px; }
+.alerts-chip { cursor: pointer; font: inherit; }
+.alerts-chip.on { background: var(--brand-soft); border-color: var(--brand-line); color: var(--brand-strong); }
+.alerts-chip:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+.need-list { list-style: none; margin: 0; padding: 0; }
+.need-row { border-bottom: 1px solid var(--line); border-left: 3px solid transparent; }
+.need-row:last-child { border-bottom: 0; }
+.need-late { border-left-color: var(--signal); background: var(--signal-soft); }
+.need-soon { border-left-color: var(--gold); }
+.need-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  min-height: 56px;
+  color: var(--ink);
+}
+a.need-link:hover { text-decoration: none; color: var(--ink); background: rgba(0, 0, 0, 0.025); }
+.need-link:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+.need-icon {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--sunk);
+  color: var(--muted);
+}
+.need-late .need-icon { background: var(--signal-soft); color: var(--signal-deep); }
+.need-soon .need-icon { background: var(--gold-soft); color: var(--gold-ink); }
+.need-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.need-text strong { font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
+.need-text span { font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
+.need-when { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.need-wait { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.need-go { flex: none; }
+.need-more { padding: 10px 16px; border-top: 1px solid var(--line); font-size: 13.5px; font-weight: 600; }
+
+@media (max-width: 640px) {
+  .need-link { flex-wrap: wrap; padding: 12px; gap: 8px 10px; }
+  .need-text { flex-basis: calc(100% - 52px); }
+  .need-when { flex-direction: row; align-items: center; gap: 8px; margin-left: 42px; }
+  .need-go { margin-left: auto; }
+}
