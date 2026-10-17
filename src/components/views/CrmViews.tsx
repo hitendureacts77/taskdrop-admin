@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { ClickCard, ClickRow } from '../Clickable';
 import { criteriaToQuery, describeCriteria, hasFilters, type Audience, type Broadcast, type CrmOverview, type Criteria, type MemberRow, type Segment, type TagWithCount } from '@/lib/crm';
 import { deleteSegment, deleteTag, updateNote } from '@/lib/crm-actions';
-import { istDate, istDateTime, timeAgo } from '@/lib/format';
+import { istDate, timeAgo } from '@/lib/format';
 import { initials } from '@/lib/labels';
 import { ConfirmAction } from '../ConfirmAction';
 import { BroadcastForm, MiniButton, SegmentSaveForm } from '../CrmForms';
@@ -219,6 +219,8 @@ export type SegmentsData = {
   me: string;
   /** Whether the signed-in staff role may change owners (people area). */
   canEdit: boolean;
+  /** Sales does not see wallets (staff-roles.ts, staffCanSee). */
+  hideMoney?: boolean;
 };
 
 export function SegmentsView({ d }: { d: SegmentsData }) {
@@ -282,10 +284,12 @@ export function SegmentsView({ d }: { d: SegmentsData }) {
               ))}
             </select>
           </label>
-          <label className="confirm-field">
-            <span>Wallet holds at least (₹)</span>
-            <input name="minwallet" type="number" min={0} step="1" className="field" defaultValue={c.min_wallet_minor ? c.min_wallet_minor / 100 : ''} placeholder="any amount" />
-          </label>
+          {d.hideMoney ? null : (
+            <label className="confirm-field">
+              <span>Wallet holds at least (₹)</span>
+              <input name="minwallet" type="number" min={0} step="1" className="field" defaultValue={c.min_wallet_minor ? c.min_wallet_minor / 100 : ''} placeholder="any amount" />
+            </label>
+          )}
           <label className="confirm-field">
             <span>Looked after by</span>
             <select name="owner" defaultValue={d.owner} className="field">
@@ -356,7 +360,7 @@ export function SegmentsView({ d }: { d: SegmentsData }) {
                   ) : null}
                   <th className="th">Name</th>
                   <th className="th">Does</th>
-                  <th className="th num">Wallet</th>
+                  {d.hideMoney ? null : <th className="th num">Wallet</th>}
                   <th className="th">Joined</th>
                   <th className="th">Last seen</th>
                   <th className="th">Owner</th>
@@ -393,9 +397,11 @@ export function SegmentsView({ d }: { d: SegmentsData }) {
                         {u.suspended ? <Pill tone="red">Suspended</Pill> : null}
                       </span>
                     </td>
-                    <td className="td num">
-                      <Money minor={u.walletMinor + u.clearingMinor} />
-                    </td>
+                    {d.hideMoney ? null : (
+                      <td className="td num">
+                        <Money minor={u.walletMinor + u.clearingMinor} />
+                      </td>
+                    )}
                     <td className="td nowrap">{istDate(u.joinedAt)}</td>
                     <td className="td nowrap muted">{u.lastSeenAt ? timeAgo(u.lastSeenAt, now) : '—'}</td>
                     <td className="td nowrap">{u.owner ? u.owner.name : <span className="muted">—</span>}</td>

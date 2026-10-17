@@ -5,6 +5,7 @@ import { parseOwnerFilter } from '@/lib/crm-calc';
 import { applyOwnerFilter } from '@/lib/crm-owners';
 import { exportCsv, idsForCriteria, idsSuspended, idsWithTag, parseCriteria } from '@/lib/crm';
 import { getUsers, isUuid, parseUserFilter } from '@/lib/data';
+import { staffCanSee } from '@/lib/staff-roles';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -60,5 +61,5 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Could not record this export, so it was not produced' }, { status: 500 });
   }
 
-  return csvResponse(await exportCsv(ids), 'taskdrop-people');
+  return csvResponse(await exportCsv(ids, { hideMoney: !staffCanSee(who.user.staffRole, 'money') }), 'taskdrop-people');
 }

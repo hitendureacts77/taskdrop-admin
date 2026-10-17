@@ -6,7 +6,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { alertFor, type LiveAlert } from '@/lib/live-alerts';
 import type { LiveCounters, LiveEvent, LiveNav, LiveSnapshot } from '@/lib/live-types';
 import { needsSummary, rankNeeds, type NeedsItem, type RankedNeed } from '@/lib/needs-you';
-import type { StaffRole } from '@/lib/staff-roles';
+import { liveEventIsMoney, staffCanSee, type StaffRole } from '@/lib/staff-roles';
 import { createClient } from '@/lib/supabase/browser';
 
 /**
@@ -52,6 +52,8 @@ type LiveState = {
   /** Waiting on a person, most urgent first. Null until the first read. */
   needs: RankedNeed[] | null;
   needsSummary: { total: number; late: number; soon: number };
+  /** The signed-in person's staff role, for hiding what that role may not see. */
+  role: StaffRole;
   /** False until the first snapshot arrives. */
   loaded: boolean;
   paused: boolean;
@@ -221,6 +223,8 @@ export function LiveProvider({
 
   const onEvent = useCallback(
     (e: LiveEvent) => {
+      // Every staff browser hears every broadcast; a role that cannot see money drops those here.
+      if (!staffCanSee(live.current.role, 'money') && liveEventIsMoney(e.kind, e.summary)) return;
       if (pausedRef.current) setHeld((h) => merge(h, [e]));
       else setEvents((cur) => merge(cur, [e]));
 
@@ -390,8 +394,8 @@ export function LiveProvider({
   );
 
   const value = useMemo<LiveState>(
-    () => ({ status, counters, nav, events, needs: ranked, needsSummary: summary, loaded, paused, setPaused, held: held.length, alerts }),
-    [status, counters, nav, events, ranked, summary, loaded, paused, setPaused, held.length, alerts],
+    () => ({ status, counters, nav, events, needs: ranked, needsSummary: summary, role: alertRole, loaded, paused, setPaused, held: held.length, alerts }),
+    [status, counters, nav, events, ranked, summary, alertRole, loaded, paused, setPaused, held.length, alerts],
   );
 
   return <LiveContext.Provider value={value}>{children}</LiveContext.Provider>;

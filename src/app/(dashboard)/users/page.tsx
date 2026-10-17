@@ -1,15 +1,19 @@
 import { UsersView } from '@/components/views/UsersView';
 import { getSuspendedAmong, getTags, getTagsFor, idsSuspended, idsWithTag } from '@/lib/crm';
 import { getUsers, parseUserFilter, requireAdmin } from '@/lib/data';
+import { staffCanSee } from '@/lib/staff-roles';
 import { isUuid } from '@/lib/data';
 
 type SP = Promise<Record<string, string | string[] | undefined>>;
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
 export default async function UsersPage({ searchParams }: { searchParams: SP }) {
-  await requireAdmin();
+  const me = await requireAdmin();
+  const hideMoney = !staffCanSee(me.staffRole, 'money');
   const sp = await searchParams;
-  const filter = parseUserFilter(sp.filter);
+  // "Money in wallet" is a view of company money: Sales gets everyone instead.
+  const parsed = parseUserFilter(sp.filter);
+  const filter = hideMoney && parsed === 'money' ? 'all' : parsed;
   const q = (first(sp.q) ?? '').slice(0, 80);
   const page = Math.max(0, Math.min(1000, Number(first(sp.page)) || 0));
   const tag = first(sp.tag) && isUuid(first(sp.tag)!) ? first(sp.tag)! : '';
@@ -23,7 +27,8 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
     restrict = restrict ? restrict.filter((id) => tagged.includes(id)) : tagged;
   }
 
-  const [{ rows, total }, allTags] = await Promise.all([getUsers(filter, q, page, pageSize, restrict), getTags()]);
+  const [{ rows: fetched, total }, allTags] = await Promise.all([getUsers(filter, q, page, pageSize, restrict), getTags()]);
+  const rows = hideMoney ? fetched.map((r) => ({ ...r, walletMinor: 0, clearingMinor: 0 })) : fetched;
   const ids = rows.map((r) => r.id);
   const [tagsByUser, suspended] = await Promise.all([getTagsFor(ids), getSuspendedAmong(ids)]);
 
@@ -41,6 +46,7 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
         allTags,
         tagsByUser: Object.fromEntries(tagsByUser),
         suspended: Object.fromEntries([...suspended].map(([id, s]) => [id, s.reason])),
+        hideMoney,
       }}
     />
   );

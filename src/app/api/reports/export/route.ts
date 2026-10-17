@@ -3,6 +3,7 @@ import { checkAdmin } from '@/lib/auth';
 import { csvResponse, toCsv } from '@/lib/csv';
 import { addIstDays, istDayKey, startOfIstDay } from '@/lib/days';
 import { getBusinessDaily } from '@/lib/growth';
+import { staffCanSee } from '@/lib/staff-roles';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -18,6 +19,7 @@ export async function GET(req: Request) {
   const who = await checkAdmin();
   if (who.status === 'unauthenticated') return NextResponse.json({ error: 'Sign in first' }, { status: 401 });
   if (who.status === 'forbidden') return NextResponse.json({ error: 'Admins only' }, { status: 403 });
+  if (!staffCanSee(who.user.staffRole, 'money')) return NextResponse.json({ error: 'Your role does not include business figures' }, { status: 403 });
 
   const raw = Number(new URL(req.url).searchParams.get('days'));
   const days = [7, 30, 90, 365].includes(raw) ? raw : 30;

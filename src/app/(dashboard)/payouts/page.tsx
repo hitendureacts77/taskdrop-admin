@@ -1,6 +1,7 @@
 import { mfaState } from '@/lib/mfa';
 import { PayoutsView } from '@/components/views/PayoutsView';
 import { checkWithRazorpayX, setPayoutMethod } from '@/lib/actions';
+import { staffCan } from '@/lib/staff-roles';
 import {
   getMoneyPosition,
   getPayoutMethod,
@@ -11,7 +12,7 @@ import {
   getSettledPayouts,
   getWithdrawalRequestsDaily,
   getWithdrawalRequestsOn,
-  requireAdmin,
+  requireSeeing,
 } from '@/lib/data';
 
 type SP = Promise<Record<string, string | string[] | undefined>>;
@@ -19,7 +20,7 @@ type SP = Promise<Record<string, string | string[] | undefined>>;
 const CHART_DAYS = [7, 30, 90];
 
 export default async function PayoutsPage({ searchParams }: { searchParams: SP }) {
-  await requireAdmin();
+  const me = await requireSeeing('money');
   const sp = await searchParams;
   const asked = Number(Array.isArray(sp.days) ? sp.days[0] : sp.days);
   const days = CHART_DAYS.includes(asked) ? asked : 30;
@@ -50,6 +51,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: SP }
     <PayoutsView
       d={{ now: new Date().toISOString(), queue: ordered, totals, history, position, rx, method, daily, days, roles, day, dayLabel, dayRows, q, hist, histPage }}
       mfa={mfa}
+      canPay={staffCan(me.staffRole, 'money')}
       checkAll={checkWithRazorpayX}
       setMethod={setPayoutMethod}
     />

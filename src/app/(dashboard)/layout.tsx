@@ -8,7 +8,7 @@ import { LiveIndicator } from '@/components/LiveIndicator';
 import { LiveProvider } from '@/components/LiveProvider';
 import { getNavCounts, requireAdmin } from '@/lib/data';
 import { mfaState } from '@/lib/mfa';
-import { roleLabel } from '@/lib/staff-roles';
+import { roleLabel, staffCanSee } from '@/lib/staff-roles';
 import { createClient } from '@/lib/supabase/server';
 
 async function signOutAction() {
@@ -27,6 +27,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const user = await requireAdmin();
   const counts = await getNavCounts();
   const mfa = await mfaState();
+  const seesMoney = staffCanSee(user.staffRole, 'money');
+  const seesSettings = staffCanSee(user.staffRole, 'settings');
   const today = new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'short', day: 'numeric', month: 'short' });
 
   return (
@@ -36,7 +38,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <a href="#content" className="skip">
           Skip to content
         </a>
-        <Sidebar counts={counts} />
+        <Sidebar counts={counts} role={user.staffRole} />
         <div className="main">
           <header className="topbar">
             <form action="/search" method="get" className="top-search" role="search">
@@ -46,10 +48,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
             <div className="top-right">
               <LiveIndicator />
             <AlertsToggle />
-              <Link href="/payouts" className="chip" title="Workers' withdrawals are sent by RazorpayX or paid by hand. Open Payouts for anything that needs you.">
-                <span className="chip-dot" aria-hidden="true" /> Payouts
-              </Link>
-              {mfa.required && !mfa.verified ? (
+              {seesMoney ? (
+                <Link href="/payouts" className="chip" title="Workers' withdrawals are sent by RazorpayX or paid by hand. Open Payouts for anything that needs you.">
+                  <span className="chip-dot" aria-hidden="true" /> Payouts
+                </Link>
+              ) : null}
+              {seesMoney && mfa.required && !mfa.verified ? (
                 <Link href="/security" className="chip" title="Payouts, refunds, disputes, wallet changes, settings and roles need a code from your authenticator app.">
                   <Icon name="shield" size={14} /> Unlock money actions
                 </Link>
@@ -59,9 +63,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
                 {user.email ?? 'Admin'}
               </Link>
               {user.staffRole !== 'admin' ? (
-                <Link href="/settings/team" className="chip" title="Your staff role: what you can change in this panel">
-                  {roleLabel(user.staffRole)}
-                </Link>
+                seesSettings ? (
+                  <Link href="/settings/team" className="chip" title="Your staff role: what you can change in this panel">
+                    {roleLabel(user.staffRole)}
+                  </Link>
+                ) : (
+                  <span className="chip" title="Your staff role: what you can see and change in this panel">
+                    {roleLabel(user.staffRole)}
+                  </span>
+                )
               ) : null}
               <form action={signOutAction}>
                 <button type="submit" className="btn btn-small">

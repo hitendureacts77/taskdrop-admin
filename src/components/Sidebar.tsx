@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { staffCanSee, type StaffRole, type StaffView } from '@/lib/staff-roles';
 import { Icon } from './Icon';
 import { useLive } from './LiveProvider';
 
 type Counts = { payouts: number; disputes: number; refunds: number; support: number };
 
-type Item = { href: string; label: string; icon: string; badge?: keyof Counts; alert?: boolean; /** The live "Needs you now" total. */ needs?: boolean };
+type Item = { href: string; label: string; icon: string; badge?: keyof Counts; alert?: boolean; /** The live "Needs you now" total. */ needs?: boolean; /** Left out of the menu for a role that cannot see this (staff-roles.ts, staffCanSee). */ view?: StaffView };
 
 const SECTIONS: { title: string | null; items: Item[] }[] = [
   {
@@ -20,10 +21,10 @@ const SECTIONS: { title: string | null; items: Item[] }[] = [
   {
     title: 'Money',
     items: [
-      { href: '/money', label: 'Earnings & escrow', icon: 'money' },
-      { href: '/payouts', label: 'Payouts', icon: 'send', badge: 'payouts', alert: true },
-      { href: '/refunds', label: 'Refunds', icon: 'undo', badge: 'refunds', alert: true },
-      { href: '/money/reconcile', label: 'Money check', icon: 'check' },
+      { href: '/money', label: 'Earnings & escrow', icon: 'money', view: 'money' },
+      { href: '/payouts', label: 'Payouts', icon: 'send', badge: 'payouts', alert: true, view: 'money' },
+      { href: '/refunds', label: 'Refunds', icon: 'undo', badge: 'refunds', alert: true, view: 'money' },
+      { href: '/money/reconcile', label: 'Money check', icon: 'check', view: 'money' },
     ],
   },
   {
@@ -32,11 +33,11 @@ const SECTIONS: { title: string | null; items: Item[] }[] = [
       { href: '/tasks', label: 'Jobs', icon: 'jobs' },
       { href: '/users', label: 'People', icon: 'people' },
       { href: '/devices', label: 'Devices', icon: 'device' },
-      { href: '/disputes', label: 'Disputes', icon: 'scale', badge: 'disputes', alert: true },
+      { href: '/disputes', label: 'Disputes', icon: 'scale', badge: 'disputes', alert: true, view: 'money' },
       { href: '/reports-queue', label: 'Reports', icon: 'alert' },
       { href: '/support', label: 'Help requests', icon: 'help', badge: 'support' },
       { href: '/copyright', label: 'Copyright notices', icon: 'alert' },
-      { href: '/promotions', label: 'Promotions', icon: 'megaphone' },
+      { href: '/promotions', label: 'Promotions', icon: 'megaphone', view: 'money' },
     ],
   },
   {
@@ -52,15 +53,15 @@ const SECTIONS: { title: string | null; items: Item[] }[] = [
   {
     title: 'Reports & settings',
     items: [
-      { href: '/reports', label: 'Business reports', icon: 'chart' },
+      { href: '/reports', label: 'Business reports', icon: 'chart', view: 'money' },
       { href: '/team/performance', label: 'Team performance', icon: 'star' },
-      { href: '/settings/team', label: 'Admin & configuration', icon: 'settings' },
+      { href: '/settings/team', label: 'Admin & configuration', icon: 'settings', view: 'settings' },
       { href: '/security', label: 'Security', icon: 'shield' },
     ],
   },
 ];
 
-export function Sidebar({ counts: initial }: { counts: Counts }) {
+export function Sidebar({ counts: initial, role = 'admin' }: { counts: Counts; role?: StaffRole }) {
   const pathname = usePathname() ?? '/';
   // The live re-reads keep the badges current between page loads.
   const live = useLive();
@@ -85,7 +86,9 @@ export function Sidebar({ counts: initial }: { counts: Counts }) {
         </span>
       </Link>
       <nav>
-        {SECTIONS.map((section) => (
+        {SECTIONS.map((section) => ({ ...section, items: section.items.filter((i) => !i.view || staffCanSee(role, i.view)) }))
+          .filter((section) => section.items.length > 0)
+          .map((section) => (
           <div key={section.title ?? 'top'}>
             {section.title ? <div className="nav-section">{section.title}</div> : null}
             {section.items.map((item) => {

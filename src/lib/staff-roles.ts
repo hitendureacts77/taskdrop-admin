@@ -34,4 +34,23 @@ export function staffCan(role: StaffRole, area: StaffArea): boolean {
   return false;
 }
 
-export const roleLabel = (r: StaffRole) => STAFF_ROLES.find((x) => x.value === r)?.label ?? r;
+/**
+ * What a role may SEE, apart from what it may change. Most roles read the whole
+ * panel; Sales is the exception: it works with customers, jobs and leads, so the
+ * company's money and the panel's settings are hidden from it, not just locked.
+ * 'money' covers earnings, payouts, refunds, disputes, promotions and business
+ * reports; 'settings' covers Admin & configuration and the team.
+ */
+export type StaffView = 'money' | 'settings';
+
+export function staffCanSee(role: StaffRole, _view: StaffView): boolean {
+  return role !== 'sales';
+}
+
+/** Live events that show company money (withdrawals, payouts, wallet changes, disputes). */
+export function liveEventIsMoney(kind: string, summary: Record<string, unknown> | null | undefined): boolean {
+  if (kind === 'withdrawal_requested' || kind === 'payout_status' || kind === 'wallet_adjustment') return true;
+  return kind === 'task_status' && summary?.to === 'DISPUTED';
+}
+
+export const roleLabel =(r: StaffRole) => STAFF_ROLES.find((x) => x.value === r)?.label ?? r;

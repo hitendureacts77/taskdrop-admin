@@ -2,10 +2,10 @@ import { TeamView } from '@/components/views/AdminConfigViews';
 import { addAdmin, removeAdmin, setStaffNotify, setStaffRole } from '@/lib/admin-actions';
 import { getTeam } from '@/lib/admin-config';
 import { adminAllowlist } from '@/lib/auth';
-import { hasServiceKey, requireAdmin } from '@/lib/data';
+import { hasServiceKey, requireSeeing } from '@/lib/data';
 
 export default async function TeamPage() {
-  const me = await requireAdmin();
+  const me = await requireSeeing('settings');
   const team = await getTeam();
   return (
     <TeamView

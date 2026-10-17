@@ -166,7 +166,7 @@ function inputValue(kind: Info['kind'], v: unknown): string {
   return String(Number(v));
 }
 
-export function SettingsView({ rows, update }: { rows: SettingRow[]; update: FormAction }) {
+export function SettingsView({ rows, update }: { rows: SettingRow[]; update?: FormAction }) {
   // Shown in the order SETTINGS lists them, which is the order of the design.
   const order = Object.keys(SETTINGS);
   const known = rows.filter((r) => SETTINGS[r.key]).sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key));
@@ -190,7 +190,7 @@ export function SettingsView({ rows, update }: { rows: SettingRow[]; update: For
                   <span className="muted small">Last changed {istDateTime(r.updated_at)}</span>
                 </div>
                 <div className="setting-value">{show(info.kind, r.value)}</div>
-                {info.editable ? (
+                {info.editable && update ? (
                   <ConfirmAction
                     action={update}
                     hidden={{ key: r.key }}
@@ -275,7 +275,7 @@ export function ReportsView({ s, days, earnedMinor }: { s: PlatformStats; days: 
 
 // ------------------------------------------------------------------ search --
 
-export function SearchView({ q, tasks, people }: { q: string; tasks: TaskRow[]; people: UserRow[] }) {
+export function SearchView({ q, tasks, people, hideMoney = false }: { q: string; tasks: TaskRow[]; people: UserRow[]; /** Sales does not see wallets. */ hideMoney?: boolean }) {
   return (
     <>
       <PageHeader crumbs={[{ label: 'Search' }]} title="Search" right={<SearchBox action="/search" defaultValue={q} placeholder="Search jobs and people" />} />
@@ -306,7 +306,7 @@ export function SearchView({ q, tasks, people }: { q: string; tasks: TaskRow[]; 
                 {people.map((u) => (
                   <ClickCard as="li" key={u.id} href={`/users/${u.id}`}>
                     <PersonLink id={u.id} name={u.name} />
-                    <span className="muted small">{u.walletMinor ? inr(u.walletMinor) : ''}</span>
+                    <span className="muted small">{!hideMoney && u.walletMinor ? inr(u.walletMinor) : ''}</span>
                   </ClickCard>
                 ))}
               </ul>

@@ -18,6 +18,6 @@ export async function GET() {
   if (check.status !== 'ok') {
     return NextResponse.json({ ok: false }, { status: check.status === 'unauthenticated' ? 401 : 403, headers: { 'Cache-Control': 'no-store' } });
   }
-  const snapshot = await getLiveSnapshot();
+  const snapshot = await getLiveSnapshot(check.user.staffRole);
   return NextResponse.json(snapshot, { headers: { 'Cache-Control': 'no-store' } });
 }

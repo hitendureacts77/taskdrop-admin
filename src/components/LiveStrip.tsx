@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { StatLink } from './ui';
+import { staffCanSee } from '@/lib/staff-roles';
 import { useLive } from './LiveProvider';
 
 /**
@@ -59,7 +60,7 @@ export function LiveStrip() {
           sub={c.overdue ? 'Past their due time' : 'Nothing late'}
         />
         <StatLink href="/tasks?filter=waiting" icon="check" label="Waiting for poster’s OK" value={<Flash value={c.waiting_approval} />} />
-        <StatLink href="/disputes" icon="scale" label="Open disputes" value={<Flash value={c.disputes_open} />} sub={c.disputes_open ? 'Money frozen until you decide' : 'None'} />
+        {staffCanSee(live.role, 'money') ? <StatLink href="/disputes" icon="scale" label="Open disputes" value={<Flash value={c.disputes_open} />} sub={c.disputes_open ? 'Money frozen until you decide' : 'None'} /> : null}
         <StatLink href="/support" icon="help" label="Help requests waiting" value={<Flash value={c.help_waiting} />} />
         <StatLink
           href="/tasks?filter=posted_today"

@@ -1,14 +1,14 @@
 import { GrowthReports } from '@/components/views/AnalyticsViews';
 import { ReportsView } from '@/components/views/MoreViews';
 import { addIstDays, istDayKey, startOfIstDay } from '@/lib/days';
-import { getEarnedSince, getPlatformStats, requireAdmin } from '@/lib/data';
+import { getEarnedSince, getPlatformStats, requireSeeing } from '@/lib/data';
 import { getBusinessDaily, getFunnel, getPromotionRoi, getRetention } from '@/lib/growth';
 import { previousWindow } from '@/lib/growth-calc';
 
 type SP = Promise<Record<string, string | string[] | undefined>>;
 
 export default async function ReportsPage({ searchParams }: { searchParams: SP }) {
-  await requireAdmin();
+  await requireSeeing('money');
   const sp = await searchParams;
   const raw = Number(Array.isArray(sp.days) ? sp.days[0] : sp.days);
   const days = [7, 30, 90, 365].includes(raw) ? raw : 30;

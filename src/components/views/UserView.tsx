@@ -29,6 +29,7 @@ export function UserView({
   timeline,
   tab = 'overview',
   extra = null,
+  hideMoney = false,
 }: {
   u: UserDetail;
   settings: MoneySettings;
@@ -39,6 +40,8 @@ export function UserView({
   tab?: UserTab;
   /** The body of the Money, Devices or Audit tab, built by the page. */
   extra?: ReactNode;
+  /** Sales does not see a person's wallet, payouts or what posters paid (staff-roles.ts, staffCanSee). */
+  hideMoney?: boolean;
 }) {
   const now = new Date(nowIso);
   const first = u.name.split(' ')[0] ?? u.name;
@@ -78,11 +81,11 @@ export function UserView({
 
       {u.deletion ? <DeletedBanner deletion={u.deletion} /> : <SuspensionBanner userId={u.id} name={u.name} crm={crm} />}
 
-      <Tabs label="Sections" items={USER_TABS.map((t) => ({ href: `/users/${u.id}${t.key === 'overview' ? '' : `?tab=${t.key}`}`, label: t.label, active: t.key === tab }))} />
+      <Tabs label="Sections" items={USER_TABS.filter((t) => !(hideMoney && t.key === 'money')).map((t) => ({ href: `/users/${u.id}${t.key === 'overview' ? '' : `?tab=${t.key}`}`, label: t.label, active: t.key === tab }))} />
 
       {tab !== 'overview' ? extra : <div className="grid-main-side">
         <div className="stack">
-          <Card title={`${first}’s wallet`} sub="Money TaskDrop holds for this person. It is theirs, not TaskDrop’s.">
+          {hideMoney ? null : <Card title={`${first}’s wallet`} sub="Money TaskDrop holds for this person. It is theirs, not TaskDrop’s.">
             <div className="figures">
               <ClickCard className="figure" href="#withdrawals">
                 <span className="figure-label">Ready to withdraw</span>
@@ -114,7 +117,7 @@ export function UserView({
                 </ul>
               </>
             ) : null}
-          </Card>
+          </Card>}
 
           <NotesCard userId={u.id} crm={crm} now={now} />
 
@@ -162,7 +165,7 @@ export function UserView({
                     <tr>
                       <th className="th">Job</th>
                       <th className="th">Status</th>
-                      <th className="th num">Poster paid</th>
+                      {hideMoney ? null : <th className="th num">Poster paid</th>}
                       <th className="th">Hired</th>
                     </tr>
                   </thead>
@@ -177,9 +180,11 @@ export function UserView({
                           <td className="td">
                             <Pill tone={st.tone}>{st.label}</Pill>
                           </td>
-                          <td className="td num">
-                            <Money minor={t.escrowMinor} />
-                          </td>
+                          {hideMoney ? null : (
+                            <td className="td num">
+                              <Money minor={t.escrowMinor} />
+                            </td>
+                          )}
                           <td className="td nowrap">{istDate(t.createdAt)}</td>
                         </ClickRow>
                       );
@@ -239,7 +244,7 @@ export function UserView({
             ) : null}
           </Card>
 
-          <Card title="Withdrawals" sub="Click one to see it, or pay it if it is waiting." id="withdrawals">
+          {hideMoney ? null : <Card title="Withdrawals" sub="Click one to see it, or pay it if it is waiting." id="withdrawals">
             {u.payouts.length ? (
               <ul className="plain-list">
                 {u.payouts.map((p) => {
@@ -264,9 +269,9 @@ export function UserView({
             ) : (
               <p className="muted small">Never withdrawn.</p>
             )}
-          </Card>
+          </Card>}
           <SuspensionHistory crm={crm} />
-          {u.deletion ? null : <DeleteAccountCard userId={u.id} name={u.name} blockers={u.deletionBlockers} />}
+          {u.deletion || hideMoney ? null : <DeleteAccountCard userId={u.id} name={u.name} blockers={u.deletionBlockers} />}
           <p className="muted small">Person id {u.id}</p>
         </div>
       </div>}

@@ -19,6 +19,7 @@ export function TaskView({
   dispute = null,
   moderation = null,
   cancelTask,
+  hideMoney = false,
 }: {
   t: TaskDetail;
   settings: MoneySettings;
@@ -30,6 +31,8 @@ export function TaskView({
   moderation?: { hidden: boolean; reason: string | null; setup: boolean } | null;
   /** Cancel-with-refund; only given to money staff (full admin or finance). */
   cancelTask?: FormAction;
+  /** Sales sees the job and its price, not what TaskDrop earns or where the money sits (staff-roles.ts, staffCanSee). */
+  hideMoney?: boolean;
 }) {
   const now = new Date(nowIso);
   const st = taskStatus(t.status);
@@ -101,13 +104,13 @@ export function TaskView({
         </Notice>
       ) : null}
 
-      {t.status === 'DISPUTED' && a && !t.fundedAt ? (
+      {t.status === 'DISPUTED' && a && !t.fundedAt && !hideMoney ? (
         <Notice tone="gold" title="This dispute has no money to decide over">
           {t.poster} never paid for this job, so neither side can be paid out. It can only be cancelled.
         </Notice>
       ) : null}
 
-      {t.status === 'DISPUTED' && a && t.fundedAt ? (
+      {t.status === 'DISPUTED' && a && t.fundedAt && !hideMoney ? (
         <Card title="Decide this dispute" sub="Read the job, the quotes and the reviews first. Both choices are final.">
           <div className="decide">
             <div className="decide-option">
@@ -158,6 +161,11 @@ export function TaskView({
 
       <div className="grid-main-side">
         <div className="stack">
+          {hideMoney ? (
+            <Card title="Price">
+              <KV rows={[{ label: t.lockedMinor !== null ? 'Agreed price' : 'Poster’s budget', value: <Money minor={price} />, hint: t.lockedMinor !== null ? 'The quote the poster accepted' : 'No quote accepted yet' }]} />
+            </Card>
+          ) : (
           <Card title="The money for this job">
             <KV
               rows={[
@@ -187,6 +195,7 @@ export function TaskView({
               </p>
             ) : null}
           </Card>
+          )}
 
           <Card title="What the poster asked for">
             <p className="prose">{t.description || <span className="muted">No description.</span>}</p>
@@ -270,7 +279,7 @@ export function TaskView({
             </ol>
           </Card>
 
-          <Card title="TaskDrop’s earnings from this job">
+          {hideMoney ? null : <Card title="TaskDrop’s earnings from this job">
             {t.ledger.length ? (
               <ul className="plain-list">
                 {t.ledger.map((l) => (
@@ -286,7 +295,7 @@ export function TaskView({
             ) : (
               <p className="muted small">Nothing booked yet. TaskDrop earns when the poster approves the work.</p>
             )}
-          </Card>
+          </Card>}
 
           {t.reviews.length ? (
             <Card title="Reviews">

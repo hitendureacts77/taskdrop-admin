@@ -21,6 +21,8 @@ export type UsersData = {
   allTags: TagWithCount[];
   tagsByUser: Record<string, Tag[]>;
   suspended: Record<string, string>;
+  /** Sales does not see wallets (staff-roles.ts, staffCanSee). */
+  hideMoney?: boolean;
 };
 
 const INTRO: Partial<Record<UserFilter, string>> = {
@@ -59,7 +61,7 @@ export function UsersView({ d }: { d: UsersData }) {
       <PageHeader
         crumbs={[{ label: 'People' }]}
         title="People"
-        sub="Everyone who uses TaskDrop, as a poster, a worker or both. Click a name to see their jobs, wallet and payouts."
+        sub={d.hideMoney ? 'Everyone who uses TaskDrop, as a poster, a worker or both. Click a name to see their jobs.' : 'Everyone who uses TaskDrop, as a poster, a worker or both. Click a name to see their jobs, wallet and payouts.'}
         right={
           <span className="head-controls">
             <SearchBox
@@ -74,7 +76,7 @@ export function UsersView({ d }: { d: UsersData }) {
           </span>
         }
       />
-      <Tabs label="Show" items={USER_FILTERS.map((f) => ({ href: href({ filter: f.key, page: 0 }), label: f.label, active: f.key === d.filter }))} />
+      <Tabs label="Show" items={USER_FILTERS.filter((f) => !(d.hideMoney && f.key === 'money')).map((f) => ({ href: href({ filter: f.key, page: 0 }), label: f.label, active: f.key === d.filter }))} />
       {d.allTags.length ? (
         <nav className="tag-filter" aria-label="Filter by tag">
           <span className="muted small">Tag:</span>
@@ -112,7 +114,7 @@ export function UsersView({ d }: { d: UsersData }) {
                   <th className="th">Name</th>
                   <th className="th">Does</th>
                   <th className="th">Rating</th>
-                  <th className="th num">Wallet</th>
+                  {d.hideMoney ? null : <th className="th num">Wallet</th>}
                   <th className="th">Joined</th>
                   <th className="th">Last seen</th>
                 </tr>
@@ -153,14 +155,16 @@ export function UsersView({ d }: { d: UsersData }) {
                       {u.posterReviews ? `★ ${u.posterRating.toFixed(1)} as poster (${u.posterReviews})` : null}
                       {!u.workerReviews && !u.posterReviews ? <span className="muted">No reviews</span> : null}
                     </td>
-                    <td className="td num">
-                      <Money minor={u.walletMinor} />
-                      {u.clearingMinor ? (
-                        <span className="muted small block">
-                          + <Money minor={u.clearingMinor} /> clearing
-                        </span>
-                      ) : null}
-                    </td>
+                    {d.hideMoney ? null : (
+                      <td className="td num">
+                        <Money minor={u.walletMinor} />
+                        {u.clearingMinor ? (
+                          <span className="muted small block">
+                            + <Money minor={u.clearingMinor} /> clearing
+                          </span>
+                        ) : null}
+                      </td>
+                    )}
                     <td className="td nowrap">{istDate(u.joinedAt)}</td>
                     <td className="td nowrap muted">{u.lastSeenAt ? timeAgo(u.lastSeenAt, now) : '—'}</td>
                   </ClickRow>

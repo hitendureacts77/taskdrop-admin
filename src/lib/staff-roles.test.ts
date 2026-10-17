@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { STAFF_ROLES, asStaffRole, roleLabel, staffCan, type StaffArea, type StaffRole } from './staff-roles.ts';
+import { STAFF_ROLES, asStaffRole, liveEventIsMoney, roleLabel, staffCan, staffCanSee, type StaffArea, type StaffRole } from './staff-roles.ts';
 
 const AREAS: StaffArea[] = ['money', 'people', 'admin'];
 
@@ -29,6 +29,26 @@ test('sales is a listed role with a label', () => {
 
 test('viewer changes nothing', () => {
   for (const a of AREAS) assert.equal(staffCan('viewer', a), false);
+});
+
+test('only sales is kept from seeing money and settings', () => {
+  const roles: StaffRole[] = ['admin', 'finance', 'support', 'viewer'];
+  for (const r of roles) {
+    assert.equal(staffCanSee(r, 'money'), true);
+    assert.equal(staffCanSee(r, 'settings'), true);
+  }
+  assert.equal(staffCanSee('sales', 'money'), false);
+  assert.equal(staffCanSee('sales', 'settings'), false);
+});
+
+test('money live events are recognised', () => {
+  assert.equal(liveEventIsMoney('withdrawal_requested', {}), true);
+  assert.equal(liveEventIsMoney('payout_status', { to: 'paid' }), true);
+  assert.equal(liveEventIsMoney('wallet_adjustment', {}), true);
+  assert.equal(liveEventIsMoney('task_status', { to: 'DISPUTED' }), true);
+  assert.equal(liveEventIsMoney('task_status', { to: 'COMPLETED' }), false);
+  assert.equal(liveEventIsMoney('signup', {}), false);
+  assert.equal(liveEventIsMoney('task_posted', null), false);
 });
 
 test('asStaffRole keeps known narrower roles and falls back to admin', () => {

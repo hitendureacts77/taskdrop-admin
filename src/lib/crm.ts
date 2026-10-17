@@ -200,7 +200,7 @@ export async function getPersonCrm(userId: string): Promise<PersonCrm> {
 export type TimelineEvent = { at: string; label: string; detail?: string; href?: string; tone: 'blue' | 'green' | 'gold' | 'red' | 'grey' };
 
 /** Everything that has happened to a person, newest first, from the records already in the database. */
-export async function getTimeline(userId: string, joinedAt: string): Promise<TimelineEvent[]> {
+export async function getTimeline(userId: string, joinedAt: string, opts: { hideMoney?: boolean } = {}): Promise<TimelineEvent[]> {
   const supabase = await db();
   const [posted, worked, reviews, payouts, tickets, notes, susp, msgs] = await Promise.all([
     supabase.from('tasks').select('id, title, status, created_at').eq('poster_id', userId).order('created_at', { ascending: false }).limit(15),
@@ -223,7 +223,7 @@ export async function getTimeline(userId: string, joinedAt: string): Promise<Tim
   for (const r of (reviews.data ?? []) as { rating: number; about_role: string; created_at: string; task_id: string }[]) {
     ev.push({ at: r.created_at, label: `Got a ${r.rating}★ review as a ${r.about_role}`, href: `/tasks/${r.task_id}`, tone: r.rating >= 4 ? 'green' : r.rating <= 2 ? 'red' : 'grey' });
   }
-  for (const p of (payouts.data ?? []) as { amount_minor: number; status: string; created_at: string }[]) {
+  for (const p of opts.hideMoney ? [] : ((payouts.data ?? []) as { amount_minor: number; status: string; created_at: string }[])) {
     ev.push({ at: p.created_at, label: `Asked to withdraw ${inr(Number(p.amount_minor))}`, detail: p.status, tone: 'gold' });
   }
   for (const t of (tickets.data ?? []) as { id: string; subject: string; created_at: string }[]) ev.push({ at: t.created_at, label: 'Asked for help', detail: t.subject, href: `/support/${t.id}`, tone: 'gold' });
@@ -392,7 +392,7 @@ export async function getAudiences(extra?: Criteria): Promise<Audience[]> {
 // ------------------------------------------------------------------- export --
 
 /** A spreadsheet of the people in a view. Phone and email are included only when the server holds the service key. */
-export async function exportCsv(ids: string[]): Promise<string> {
+export async function exportCsv(ids: string[], opts: { hideMoney?: boolean } = {}): Promise<string> {
   const rows: MemberRow[] = [];
   for (let i = 0; i < ids.length; i += 200) rows.push(...(await memberRows(ids.slice(i, i + 200))));
   let service: ReturnType<typeof createServiceClient> | null = null;
@@ -401,7 +401,8 @@ export async function exportCsv(ids: string[]): Promise<string> {
   } catch {
     service = null;
   }
-  const head = ['Name', 'Does', 'Place', 'Joined', 'Last seen', 'Wallet ₹', 'Clearing ₹', 'Tags', 'Suspended', 'Owner', ...(service ? ['Email', 'Phone'] : []), 'Person id'];
+  const money = !opts.hideMoney;
+  const head = ['Name', 'Does', 'Place', 'Joined', 'Last seen', ...(money ? ['Wallet ₹', 'Clearing ₹'] : []), 'Tags', 'Suspended', 'Owner', ...(service ? ['Email', 'Phone'] : []), 'Person id'];
   const lines: unknown[][] = [];
   for (const r of rows) {
     let email = '';
@@ -411,7 +412,7 @@ export async function exportCsv(ids: string[]): Promise<string> {
       email = data?.user?.email ?? '';
       phone = data?.user?.phone ?? '';
     }
-    lines.push([r.name, r.isWorker ? 'Worker' : 'Poster', r.place ?? '', r.joinedAt.slice(0, 10), r.lastSeenAt?.slice(0, 10) ?? '', (r.walletMinor / 100).toFixed(2), (r.clearingMinor / 100).toFixed(2), r.tags.map((t) => t.name).join('; '), r.suspended ? 'Yes' : 'No', r.owner?.name ?? '', ...(service ? [email, phone] : []), r.id]);
+    lines.push([r.name, r.isWorker ? 'Worker' : 'Poster', r.place ?? '', r.joinedAt.slice(0, 10), r.lastSeenAt?.slice(0, 10) ?? '', ...(money ? [(r.walletMinor / 100).toFixed(2), (r.clearingMinor / 100).toFixed(2)] : []), r.tags.map((t) => t.name).join('; '), r.suspended ? 'Yes' : 'No', r.owner?.name ?? '', ...(service ? [email, phone] : []), r.id]);
   }
   return toCsv(head, lines);
 }

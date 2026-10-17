@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { describeLive, LIVE_GROUPS, type LiveGroup } from '@/lib/live-describe';
 import { timeAgo } from '@/lib/format';
+import { staffCanSee } from '@/lib/staff-roles';
 import { Icon } from './Icon';
 import { useLive } from './LiveProvider';
 import { Card, Empty } from './ui';
@@ -43,7 +44,7 @@ export function LiveFeed({ limit = 25 }: { limit?: number }) {
       flush
     >
       <div className="live-filters" role="group" aria-label="Show">
-        {[{ value: 'all' as const, label: 'Everything' }, ...LIVE_GROUPS].map((g) => (
+        {[{ value: 'all' as const, label: 'Everything' }, ...LIVE_GROUPS.filter((g) => g.value !== 'money' || staffCanSee(live.role, 'money'))].map((g) => (
           <button key={g.value} type="button" className={`live-filter${group === g.value ? ' on' : ''}`} aria-pressed={group === g.value} onClick={() => setGroup(g.value)}>
             {g.label}
           </button>

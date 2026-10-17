@@ -1,5 +1,5 @@
 import { EntriesView, ENTRY_WHEN, type EntryWhen } from '@/components/views/EntriesView';
-import { getLedger, isTimestamp, isUuid, requireAdmin } from '@/lib/data';
+import { getLedger, isTimestamp, isUuid, requireSeeing } from '@/lib/data';
 import { addIstDays, istMidnight, istParts, startOfIstDay } from '@/lib/days';
 import { LEDGER_KIND } from '@/lib/labels';
 
@@ -7,7 +7,7 @@ type SP = Promise<Record<string, string | string[] | undefined>>;
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
 export default async function EntriesPage({ searchParams }: { searchParams: SP }) {
-  await requireAdmin();
+  await requireSeeing('money');
   const sp = await searchParams;
   const whenRaw = first(sp.when);
   const when: EntryWhen = ENTRY_WHEN.some((w) => w.key === whenRaw) ? (whenRaw as EntryWhen) : 'all';

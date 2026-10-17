@@ -1,12 +1,12 @@
 import { ReconcileView } from '@/components/views/AnalyticsViews';
-import { requireAdmin } from '@/lib/data';
+import { requireSeeing } from '@/lib/data';
 import { addIstDays, istDayKey, startOfIstDay } from '@/lib/days';
 import { getReconcile } from '@/lib/growth';
 import { getReconciliationRuns } from '@/lib/ops';
 import { roleLabel } from '@/lib/staff-roles';
 
 export default async function ReconcilePage({ searchParams }: { searchParams: Promise<{ days?: string }> }) {
-  const me = await requireAdmin();
+  const me = await requireSeeing('money');
   const raw = Number((await searchParams).days);
   const days = [7, 30, 90].includes(raw) ? raw : 30;
   const to = istDayKey(startOfIstDay());
