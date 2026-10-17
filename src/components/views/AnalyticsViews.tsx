@@ -4,7 +4,10 @@ import type { PromoRoi, Read, ReconcileRow } from '@/lib/growth';
 import { RECONCILE_CHECKS, checkTitle, funnelSteps, retentionGrid, totalDaily, type DailyRow, type FunnelRow, type RetentionRow } from '@/lib/growth-calc';
 import { CHART_COLORS } from '@/lib/labels';
 import { inr, istDate, pct } from '@/lib/format';
-import { Card, Delta, Empty, Money, PageHeader, Pill, Tabs } from '../ui';
+import type { OpsRead } from '@/lib/ops';
+import { isStaffRefusal, type ReconRun } from '@/lib/ops-calc';
+import { Card, Delta, Empty, Money, Notice, PageHeader, Pill, Tabs } from '../ui';
+import { NightlyChecks } from './ReconcileRuns';
 import { ReadError, SetupNotice } from './SetupNotice';
 
 const shortDay = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' });
@@ -216,7 +219,7 @@ export function GrowthReports({
   );
 }
 
-export function ReconcileView({ days, rows, from, to }: { days: number; rows: Read<ReconcileRow[]>; from: string; to: string }) {
+export function ReconcileView({ days, rows, from, to, runs, refusal }: { days: number; rows: Read<ReconcileRow[]>; from: string; to: string; runs: OpsRead<ReconRun[]>; refusal: string }) {
   const counts = new Map<string, number>();
   for (const r of rows.data) counts.set(r.code, (counts.get(r.code) ?? 0) + 1);
   const href = (r: ReconcileRow) => (r.refType === 'task' ? `/tasks/${r.refId}` : r.refType === 'payout' ? `/payouts/${r.refId}` : null);
@@ -225,13 +228,14 @@ export function ReconcileView({ days, rows, from, to }: { days: number; rows: Re
       <PageHeader
         crumbs={[{ href: '/money', label: 'Money' }, { label: 'Money check' }]}
         title="Money check"
-        sub={`Things in ${istDate(from)} to ${istDate(to)} that don’t add up inside TaskDrop’s own records. This does not yet compare against Razorpay’s own statements.`}
+        sub={`Things in ${istDate(from)} to ${istDate(to)} that don’t add up inside TaskDrop’s own records. Our books are checked every night; payments from the last 3 days are also compared with Razorpay’s payment links.`}
       />
+      <NightlyChecks runs={runs} refusal={refusal} />
       <Tabs label="Range" items={[7, 30, 90].map((d) => ({ href: `/money/reconcile?days=${d}`, label: `Last ${d} days`, active: d === days }))} />
       {rows.setup ? (
         <SetupNotice what="The money check" migration="096_business_analytics" />
       ) : rows.error ? (
-        <ReadError message={rows.error} />
+        isStaffRefusal(rows.error) ? <Notice tone="gold" title="Not available to your staff role">{refusal}</Notice> : <ReadError message={rows.error} />
       ) : (
         <>
           <Card title="Summary">

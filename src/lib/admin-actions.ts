@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { isAllowedIdentity } from './auth';
+import { classifyWho } from './find-person';
 import { SWITCH_KEYS, type SwitchKey } from './admin-config';
 import { isUuid, requireAdmin } from './data';
 import { moneyMfaGate } from './mfa';
@@ -49,13 +50,44 @@ function revalidateTeam() {
   revalidatePath('/users');
 }
 
-/** "@asha", "asha" or a person id. */
+/**
+ * Looks up the auth user behind an e-mail address. Server only: auth.users is
+ * not readable with the admin's own session, so this uses the service key
+ * (read-only; the caller has already passed requireAdmin). Someone who has only
+ * signed in with Google has an e-mail but no phone or @username.
+ */
+async function findIdByEmail(email: string): Promise<string | null> {
+  let service;
+  try {
+    service = createServiceClient();
+  } catch {
+    return null;
+  }
+  const perPage = 1000;
+  for (let page = 1; page <= 20; page++) {
+    const { data, error } = await service.auth.admin.listUsers({ page, perPage });
+    if (error) return null;
+    const hit = data.users.find((u) => (u.email ?? '').toLowerCase() === email);
+    if (hit) return hit.id;
+    if (data.users.length < perPage) break;
+  }
+  return null;
+}
+
+/** "@asha", "asha", an e-mail address (Google sign-in) or a person id. */
 async function findPerson(who: string): Promise<{ id: string; name: string } | null> {
   const supabase = await createClient();
-  const clean = who.replace(/^@/, '').trim();
-  if (!clean) return null;
+  const w = classifyWho(who);
+  if (!w) return null;
   const q = supabase.from('profiles').select('id, display_name').is('deleted_at', null);
-  const { data } = isUuid(clean) ? await q.eq('id', clean).maybeSingle() : await q.ilike('username', clean.replace(/[%_\\]/g, '')).maybeSingle();
+  let data: unknown;
+  if (w.kind === 'uuid') ({ data } = await q.eq('id', w.value).maybeSingle());
+  else if (w.kind === 'username') ({ data } = await q.ilike('username', w.value.replace(/[%_\\]/g, '')).maybeSingle());
+  else {
+    const id = await findIdByEmail(w.value);
+    if (!id) return null;
+    ({ data } = await q.eq('id', id).maybeSingle());
+  }
   const p = data as { id: string; display_name: string } | null;
   return p ? { id: p.id, name: p.display_name || 'this person' } : null;
 }
@@ -67,9 +99,9 @@ export async function addAdmin(_prev: ActionResult, form: FormData): Promise<Act
   const mfa = await moneyMfaGate();
   if (mfa) return { ok: false, message: mfa };
   const who = str(form, 'who').slice(0, 80);
-  if (!who) return { ok: false, message: 'Type their @username, as shown on their profile.' };
+  if (!who) return { ok: false, message: 'Type their @username or the Google address they signed in with.' };
   const person = await findPerson(who);
-  if (!person) return { ok: false, message: `Nobody in TaskDrop has the username “${who.replace(/^@/, '')}”. Check it on the People page.` };
+  if (!person) return { ok: false, message: `Nobody in TaskDrop matches “${who.replace(/^@/, '')}”. Check the @username on the People page, or type the Google address they signed in with.` };
   const role = str(form, 'role') || 'admin';
   if (!isStaffRole(role)) return { ok: false, message: 'Pick a role.' };
 
@@ -92,7 +124,7 @@ export async function addAdmin(_prev: ActionResult, form: FormData): Promise<Act
   return {
     ok: true,
     message: blocked
-      ? `${person.name} is now an admin in the database, but this panel only lets in the account in ADMIN_EMAIL / ADMIN_PHONE. Add theirs there for them to sign in.`
+      ? `${person.name} is now an admin in the database, but this panel only lets in the accounts listed in ADMIN_EMAIL / ADMIN_PHONE. Add theirs there (comma-separated) for them to sign in.`
       : `${person.name} is now on the team as ${roleLabel(role)}.`,
   };
 }

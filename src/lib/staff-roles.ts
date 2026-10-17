@@ -6,13 +6,14 @@
  * run through edge functions.
  */
 
-export type StaffRole = 'admin' | 'finance' | 'support' | 'viewer';
+export type StaffRole = 'admin' | 'finance' | 'support' | 'sales' | 'viewer';
 export type StaffArea = 'money' | 'people' | 'admin';
 
 export const STAFF_ROLES: { value: StaffRole; label: string; short: string }[] = [
   { value: 'admin', label: 'Admin', short: 'Everything, including settings and the team' },
   { value: 'finance', label: 'Finance', short: 'Payouts, refunds, wallet changes and disputes' },
   { value: 'support', label: 'Support', short: 'Help requests, customer notes, tags, messages, suspensions and copyright' },
+  { value: 'sales', label: 'Sales', short: 'Customers, notes, follow-ups, leads and moderation' },
   { value: 'viewer', label: 'Viewer', short: 'Sees everything, changes nothing' },
 ];
 
@@ -23,13 +24,13 @@ export const AREA_LABEL: Record<StaffArea, string> = {
 };
 
 export function asStaffRole(v: unknown): StaffRole {
-  return v === 'finance' || v === 'support' || v === 'viewer' ? v : 'admin';
+  return v === 'finance' || v === 'support' || v === 'sales' || v === 'viewer' ? v : 'admin';
 }
 
 export function staffCan(role: StaffRole, area: StaffArea): boolean {
   if (role === 'admin') return true;
   if (role === 'finance') return area === 'money';
-  if (role === 'support') return area === 'people';
+  if (role === 'support' || role === 'sales') return area === 'people';
   return false;
 }
 

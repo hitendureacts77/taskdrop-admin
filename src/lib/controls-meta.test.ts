@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { areaFor, asPlatform, needsMfa, summarizeDevices, versionLt } from './controls-meta.ts';
+import { areaFor, asPlatform, effectiveRequirePhone, needsMfa, summarizeDevices, versionLt } from './controls-meta.ts';
 
 test('versionLt compares numbers, not text', () => {
   assert.equal(versionLt('1.2.3', '1.10.0'), true);
@@ -46,4 +46,17 @@ test('summarizeDevices counts by platform and version and flags outdated install
   assert.equal(android.outdated, 1);
   assert.equal(s.versions.find((v) => v.platform === 'android' && v.version === '1.0.0')!.outdated, true);
   assert.equal(s.versions.find((v) => v.platform === 'web')!.outdated, false);
+});
+
+test('the phone requirement merges as OR and defaults off', () => {
+  assert.deepEqual(effectiveRequirePhone({}, 'web'), { on: false, viaAll: false });
+  assert.deepEqual(effectiveRequirePhone({ all: { require_phone_verified: true } }, 'android'), { on: true, viaAll: true });
+  assert.deepEqual(effectiveRequirePhone({ all: { require_phone_verified: false }, ios: { require_phone_verified: true } }, 'ios'), { on: true, viaAll: false });
+  assert.deepEqual(effectiveRequirePhone({ ios: { require_phone_verified: true } }, 'web'), { on: false, viaAll: false });
+  assert.deepEqual(effectiveRequirePhone({ all: { require_phone_verified: true } }, 'all'), { on: true, viaAll: false });
+});
+
+test('the phone requirement is an admin change that needs no authenticator', () => {
+  assert.equal(areaFor(['require_phone_verified']), 'admin');
+  assert.equal(needsMfa(['require_phone_verified']), false);
 });

@@ -1,3 +1,5 @@
+import { Suspense } from 'react';
+import { SystemHealthCard, SystemHealthSkeleton } from '@/components/SystemHealthCard';
 import { DashboardView } from '@/components/views/DashboardView';
 import {
   getAllTimeEarnings,
@@ -47,6 +49,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: SP
         disputes: nav.disputes,
         support: nav.support,
       }}
+      health={
+        <Suspense fallback={<SystemHealthSkeleton />}>
+          <SystemHealthCard />
+        </Suspense>
+      }
     />
   );
 }

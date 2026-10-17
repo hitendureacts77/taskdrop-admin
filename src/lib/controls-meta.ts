@@ -33,6 +33,23 @@ export const FEATURE_SWITCHES: FeatureSwitch[] = [
   { key: 'chat_photos', label: 'Photos in chat', help: 'Off: people can send text only.' },
 ];
 
+/**
+ * The one switch where on is the restriction and it merges as OR: it applies to a platform when either the
+ * Everywhere row or that platform's row is on, and it defaults off.
+ */
+export const REQUIRE_PHONE: FeatureSwitch = {
+  key: 'require_phone_verified',
+  label: 'Require a verified phone number',
+  help: 'Off: anyone can post, offer and withdraw. On: people with no confirmed phone number are asked to confirm it first. Google-only accounts are affected.',
+};
+
+/** Whether the phone requirement is in force for a platform, and whether it comes from the Everywhere row. */
+export function effectiveRequirePhone(rows: Partial<Record<PlatformKey, Record<string, unknown> | null>>, platform: PlatformKey): { on: boolean; viaAll: boolean } {
+  const all = rows.all?.require_phone_verified === true;
+  const own = platform !== 'all' && rows[platform]?.require_phone_verified === true;
+  return { on: all || own, viaAll: all && platform !== 'all' };
+}
+
 export const MONEY_KEYS = new Set(FEATURE_SWITCHES.filter((s) => s.money).map((s) => s.key));
 
 export const TEXT_KEYS = ['maintenance_message', 'min_version', 'update_url', 'banner_text', 'banner_level', 'banner_link', 'banner_ends_at'] as const;

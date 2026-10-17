@@ -31,6 +31,7 @@ const SECTIONS: { title: string | null; items: Item[] }[] = [
     items: [
       { href: '/tasks', label: 'Jobs', icon: 'jobs' },
       { href: '/users', label: 'People', icon: 'people' },
+      { href: '/devices', label: 'Devices', icon: 'device' },
       { href: '/disputes', label: 'Disputes', icon: 'scale', badge: 'disputes', alert: true },
       { href: '/reports-queue', label: 'Reports', icon: 'alert' },
       { href: '/support', label: 'Help requests', icon: 'help', badge: 'support' },
@@ -43,6 +44,7 @@ const SECTIONS: { title: string | null; items: Item[] }[] = [
     items: [
       { href: '/crm', label: 'Customer hub', icon: 'shield' },
       { href: '/crm/tasks', label: 'Follow-ups & pipeline', icon: 'clock' },
+      { href: '/crm/leads', label: 'Leads', icon: 'people' },
       { href: '/crm/segments', label: 'Segments', icon: 'search' },
       { href: '/crm/messages', label: 'Messages', icon: 'megaphone' },
     ],

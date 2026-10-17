@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { checkAdmin } from '@/lib/auth';
 import { csvResponse } from '@/lib/csv';
+import { parseOwnerFilter } from '@/lib/crm-calc';
+import { applyOwnerFilter } from '@/lib/crm-owners';
 import { exportCsv, idsForCriteria, idsSuspended, idsWithTag, parseCriteria } from '@/lib/crm';
 import { getUsers, isUuid, parseUserFilter } from '@/lib/data';
 import { createClient } from '@/lib/supabase/server';
@@ -23,7 +25,7 @@ export async function GET(req: Request) {
   const sp = new URL(req.url).searchParams;
   let ids: string[];
   if (sp.get('segment') === '1') {
-    ids = await idsForCriteria(parseCriteria(Object.fromEntries(sp)));
+    ids = await applyOwnerFilter(await idsForCriteria(parseCriteria(Object.fromEntries(sp))), parseOwnerFilter(sp.get('owner') ?? undefined), who.user.id);
   } else {
     const filter = parseUserFilter(sp.get('filter') ?? undefined);
     const tag = sp.get('tag') ?? '';

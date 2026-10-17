@@ -9,7 +9,7 @@ import { Card, Empty, JobLink, Money, Notice, PageHeader, PersonLink, Pill, Sear
 
 // -------------------------------------------------------------- promotions --
 
-export function PromotionsView({ rows }: { rows: PromotionRow[] }) {
+export function PromotionsView({ rows, stop }: { rows: PromotionRow[]; /** Only given to money staff. */ stop?: FormAction }) {
   const active = rows.filter((r) => r.status === 'active');
   const paid = rows.filter((r) => r.status === 'active' || r.status === 'expired');
   return (
@@ -48,6 +48,7 @@ export function PromotionsView({ rows }: { rows: PromotionRow[] }) {
                   <th className="th">For</th>
                   <th className="th">Status</th>
                   <th className="th">Runs</th>
+                  {stop ? <th className="th" /> : null}
                 </tr>
               </thead>
               <tbody>
@@ -71,6 +72,22 @@ export function PromotionsView({ rows }: { rows: PromotionRow[] }) {
                         <Pill tone={st.tone}>{st.label}</Pill>
                       </td>
                       <td className="td nowrap small">{r.startsAt ? `${istDate(r.startsAt)} – ${r.endsAt ? istDate(r.endsAt) : '…'}` : 'Not started'}</td>
+                      {stop ? (
+                        <td className="td">
+                          {r.status === 'active' || r.status === 'pending' ? (
+                            <ConfirmAction
+                              action={stop}
+                              hidden={{ promotionId: r.id }}
+                              trigger="Stop"
+                              tone="danger"
+                              title={`Stop the promotion on “${r.title}”?`}
+                              consequence={<>It stops showing now. What it had not used is back in {r.user}’s TaskDrop wallet; what it already delivered stays as TaskDrop’s earnings. {r.user} is told. This cannot be undone.</>}
+                              field={{ name: 'reason', label: 'Why (the advertiser sees this)', placeholder: 'e.g. misleading picture', required: true }}
+                              confirmLabel="Stop the promotion"
+                            />
+                          ) : null}
+                        </td>
+                      ) : null}
                     </ClickRow>
                   );
                 })}

@@ -12,6 +12,7 @@ import {
   DeletedBanner,
   MessageCard,
   NotesCard,
+  OwnerCard,
   SuspendButton,
   SuspensionBanner,
   SuspensionHistory,
@@ -197,6 +198,7 @@ export function UserView({
         <div className="stack">
           {u.deletion ? null : (
             <>
+              <OwnerCard userId={u.id} crm={crm} />
               <TagsCard userId={u.id} crm={crm} />
               <MessageCard userId={u.id} name={u.name} crm={crm} />
             </>

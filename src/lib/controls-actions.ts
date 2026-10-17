@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { areaFor, asPlatform, FEATURE_SWITCHES, needsMfa, TEXT_KEYS } from './controls-meta';
+import { areaFor, asPlatform, FEATURE_SWITCHES, needsMfa, REQUIRE_PHONE, TEXT_KEYS } from './controls-meta';
 import { requireAdmin } from './data';
 import { moneyMfaGate } from './mfa';
 import { staffGate } from './staff';
@@ -21,7 +21,7 @@ function friendly(message: string): string {
 }
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? '').trim();
-const BOOL_KEYS = new Set(['maintenance', ...FEATURE_SWITCHES.map((s) => s.key)]);
+const BOOL_KEYS = new Set(['maintenance', REQUIRE_PHONE.key, ...FEATURE_SWITCHES.map((s) => s.key)]);
 
 async function apply(platform: string, changes: Record<string, unknown>, reason: string): Promise<ActionResult> {
   await requireAdmin();

@@ -1,5 +1,6 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Allowlist } from './allowlist';
 import { adminAllowlist, isAllowedIdentity } from './auth';
 import { getNavCounts, getRazorpayXState, getPayoutMethod, hasServiceKey, type NavCounts, type PayoutMethod, type RazorpayXState } from './data';
 import { createClient as createSessionClient } from './supabase/server';
@@ -38,7 +39,7 @@ export type TeamMember = {
   lastSignIn: string | null;
   /** null when the service key isn't set, so it can't be known. */
   authenticator: boolean | null;
-  /** Passes ADMIN_EMAIL / ADMIN_PHONE, so the panel lets them in. null when unknown. */
+  /** Passes the ADMIN_EMAIL / ADMIN_PHONE list, so the panel lets them in. null when unknown. */
   canOpenPanel: boolean | null;
 };
 
@@ -128,7 +129,7 @@ export async function getSwitches(): Promise<{ switches: Record<SwitchKey, Switc
 export type Integrations = {
   supabase: { projectRef: string; ok: boolean; ms: number | null; error: string | null };
   serviceKey: boolean;
-  allowlist: { email: string; phone: string };
+  allowlist: Allowlist;
   razorpayx: RazorpayXState;
   payoutMethod: PayoutMethod;
   lastPayment: string | null;

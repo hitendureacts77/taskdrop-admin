@@ -1,5 +1,4 @@
 import 'server-only';
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { isUuid } from './data';
 import { createClient as createServiceClient } from './supabase/service';
 import { createClient as createSessionClient } from './supabase/server';
@@ -63,7 +62,7 @@ export async function getUserDevices(userId: string): Promise<UserDevice[] | nul
   if (!service) return null;
   // Installs the app itself reported (migration 092): platform, app version, OS, last seen.
   // Not there yet (migration not applied) means: fall back to push registrations only.
-  const installs = await (service as unknown as SupabaseClient)
+  const installs = await service
     .from('app_devices')
     .select('platform, app_version, os_version, first_seen_at, last_seen_at')
     .eq('user_id', userId)
@@ -85,7 +84,7 @@ export async function getUserDevices(userId: string): Promise<UserDevice[] | nul
 /** Admin actions recorded against this person (suspensions, notes, wallet changes, deletion), newest first. */
 export async function getUserAudit(userId: string): Promise<UserAuditEntry[]> {
   if (!isUuid(userId)) return [];
-  const supabase = (await createSessionClient()) as unknown as SupabaseClient;
+  const supabase = await createSessionClient();
   const { data, error } = await supabase
     .from('admin_audit_log')
     .select('id, at, actor, actor_kind, action, target_table, detail')

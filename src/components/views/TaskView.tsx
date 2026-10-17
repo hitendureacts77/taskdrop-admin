@@ -18,6 +18,7 @@ export function TaskView({
   resolveDispute,
   dispute = null,
   moderation = null,
+  cancelTask,
 }: {
   t: TaskDetail;
   settings: MoneySettings;
@@ -27,6 +28,8 @@ export function TaskView({
   dispute?: DisputeReason | null;
   /** Whether the job is hidden (migration 093); null leaves the Visibility card out. */
   moderation?: { hidden: boolean; reason: string | null; setup: boolean } | null;
+  /** Cancel-with-refund; only given to money staff (full admin or finance). */
+  cancelTask?: FormAction;
 }) {
   const now = new Date(nowIso);
   const st = taskStatus(t.status);
@@ -235,6 +238,21 @@ export function TaskView({
           </Card>
 
           {moderation ? <HideTaskCard taskId={t.id} state={moderation} /> : null}
+
+          {cancelTask && (t.status === 'OPEN' || t.status === 'LOCKED') ? (
+            <Card title="Cancel this job" sub="For a job where work has not started.">
+              <ConfirmAction
+                action={cancelTask}
+                hidden={{ taskId: t.id }}
+                trigger="Cancel and refund"
+                tone="danger"
+                title="Cancel this job and refund the poster?"
+                consequence={<>The job closes and nobody can offer on it. If the poster paid from their TaskDrop wallet, the whole amount goes back there now, with no fine. A job paid by card is refunded from the Refunds page. The poster{a ? ' and the hired worker are' : ' is'} told. This cannot be undone.</>}
+                field={{ name: 'reason', label: 'Why (the poster sees this)', placeholder: 'e.g. posted twice by mistake', required: true }}
+                confirmLabel="Cancel the job"
+              />
+            </Card>
+          ) : null}
 
           <Card title="Timeline">
             <ol className="timeline">

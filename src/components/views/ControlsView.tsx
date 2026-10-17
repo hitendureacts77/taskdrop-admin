@@ -2,7 +2,7 @@ import { ConfirmAction } from '../ConfirmAction';
 import { ControlTextForm } from '../ControlsForms';
 import type { ControlsRead, DevicesRead } from '@/lib/controls';
 import { setControlSwitch } from '@/lib/controls-actions';
-import { FEATURE_SWITCHES, PLATFORMS, summarizeDevices, type AppControlRow } from '@/lib/controls-meta';
+import { effectiveRequirePhone, FEATURE_SWITCHES, PLATFORMS, REQUIRE_PHONE, summarizeDevices, type AppControlRow } from '@/lib/controls-meta';
 import { istDate, timeAgo } from '@/lib/format';
 import { Card, Empty, Notice, Pill } from '../ui';
 import { ConfigHeader } from './AdminConfigViews';
@@ -71,6 +71,36 @@ export function ControlsView({ controls, devices, now: nowIso }: { controls: Con
                             field={{ name: 'reason', label: 'Why' }}
                             confirmLabel={on ? 'End maintenance' : 'Start maintenance'}
                           />
+                        </td>
+                      );
+                    })}
+                  </tr>
+                  <tr>
+                    <td className="td">
+                      <strong>{REQUIRE_PHONE.label}</strong>
+                      <span className="muted small block">{REQUIRE_PHONE.help}</span>
+                    </td>
+                    {PLATFORMS.map((p) => {
+                      const on = controls.rows[p.key]?.[REQUIRE_PHONE.key] === true;
+                      const eff = effectiveRequirePhone(controls.rows, p.key);
+                      return (
+                        <td key={p.key} className="td">
+                          <ConfirmAction
+                            action={setControlSwitch}
+                            hidden={{ platform: p.key, key: REQUIRE_PHONE.key, value: String(!on) }}
+                            trigger={`${on ? 'Stop requiring' : 'Require'} a verified phone for ${p.label}`}
+                            asSwitch={{ on }}
+                            tone={on ? 'primary' : 'danger'}
+                            title={on ? `Stop requiring a verified phone on ${p.label}?` : `Require a verified phone on ${p.label}?`}
+                            consequence={
+                              on
+                                ? 'Anyone can post, offer and withdraw again, with or without a confirmed phone number.'
+                                : `People on ${p.label} with no confirmed phone number can no longer post, send offers or withdraw until they confirm one. Google-only accounts are locked out of these until they add a phone. Money already in progress is not touched.`
+                            }
+                            field={{ name: 'reason', label: 'Why' }}
+                            confirmLabel={on ? 'Stop requiring' : 'Require phone'}
+                          />
+                          {eff.viaAll && !on ? <span className="muted small block">On via Everywhere</span> : null}
                         </td>
                       );
                     })}

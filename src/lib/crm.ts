@@ -4,6 +4,9 @@ import { createClient as createSessionClient } from './supabase/server';
 import { createClient as createServiceClient } from './supabase/service';
 import { toCsv } from './csv';
 import { isUuid, namesFor } from './data';
+import { applyOwnerFilter, getOwnerMap, type OwnerRef } from './crm-owners';
+import type { OwnerFilter } from './crm-calc';
+import { getStaffList } from './growth';
 
 /**
  * Reads for the CRM screens: notes, tags, suspensions, segments and messages.
@@ -155,16 +158,20 @@ export type PersonCrm = {
   suspension: Suspension | null;
   suspensionHistory: Suspension[];
   messages: SentMessage[];
+  owner: OwnerRef | null;
+  staff: { id: string; name: string }[];
 };
 
 export async function getPersonCrm(userId: string): Promise<PersonCrm> {
   const supabase = await db();
-  const [tags, allTags, notes, susp, msgs] = await Promise.all([
+  const [tags, allTags, notes, susp, msgs, owners, staff] = await Promise.all([
     getTagsFor([userId]),
     getTags(),
     supabase.from('crm_notes').select('id, body, pinned, follow_up_at, done_at, author_id, created_at').eq('user_id', userId).order('pinned', { ascending: false }).order('created_at', { ascending: false }).limit(100),
     supabase.from('user_suspensions').select('id, reason, suspended_by, suspended_at, lifted_at, lifted_by, lift_note').eq('user_id', userId).order('suspended_at', { ascending: false }).limit(20),
     supabase.from('crm_broadcasts').select('id, title, body, sent_at, sent_by').eq('to_user', userId).order('sent_at', { ascending: false }).limit(20),
+    getOwnerMap([userId]),
+    getStaffList(),
   ]);
   const noteRows = (notes.data ?? []) as { id: string; body: string; pinned: boolean; follow_up_at: string | null; done_at: string | null; author_id: string | null; created_at: string }[];
   const suspRows = (susp.data ?? []) as { id: string; reason: string; suspended_by: string | null; suspended_at: string; lifted_at: string | null; lifted_by: string | null; lift_note: string | null }[];
@@ -183,6 +190,8 @@ export async function getPersonCrm(userId: string): Promise<PersonCrm> {
     suspension: history.find((h) => !h.liftedAt) ?? null,
     suspensionHistory: history.filter((h) => h.liftedAt),
     messages: msgRows.map((m) => ({ id: m.id, title: m.title, body: m.body, at: m.sent_at, by: who(m.sent_by) })),
+    owner: owners.get(userId) ?? null,
+    staff,
   };
 }
 
@@ -240,6 +249,7 @@ export type MemberRow = {
   clearingMinor: number;
   tags: Tag[];
   suspended: boolean;
+  owner: OwnerRef | null;
 };
 
 async function matchingIds(c: Criteria): Promise<string[]> {
@@ -256,11 +266,12 @@ export async function countMatching(c: Criteria): Promise<number> {
 async function memberRows(ids: string[]): Promise<MemberRow[]> {
   if (!ids.length) return [];
   const supabase = await db();
-  const [profiles, wallets, tags, susp] = await Promise.all([
+  const [profiles, wallets, tags, susp, owners] = await Promise.all([
     supabase.from('profiles').select('id, display_name, loc_label, created_at, last_seen_at, worker_onboarded_at').in('id', ids),
     supabase.from('wallets').select('user_id, balance_minor, clearing_minor').in('user_id', ids),
     getTagsFor(ids),
     getSuspendedAmong(ids),
+    getOwnerMap(ids),
   ]);
   const w = new Map(((wallets.data ?? []) as { user_id: string; balance_minor: number; clearing_minor: number }[]).map((x) => [x.user_id, x]));
   const rows = ((profiles.data ?? []) as { id: string; display_name: string; loc_label: string | null; created_at: string; last_seen_at: string | null; worker_onboarded_at: string | null }[]).map((p) => ({
@@ -274,12 +285,14 @@ async function memberRows(ids: string[]): Promise<MemberRow[]> {
     clearingMinor: Number(w.get(p.id)?.clearing_minor ?? 0),
     tags: tags.get(p.id) ?? [],
     suspended: susp.has(p.id),
+    owner: owners.get(p.id) ?? null,
   }));
   return rows.sort((a, b) => b.joinedAt.localeCompare(a.joinedAt));
 }
 
-export async function getMembers(c: Criteria, page: number, pageSize = 30): Promise<{ rows: MemberRow[]; total: number }> {
-  const ids = await matchingIds(c);
+export async function getMembers(c: Criteria, page: number, pageSize = 30, owner?: { filter: OwnerFilter; me: string }): Promise<{ rows: MemberRow[]; total: number }> {
+  const all = await matchingIds(c);
+  const ids = owner ? await applyOwnerFilter(all, owner.filter, owner.me) : all;
   const names = await namesFor(ids);
   const sorted = [...ids].sort((a, b) => (names.get(a) ?? '').localeCompare(names.get(b) ?? ''));
   return { total: ids.length, rows: await memberRows(sorted.slice(page * pageSize, (page + 1) * pageSize)) };
@@ -388,7 +401,7 @@ export async function exportCsv(ids: string[]): Promise<string> {
   } catch {
     service = null;
   }
-  const head = ['Name', 'Does', 'Place', 'Joined', 'Last seen', 'Wallet ₹', 'Clearing ₹', 'Tags', 'Suspended', ...(service ? ['Email', 'Phone'] : []), 'Person id'];
+  const head = ['Name', 'Does', 'Place', 'Joined', 'Last seen', 'Wallet ₹', 'Clearing ₹', 'Tags', 'Suspended', 'Owner', ...(service ? ['Email', 'Phone'] : []), 'Person id'];
   const lines: unknown[][] = [];
   for (const r of rows) {
     let email = '';
@@ -398,7 +411,7 @@ export async function exportCsv(ids: string[]): Promise<string> {
       email = data?.user?.email ?? '';
       phone = data?.user?.phone ?? '';
     }
-    lines.push([r.name, r.isWorker ? 'Worker' : 'Poster', r.place ?? '', r.joinedAt.slice(0, 10), r.lastSeenAt?.slice(0, 10) ?? '', (r.walletMinor / 100).toFixed(2), (r.clearingMinor / 100).toFixed(2), r.tags.map((t) => t.name).join('; '), r.suspended ? 'Yes' : 'No', ...(service ? [email, phone] : []), r.id]);
+    lines.push([r.name, r.isWorker ? 'Worker' : 'Poster', r.place ?? '', r.joinedAt.slice(0, 10), r.lastSeenAt?.slice(0, 10) ?? '', (r.walletMinor / 100).toFixed(2), (r.clearingMinor / 100).toFixed(2), r.tags.map((t) => t.name).join('; '), r.suspended ? 'Yes' : 'No', r.owner?.name ?? '', ...(service ? [email, phone] : []), r.id]);
   }
   return toCsv(head, lines);
 }
