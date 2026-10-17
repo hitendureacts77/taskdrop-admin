@@ -122,7 +122,7 @@ const PLATFORM_LABEL: Record<string, string> = { android: 'Android', ios: 'iPhon
 /** The phones and browsers that can receive this person’s notifications. */
 export function DevicesTab({ devices, now }: { devices: UserDevice[] | null; now: Date }) {
   return (
-    <Card title="Devices" sub="Where this person has allowed notifications. Newest first.">
+    <Card title="Devices" sub="Installs this person has used, newest first.">
       {devices === null ? (
         NEEDS_KEY
       ) : devices.length ? (
@@ -132,6 +132,10 @@ export function DevicesTab({ devices, now }: { devices: UserDevice[] | null; now
               <span>
                 <strong>{PLATFORM_LABEL[d.platform] ?? d.platform}</strong>
                 <span className="muted small block">
+                  {d.appVersion ? `App ${d.appVersion}` : null}
+                  {d.appVersion && d.osVersion ? ' · ' : null}
+                  {d.osVersion ?? null}
+                  {d.appVersion || d.osVersion ? <br /> : null}
                   First seen {istDateTime(d.registeredAt)} · last active {timeAgo(d.lastSeenAt, now)}
                 </span>
               </span>
@@ -141,7 +145,7 @@ export function DevicesTab({ devices, now }: { devices: UserDevice[] | null; now
       ) : (
         <Empty title="No device has allowed notifications" />
       )}
-      <p className="muted small">App version and operating system will show here once the app starts reporting them.</p>
+      <p className="muted small">App version and operating system show once the person has opened a build that reports them.</p>
     </Card>
   );
 }

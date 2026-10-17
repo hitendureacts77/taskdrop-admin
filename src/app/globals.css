@@ -2095,6 +2095,11 @@ select.field { appearance: auto; }
 .top-user { min-width: 0; flex-shrink: 1; color: var(--ink); }
 @media (max-width: 1200px) { .top-date { display: none; } }
 @media (max-width: 1080px) { .top-user { display: none; } }
+/* Phones: let the status chips wrap onto a second line instead of pushing the page wider than the screen */
+@media (max-width: 900px) {
+  .top-search { max-width: none; flex: 1 1 100%; }
+  .top-right { flex-wrap: wrap; gap: 8px; width: 100%; }
+}
 .click-row[data-pending] > td, .click-card[data-pending] { opacity: 0.55; cursor: progress; }
 .chart-opening { cursor: progress; opacity: 0.6; }
 

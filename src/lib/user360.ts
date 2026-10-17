@@ -21,7 +21,7 @@ export type UserPayment = {
   createdAt: string;
 };
 
-export type UserDevice = { platform: string; registeredAt: string; lastSeenAt: string };
+export type UserDevice = { platform: string; registeredAt: string; lastSeenAt: string; appVersion?: string | null; osVersion?: string | null };
 
 export type UserAuditEntry = { id: number; at: string; actor: string; action: string; table: string | null; detail: string | null };
 
@@ -61,6 +61,17 @@ export async function getUserDevices(userId: string): Promise<UserDevice[] | nul
   if (!isUuid(userId)) return [];
   const service = serviceOrNull();
   if (!service) return null;
+  // Installs the app itself reported (migration 092): platform, app version, OS, last seen.
+  // Not there yet (migration not applied) means: fall back to push registrations only.
+  const installs = await (service as unknown as SupabaseClient)
+    .from('app_devices')
+    .select('platform, app_version, os_version, first_seen_at, last_seen_at')
+    .eq('user_id', userId)
+    .order('last_seen_at', { ascending: false })
+    .limit(20);
+  if (!installs.error && installs.data?.length) {
+    return (installs.data as { platform: string; app_version: string | null; os_version: string | null; first_seen_at: string; last_seen_at: string }[]).map((d) => ({ platform: d.platform, registeredAt: d.first_seen_at, lastSeenAt: d.last_seen_at, appVersion: d.app_version, osVersion: d.os_version }));
+  }
   const { data, error } = await service
     .from('push_tokens')
     .select('platform, created_at, updated_at')
