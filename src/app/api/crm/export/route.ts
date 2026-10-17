@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { checkAdmin } from '@/lib/auth';
+import { csvResponse } from '@/lib/csv';
 import { exportCsv, idsForCriteria, idsSuspended, idsWithTag, parseCriteria } from '@/lib/crm';
 import { getUsers, isUuid, parseUserFilter } from '@/lib/data';
 import { createClient } from '@/lib/supabase/server';
@@ -57,13 +58,5 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Could not record this export, so it was not produced' }, { status: 500 });
   }
 
-  const csv = await exportCsv(ids);
-  const day = new Date().toISOString().slice(0, 10);
-  return new Response('﻿' + csv, {
-    headers: {
-      'Content-Type': 'text/csv; charset=utf-8',
-      'Content-Disposition': `attachment; filename="taskdrop-people-${day}.csv"`,
-      'Cache-Control': 'no-store',
-    },
-  });
+  return csvResponse(await exportCsv(ids), 'taskdrop-people');
 }

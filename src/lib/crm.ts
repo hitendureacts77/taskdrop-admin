@@ -2,6 +2,7 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient as createSessionClient } from './supabase/server';
 import { createClient as createServiceClient } from './supabase/service';
+import { toCsv } from './csv';
 import { isUuid, namesFor } from './data';
 
 /**
@@ -377,13 +378,6 @@ export async function getAudiences(extra?: Criteria): Promise<Audience[]> {
 
 // ------------------------------------------------------------------- export --
 
-const csvCell = (v: unknown) => {
-  let s = String(v ?? '');
-  // A spreadsheet runs a cell that starts with = + - @ as a formula; defuse it.
-  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
-  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-};
-
 /** A spreadsheet of the people in a view. Phone and email are included only when the server holds the service key. */
 export async function exportCsv(ids: string[]): Promise<string> {
   const rows: MemberRow[] = [];
@@ -395,7 +389,7 @@ export async function exportCsv(ids: string[]): Promise<string> {
     service = null;
   }
   const head = ['Name', 'Does', 'Place', 'Joined', 'Last seen', 'Wallet ₹', 'Clearing ₹', 'Tags', 'Suspended', ...(service ? ['Email', 'Phone'] : []), 'Person id'];
-  const lines = [head.map(csvCell).join(',')];
+  const lines: unknown[][] = [];
   for (const r of rows) {
     let email = '';
     let phone = '';
@@ -404,13 +398,9 @@ export async function exportCsv(ids: string[]): Promise<string> {
       email = data?.user?.email ?? '';
       phone = data?.user?.phone ?? '';
     }
-    lines.push(
-      [r.name, r.isWorker ? 'Worker' : 'Poster', r.place ?? '', r.joinedAt.slice(0, 10), r.lastSeenAt?.slice(0, 10) ?? '', (r.walletMinor / 100).toFixed(2), (r.clearingMinor / 100).toFixed(2), r.tags.map((t) => t.name).join('; '), r.suspended ? 'Yes' : 'No', ...(service ? [email, phone] : []), r.id]
-        .map(csvCell)
-        .join(','),
-    );
+    lines.push([r.name, r.isWorker ? 'Worker' : 'Poster', r.place ?? '', r.joinedAt.slice(0, 10), r.lastSeenAt?.slice(0, 10) ?? '', (r.walletMinor / 100).toFixed(2), (r.clearingMinor / 100).toFixed(2), r.tags.map((t) => t.name).join('; '), r.suspended ? 'Yes' : 'No', ...(service ? [email, phone] : []), r.id]);
   }
-  return lines.join('\r\n') + '\r\n';
+  return toCsv(head, lines);
 }
 
 export async function idsForCriteria(c: Criteria): Promise<string[]> {

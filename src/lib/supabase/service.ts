@@ -11,10 +11,10 @@ const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
  * that's the whole reason it exists, on top of the key never being
  * NEXT_PUBLIC_-prefixed.
  *
- * The admin panel uses it read-only, and only in src/lib/data.ts, for the
- * three things a signed-in admin session cannot read: refunds_outstanding
- * (revoked from authenticated, migration 036), payments (own-rows only) and a
- * person's phone/email (auth.users). The one write: deleteAccount in
+ * The admin panel uses it read-only, in src/lib/data.ts and src/lib/user360.ts,
+ * for the things a signed-in admin session cannot read: refunds_outstanding
+ * (revoked from authenticated, migration 036), payments and push_tokens
+ * (own-rows only) and a person's phone/email (auth.users). The one write: deleteAccount in
  * src/lib/crm-actions.ts removes a deleted person's leftover photos from
  * storage, which SQL cannot do. Everything else goes through the admin's
  * own session so RLS still applies. Every call site MUST call requireAdmin()

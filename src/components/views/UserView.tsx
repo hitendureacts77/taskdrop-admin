@@ -1,10 +1,12 @@
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import type { PersonCrm, TimelineEvent } from '@/lib/crm';
 import { ClickCard, ClickRow } from '../Clickable';
 import type { MoneySettings, UserDetail } from '@/lib/data';
 import { istDate, istDateTime, phone, timeAgo } from '@/lib/format';
 import { initials, payoutStatus, taskStatus } from '@/lib/labels';
-import { Card, Empty, JobLink, KV, Money, PageHeader, Pill } from '../ui';
+import { Card, Empty, JobLink, KV, Money, PageHeader, Pill, Tabs } from '../ui';
+import { USER_TABS, type UserTab } from './UserTabs';
 import {
   DeleteAccountCard,
   DeletedBanner,
@@ -24,12 +26,18 @@ export function UserView({
   now: nowIso,
   crm,
   timeline,
+  tab = 'overview',
+  extra = null,
 }: {
   u: UserDetail;
   settings: MoneySettings;
   now: string;
   crm: PersonCrm;
   timeline: TimelineEvent[];
+  /** Which tab is showing; Overview is the whole page as it was before tabs. */
+  tab?: UserTab;
+  /** The body of the Money, Devices or Audit tab, built by the page. */
+  extra?: ReactNode;
 }) {
   const now = new Date(nowIso);
   const first = u.name.split(' ')[0] ?? u.name;
@@ -69,7 +77,9 @@ export function UserView({
 
       {u.deletion ? <DeletedBanner deletion={u.deletion} /> : <SuspensionBanner userId={u.id} name={u.name} crm={crm} />}
 
-      <div className="grid-main-side">
+      <Tabs label="Sections" items={USER_TABS.map((t) => ({ href: `/users/${u.id}${t.key === 'overview' ? '' : `?tab=${t.key}`}`, label: t.label, active: t.key === tab }))} />
+
+      {tab !== 'overview' ? extra : <div className="grid-main-side">
         <div className="stack">
           <Card title={`${first}’s wallet`} sub="Money TaskDrop holds for this person. It is theirs, not TaskDrop’s.">
             <div className="figures">
@@ -257,7 +267,7 @@ export function UserView({
           {u.deletion ? null : <DeleteAccountCard userId={u.id} name={u.name} blockers={u.deletionBlockers} />}
           <p className="muted small">Person id {u.id}</p>
         </div>
-      </div>
+      </div>}
     </>
   );
 }
