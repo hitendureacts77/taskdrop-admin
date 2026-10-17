@@ -12,12 +12,13 @@ import { Card, Empty, Notice, PageHeader, Pager, Pill, Tabs } from '../ui';
 
 // ------------------------------------------------------------------ header --
 
-export type ConfigTab = 'team' | 'settings' | 'switches' | 'integrations' | 'health' | 'audit' | 'security';
+export type ConfigTab = 'team' | 'settings' | 'switches' | 'controls' | 'integrations' | 'health' | 'audit' | 'security';
 
 const TABS: { key: ConfigTab; href: string; label: string }[] = [
   { key: 'team', href: '/settings/team', label: 'Team & access' },
   { key: 'settings', href: '/settings', label: 'Money & timing' },
   { key: 'switches', href: '/settings/switches', label: 'App switches' },
+  { key: 'controls', href: '/settings/controls', label: 'Web, Android & iOS' },
   { key: 'integrations', href: '/settings/integrations', label: 'Integrations' },
   { key: 'health', href: '/settings/health', label: 'System health' },
   { key: 'audit', href: '/settings/audit', label: 'Audit log' },

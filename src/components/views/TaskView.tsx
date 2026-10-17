@@ -7,6 +7,7 @@ import { ledgerKind, taskStatus } from '@/lib/labels';
 import { ConfirmAction, type FormAction } from '../ConfirmAction';
 import { Icon } from '../Icon';
 import { Card, Empty, KV, Money, Notice, PageHeader, PersonLink, Pill } from '../ui';
+import { HideTaskCard } from './ModerationViews';
 
 const HOLDING = new Set(['assigned', 'started']);
 
@@ -16,6 +17,7 @@ export function TaskView({
   now: nowIso,
   resolveDispute,
   dispute = null,
+  moderation = null,
 }: {
   t: TaskDetail;
   settings: MoneySettings;
@@ -23,6 +25,8 @@ export function TaskView({
   resolveDispute: FormAction;
   /** Why the job was reported, when it is in dispute and the report carried a reason. */
   dispute?: DisputeReason | null;
+  /** Whether the job is hidden (migration 093); null leaves the Visibility card out. */
+  moderation?: { hidden: boolean; reason: string | null; setup: boolean } | null;
 }) {
   const now = new Date(nowIso);
   const st = taskStatus(t.status);
@@ -229,6 +233,8 @@ export function TaskView({
               ]}
             />
           </Card>
+
+          {moderation ? <HideTaskCard taskId={t.id} state={moderation} /> : null}
 
           <Card title="Timeline">
             <ol className="timeline">

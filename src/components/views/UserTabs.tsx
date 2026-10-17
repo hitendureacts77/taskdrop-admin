@@ -2,11 +2,15 @@ import type { UserAuditEntry, UserDevice, UserPayment } from '@/lib/user360';
 import type { UserDetail } from '@/lib/data';
 import { istDateTime, timeAgo } from '@/lib/format';
 import type { Tone } from '@/lib/labels';
+import type { FollowUp, Read } from '@/lib/growth';
+import { FinishButton, FollowUpForm } from '../GrowthForms';
 import { Card, Empty, JobLink, Money, Pill } from '../ui';
+import { SetupNotice } from './SetupNotice';
 
 export const USER_TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'money', label: 'Money' },
+  { key: 'followups', label: 'Follow-ups' },
   { key: 'devices', label: 'Devices' },
   { key: 'audit', label: 'Audit' },
 ] as const;
@@ -174,5 +178,37 @@ export function AuditTab({ entries }: { entries: UserAuditEntry[] }) {
         <Empty title="Nothing recorded" />
       )}
     </Card>
+  );
+}
+
+/** Things staff must do about this person, with a form to add one. */
+export function FollowUpsTab({ userId, items, staff, me }: { userId: string; items: Read<FollowUp[]>; staff: { id: string; name: string }[]; me: string }) {
+  if (items.setup) return <SetupNotice what="Follow-ups" migration="094_crm_tasks_pipeline" />;
+  return (
+    <div className="grid-main-side">
+      <Card title="Follow-ups about this person" flush>
+        {items.data.length ? (
+          <ul className="plain-list">
+            {items.data.map((f) => (
+              <li key={f.id}>
+                <span>
+                  <strong>{f.title}</strong>
+                  <span className="muted small block">
+                    {f.status === 'done' ? `Done${f.completedBy ? ` by ${f.completedBy}` : ''}` : `With ${f.owner}${f.dueAt ? `, due ${istDateTime(f.dueAt)}` : ''}`}
+                  </span>
+                  {f.detail ? <span className="small block">{f.detail}</span> : null}
+                </span>
+                <FinishButton taskId={f.id} reopen={f.status === 'done'} />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <Empty title="No follow-ups yet" />
+        )}
+      </Card>
+      <Card title="Add a follow-up">
+        <FollowUpForm staff={staff} me={me} userId={userId} />
+      </Card>
+    </div>
   );
 }

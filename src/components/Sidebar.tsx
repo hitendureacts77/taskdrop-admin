@@ -23,6 +23,7 @@ const SECTIONS: { title: string | null; items: Item[] }[] = [
       { href: '/money', label: 'Earnings & escrow', icon: 'money' },
       { href: '/payouts', label: 'Payouts', icon: 'send', badge: 'payouts', alert: true },
       { href: '/refunds', label: 'Refunds', icon: 'undo', badge: 'refunds', alert: true },
+      { href: '/money/reconcile', label: 'Money check', icon: 'check' },
     ],
   },
   {
@@ -31,6 +32,7 @@ const SECTIONS: { title: string | null; items: Item[] }[] = [
       { href: '/tasks', label: 'Jobs', icon: 'jobs' },
       { href: '/users', label: 'People', icon: 'people' },
       { href: '/disputes', label: 'Disputes', icon: 'scale', badge: 'disputes', alert: true },
+      { href: '/reports-queue', label: 'Reports', icon: 'alert' },
       { href: '/support', label: 'Help requests', icon: 'help', badge: 'support' },
       { href: '/copyright', label: 'Copyright notices', icon: 'alert' },
       { href: '/promotions', label: 'Promotions', icon: 'megaphone' },
@@ -40,6 +42,7 @@ const SECTIONS: { title: string | null; items: Item[] }[] = [
     title: 'Customers (CRM)',
     items: [
       { href: '/crm', label: 'Customer hub', icon: 'shield' },
+      { href: '/crm/tasks', label: 'Follow-ups & pipeline', icon: 'clock' },
       { href: '/crm/segments', label: 'Segments', icon: 'search' },
       { href: '/crm/messages', label: 'Messages', icon: 'megaphone' },
     ],
@@ -47,7 +50,8 @@ const SECTIONS: { title: string | null; items: Item[] }[] = [
   {
     title: 'Reports & settings',
     items: [
-      { href: '/reports', label: 'Reports', icon: 'chart' },
+      { href: '/reports', label: 'Business reports', icon: 'chart' },
+      { href: '/team/performance', label: 'Team performance', icon: 'star' },
       { href: '/settings/team', label: 'Admin & configuration', icon: 'settings' },
       { href: '/security', label: 'Security', icon: 'shield' },
     ],
@@ -63,7 +67,7 @@ export function Sidebar({ counts: initial }: { counts: Counts }) {
   const isActive = (href: string) =>
     href === '/settings/team'
       ? pathname === '/settings' || pathname.startsWith('/settings/')
-      : href === '/' || href === '/crm'
+      : href === '/' || href === '/crm' || href === '/money'
         ? pathname === href
         : pathname === href || pathname.startsWith(`${href}/`);
 
