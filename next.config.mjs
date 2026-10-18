@@ -1,3 +1,5 @@
+import { withSentryConfig } from '@sentry/nextjs/config';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Do not advertise the framework.
@@ -30,4 +32,12 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+// Uploading source maps (readable stack traces) needs SENTRY_AUTH_TOKEN in the
+// build environment (Vercel); without it the upload is skipped and the build
+// still succeeds.
+export default withSentryConfig(nextConfig, {
+  org: 'hitendu',
+  project: 'taskdrop-admin',
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent: !process.env.CI,
+});

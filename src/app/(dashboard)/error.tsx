@@ -1,7 +1,14 @@
 'use client';
 
+import * as Sentry from '@sentry/nextjs';
+import { useEffect } from 'react';
+
 /** Shown when a page's data can't be loaded. Nothing has been changed when this appears. */
 export default function DashboardError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  useEffect(() => {
+    Sentry.captureException(error);
+  }, [error]);
+
   return (
     <div className="card card-body" role="alert">
       <h1 className="card-title">This page couldn’t load</h1>
