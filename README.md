@@ -20,7 +20,7 @@ npm run dev                  # http://localhost:3001
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Same page, "anon / publishable" | Safe in the browser |
 | `SUPABASE_SERVICE_ROLE_KEY` | Same page, "service_role" | **Server only. Never add `NEXT_PUBLIC_`.** Needed for the Refunds list, Razorpay payment ids and people's phone/email. Everything else works without it. |
 
-Sign in with Google, using an account that has the `admin` role in `user_roles`. Anyone else is sent to "not authorized". In Supabase → Authentication → URL Configuration, add `http://localhost:3001/auth/callback` (and your deployed address, e.g. `https://your-admin.vercel.app/auth/callback`) to the Redirect URLs.
+Sign in with Google, using an account that has the `admin` role in `user_roles`. Anyone else is sent to "not authorized". `ADMIN_EMAIL` (and `ADMIN_PHONE`, for accounts made with a mobile number) can name one account or several separated by commas, e.g. `a@gmail.com,b@gmail.com`; it is an extra door lock on top of the database role, and each person's staff role still decides what they can change. Leave both empty and the database role alone decides. In Supabase → Authentication → URL Configuration, add `http://localhost:3001/auth/callback` (and your deployed address, e.g. `https://your-admin.vercel.app/auth/callback`) to the Redirect URLs.
 
 Other commands:
 
@@ -60,7 +60,7 @@ The database schema lives in the TaskDrop app repo (`supabase/migrations/`). Thr
 | Help requests | Read and reply (they get a notification in the app), mark resolved |
 | Promotions | Paid job boosts |
 | Reports | Jobs, people and earnings over 7 days to a year |
-| Admin & configuration | Tabs: **Team & access** (every admin with their staff role, alerts switch, sign-in, allowlist and authenticator status; add someone with a role, change a role, remove someone), **Money & timing** (service fee, waiting periods and more, each change confirmed first), **App switches** (authenticator requirement, developer sign-in), **Integrations** (Supabase, service key, sign-in allowlist, RazorpayX, Razorpay, push), **System health** (each feature's table or function checked live, queues, latest activity), **Audit log** (every change the database records, with before and after) and **My security** |
+| Admin & configuration | Tabs: **Team & access** (every admin with their staff role, alerts switch, sign-in, allowlist and authenticator status; add someone by @username or Google address with a role, change a role, remove someone), **Money & timing** (service fee, waiting periods and more, each change confirmed first), **App switches** (authenticator requirement, developer sign-in), **Integrations** (Supabase, service key, sign-in allowlist, RazorpayX, Razorpay, push), **System health** (each feature's table or function checked live, queues, latest activity), **Audit log** (every change the database records, with before and after) and **My security** |
 | Customer hub (CRM) | Follow-ups that are due, people who are suspended, every tag, recent notes and the latest messages |
 | Segments (CRM) | Find a group by what they do (role, joined, not seen for N days, tag, wallet, never posted, available now), save it, message it, download it |
 | Messages (CRM) | Send a message to a person, a tag, a saved segment, everyone or your current filters. The count is shown before you confirm; it lands in their notifications and sends a phone push |
@@ -77,6 +77,7 @@ Every admin holds `admin` in `user_roles`; `admin_staff` (migration `089_staff_r
 | Admin (default, no row) | Everything |
 | Finance | Payouts, refunds, wallet changes, dispute decisions |
 | Support | Help requests, CRM notes, tags, segments and messages, suspensions, copyright |
+| Sales | Customers, notes, follow-ups, leads, tags, messages and moderation (the People area, like Support); no money, settings, switches, team or automation rules; gets no alerts |
 | Viewer | Nothing; sees everything |
 
 Settings, app switches, the team and deleting accounts are Admin only. The database enforces this with a trigger on each table those actions write (`private.require_staff_permission`), so it holds whatever client calls. The panel checks first (`src/lib/staff.ts`) to say so plainly, and is the only check for refunds and RazorpayX, which run through edge functions as the service role. Changing a role needs an authenticator code; there is always at least one full Admin, and nobody can change their own role.

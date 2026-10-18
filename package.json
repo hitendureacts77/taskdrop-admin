@@ -8,8 +8,8 @@
     "build": "next build",
     "start": "next start --port 3001",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test src/lib/live-describe.test.ts src/lib/needs-you.test.ts src/lib/live-alerts.test.ts",
-    "lint": "echo \"(no lint configured)\"",
+    "test": "node --experimental-strip-types --test src/lib/live-describe.test.ts src/lib/needs-you.test.ts src/lib/live-alerts.test.ts src/lib/csv.test.ts src/lib/staff-roles.test.ts src/lib/growth-calc.test.ts src/lib/controls-meta.test.ts src/lib/allowlist.test.ts src/lib/find-person.test.ts src/lib/devices-calc.test.ts src/lib/ops-calc.test.ts src/lib/crm-calc.test.ts",
+    "lint": "eslint .",
     "db:types": "supabase gen types typescript --project-id wjxvingpfbfvkfqhrguj --schema public > src/lib/db/database.types.ts"
   },
   "dependencies": {
@@ -28,7 +28,10 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "typescript": "^5.6.2"
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "typescript": "^5.6.2",
+    "typescript-eslint": "^8.71.2"
   },
   "engines": {
     "node": ">=20"

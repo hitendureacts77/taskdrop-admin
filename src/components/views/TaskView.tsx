@@ -7,6 +7,7 @@ import { ledgerKind, taskStatus } from '@/lib/labels';
 import { ConfirmAction, type FormAction } from '../ConfirmAction';
 import { Icon } from '../Icon';
 import { Card, Empty, KV, Money, Notice, PageHeader, PersonLink, Pill } from '../ui';
+import { HideTaskCard } from './ModerationViews';
 
 const HOLDING = new Set(['assigned', 'started']);
 
@@ -16,6 +17,9 @@ export function TaskView({
   now: nowIso,
   resolveDispute,
   dispute = null,
+  moderation = null,
+  cancelTask,
+  hideMoney = false,
 }: {
   t: TaskDetail;
   settings: MoneySettings;
@@ -23,6 +27,12 @@ export function TaskView({
   resolveDispute: FormAction;
   /** Why the job was reported, when it is in dispute and the report carried a reason. */
   dispute?: DisputeReason | null;
+  /** Whether the job is hidden (migration 093); null leaves the Visibility card out. */
+  moderation?: { hidden: boolean; reason: string | null; setup: boolean } | null;
+  /** Cancel-with-refund; only given to money staff (full admin or finance). */
+  cancelTask?: FormAction;
+  /** Sales sees the job and its price, not what TaskDrop earns or where the money sits (staff-roles.ts, staffCanSee). */
+  hideMoney?: boolean;
 }) {
   const now = new Date(nowIso);
   const st = taskStatus(t.status);
@@ -94,13 +104,13 @@ export function TaskView({
         </Notice>
       ) : null}
 
-      {t.status === 'DISPUTED' && a && !t.fundedAt ? (
+      {t.status === 'DISPUTED' && a && !t.fundedAt && !hideMoney ? (
         <Notice tone="gold" title="This dispute has no money to decide over">
           {t.poster} never paid for this job, so neither side can be paid out. It can only be cancelled.
         </Notice>
       ) : null}
 
-      {t.status === 'DISPUTED' && a && t.fundedAt ? (
+      {t.status === 'DISPUTED' && a && t.fundedAt && !hideMoney ? (
         <Card title="Decide this dispute" sub="Read the job, the quotes and the reviews first. Both choices are final.">
           <div className="decide">
             <div className="decide-option">
@@ -151,6 +161,11 @@ export function TaskView({
 
       <div className="grid-main-side">
         <div className="stack">
+          {hideMoney ? (
+            <Card title="Price">
+              <KV rows={[{ label: t.lockedMinor !== null ? 'Agreed price' : 'Poster’s budget', value: <Money minor={price} />, hint: t.lockedMinor !== null ? 'The quote the poster accepted' : 'No quote accepted yet' }]} />
+            </Card>
+          ) : (
           <Card title="The money for this job">
             <KV
               rows={[
@@ -180,6 +195,7 @@ export function TaskView({
               </p>
             ) : null}
           </Card>
+          )}
 
           <Card title="What the poster asked for">
             <p className="prose">{t.description || <span className="muted">No description.</span>}</p>
@@ -230,6 +246,23 @@ export function TaskView({
             />
           </Card>
 
+          {moderation ? <HideTaskCard taskId={t.id} state={moderation} /> : null}
+
+          {cancelTask && (t.status === 'OPEN' || t.status === 'LOCKED') ? (
+            <Card title="Cancel this job" sub="For a job where work has not started.">
+              <ConfirmAction
+                action={cancelTask}
+                hidden={{ taskId: t.id }}
+                trigger="Cancel and refund"
+                tone="danger"
+                title="Cancel this job and refund the poster?"
+                consequence={<>The job closes and nobody can offer on it. If the poster paid from their TaskDrop wallet, the whole amount goes back there now, with no fine. A job paid by card is refunded from the Refunds page. The poster{a ? ' and the hired worker are' : ' is'} told. This cannot be undone.</>}
+                field={{ name: 'reason', label: 'Why (the poster sees this)', placeholder: 'e.g. posted twice by mistake', required: true }}
+                confirmLabel="Cancel the job"
+              />
+            </Card>
+          ) : null}
+
           <Card title="Timeline">
             <ol className="timeline">
               {timeline.map((s, i) => (
@@ -246,7 +279,7 @@ export function TaskView({
             </ol>
           </Card>
 
-          <Card title="TaskDrop’s earnings from this job">
+          {hideMoney ? null : <Card title="TaskDrop’s earnings from this job">
             {t.ledger.length ? (
               <ul className="plain-list">
                 {t.ledger.map((l) => (
@@ -262,7 +295,7 @@ export function TaskView({
             ) : (
               <p className="muted small">Nothing booked yet. TaskDrop earns when the poster approves the work.</p>
             )}
-          </Card>
+          </Card>}
 
           {t.reviews.length ? (
             <Card title="Reviews">

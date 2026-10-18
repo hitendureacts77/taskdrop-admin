@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import type { AllTime, EscrowJob, MoneyHeld, MoneySettings, Movement, PayoutTotals, QueuedPayout, TodayCounts } from '@/lib/data';
 import type { EarningsSeries } from '@/lib/earnings';
 import { istTime, pct, prettyDayKey, timeAgo } from '@/lib/format';
@@ -33,7 +34,7 @@ function greeting(now: Date) {
   return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
 }
 
-export function DashboardView({ d }: { d: DashboardData }) {
+export function DashboardView({ d, health }: { d: DashboardData; health?: ReactNode }) {
   const now = new Date(d.now);
   const e = d.earnings;
   const chart = earningsChart(e, 'total');
@@ -275,6 +276,8 @@ export function DashboardView({ d }: { d: DashboardData }) {
       </div>
 
       <LiveFeed />
+
+      {health}
 
       <div className="grid-2">
         <Card title="Things to do" right={<Pill tone={openTodos ? 'gold' : 'green'}>{openTodos ? `${openTodos} need you` : 'All clear'}</Pill>}>

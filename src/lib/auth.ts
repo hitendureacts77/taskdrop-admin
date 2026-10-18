@@ -1,5 +1,6 @@
 import { cache } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { isEmailAllowed, parseAllowlist, type Allowlist } from './allowlist';
 import { asStaffRole, type StaffRole } from './staff-roles';
 import { createClient } from './supabase/server';
 
@@ -13,23 +14,22 @@ export type AdminUser = {
 
 /**
  * Who may open this panel, on top of holding the admin role in the database.
- * ADMIN_EMAIL is the Google account. ADMIN_PHONE is for an admin account that
- * was created with a mobile number (it sits on a placeholder email,
- * p<number>@phone.taskdrop.app, and signs in here with its @username and
- * password -- the panel has no text-message sign-in). When neither is set the
- * database role alone decides, as before.
+ * ADMIN_EMAIL is the Google account, or several separated by commas.
+ * ADMIN_PHONE is for an admin account that was created with a mobile number
+ * (it sits on a placeholder email, p<number>@phone.taskdrop.app, and signs in
+ * here with its @username and password -- the panel has no text-message
+ * sign-in); it also takes a comma-separated list. When neither is set the
+ * database role alone decides, as before. What each person may then change is
+ * still decided by their staff role in the database.
  */
 const digits10 = (s: string | undefined | null) => String(s ?? '').replace(/[^0-9]/g, '').slice(-10);
 
-export function adminAllowlist(): { email: string; phone: string } {
-  return { email: (process.env.ADMIN_EMAIL ?? '').trim().toLowerCase(), phone: digits10(process.env.ADMIN_PHONE) };
+export function adminAllowlist(): Allowlist {
+  return parseAllowlist(process.env.ADMIN_EMAIL, process.env.ADMIN_PHONE);
 }
 
 export function isAllowedIdentity(email: string | null): boolean {
-  const a = adminAllowlist();
-  if (!a.email && a.phone.length !== 10) return true;
-  const e = (email ?? '').trim().toLowerCase();
-  return (a.email !== '' && e === a.email) || (a.phone.length === 10 && e === `p${a.phone}@phone.taskdrop.app`);
+  return isEmailAllowed(adminAllowlist(), email);
 }
 
 export const normalisePhone = digits10;

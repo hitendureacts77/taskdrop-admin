@@ -308,3 +308,28 @@ export async function sendBroadcast(_prev: ActionResult, form: FormData): Promis
   if (args.p_user) revalidatePath(`/users/${args.p_user}`);
   return { ok: true, message: `Sent to ${n.toLocaleString('en-IN')} ${n === 1 ? 'person' : 'people'}. It is in their notifications, and phones with the app get a push.` };
 }
+
+// ---------------------------------------------------------------- owners --
+
+/**
+ * Hand customers to a member of staff, or take their owner off (empty owner).
+ * The people come from checkboxes named "ids"; at most 500 at a time.
+ */
+export async function assignOwners(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  await requireAdmin();
+  const denied = await staffGate('people');
+  if (denied) return { ok: false, message: denied };
+  const ids = [...new Set(form.getAll('ids').map((v) => String(v).trim()))].filter(isUuid);
+  const owner = str(form, 'owner');
+  if (!ids.length) return { ok: false, message: 'Tick at least one person first.' };
+  if (ids.length > 500) return { ok: false, message: 'Choose at most 500 people at a time.' };
+  if (owner && !isUuid(owner)) return { ok: false, message: 'That owner id looks wrong. Refresh the page.' };
+  const r = await call('crm_assign_owner', { p_users: ids, p_owner: owner || null });
+  if (r.error) return { ok: false, message: r.error };
+  const n = Number(r.data) || ids.length;
+  const people = `${n.toLocaleString('en-IN')} ${n === 1 ? 'person' : 'people'}`;
+  revalidatePath('/crm');
+  revalidatePath('/crm/segments');
+  for (const id of ids.slice(0, 20)) revalidatePath(`/users/${id}`);
+  return { ok: true, message: owner ? `Done: ${people} now looked after by the chosen member of staff.` : `Done: ${people} no longer have an owner.` };
+}

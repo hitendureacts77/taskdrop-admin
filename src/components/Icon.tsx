@@ -28,6 +28,7 @@ const PATHS: Record<string, string> = {
   inbox: 'M4 13l2.5-7h11L20 13M4 13v6h16v-6M4 13h4.5l1 2h5l1-2H20',
   refresh:'M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5',
   external: 'M14 5h5v5M19 5l-8 8M18 14v5H5V6h5',
+  device: 'M8 3h8a1.5 1.5 0 0 1 1.5 1.5v15A1.5 1.5 0 0 1 16 21H8a1.5 1.5 0 0 1-1.5-1.5v-15A1.5 1.5 0 0 1 8 3ZM10.5 18h3',
 };
 
 export type IconName = keyof typeof PATHS;

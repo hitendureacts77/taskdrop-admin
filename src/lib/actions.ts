@@ -208,6 +208,52 @@ export async function resolveDispute(_prev: ActionResult, form: FormData): Promi
   };
 }
 
+/** Cancel a job that has not started, and give the poster's money back (migration 098). */
+export async function cancelTaskWithRefund(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  await requireAdmin();
+  const denied = await staffGate('money');
+  if (denied) return { ok: false, message: denied };
+  const mfa = await moneyMfaGate();
+  if (mfa) return { ok: false, message: mfa };
+  const taskId = String(form.get('taskId') ?? '');
+  const reason = String(form.get('reason') ?? '').trim().slice(0, 200);
+  if (!isUuid(taskId)) return { ok: false, message: 'That job id looks wrong. Refresh the page.' };
+  if (!reason) return { ok: false, message: 'Say why you are cancelling this job.' };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('admin_cancel_task_with_refund', { p_task_id: taskId, p_reason: reason });
+  if (error) return { ok: false, message: friendly(error.message) };
+
+  revalidatePath(`/tasks/${taskId}`);
+  revalidatePath('/tasks');
+  revalidatePath('/');
+  return {
+    ok: true,
+    message: 'The job is cancelled and the poster is told. If it was paid from their TaskDrop wallet the money is already back there. A job paid by card is refunded from the Refunds page.',
+  };
+}
+
+/** Stop a promotion early; what it had not used goes back to the advertiser's wallet (migration 098). */
+export async function stopPromotion(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  await requireAdmin();
+  const denied = await staffGate('money');
+  if (denied) return { ok: false, message: denied };
+  const mfa = await moneyMfaGate();
+  if (mfa) return { ok: false, message: mfa };
+  const id = String(form.get('promotionId') ?? '');
+  const reason = String(form.get('reason') ?? '').trim().slice(0, 200);
+  if (!isUuid(id)) return { ok: false, message: 'That promotion id looks wrong. Refresh the page.' };
+  if (!reason) return { ok: false, message: 'Say why you are stopping this promotion.' };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('admin_pause_promotion', { p_promotion_id: id, p_reason: reason });
+  if (error) return { ok: false, message: friendly(error.message) };
+
+  revalidatePath('/promotions');
+  revalidatePath('/money');
+  return { ok: true, message: 'The promotion is stopped. What it had not used is back in the advertiser’s wallet.' };
+}
+
 /**
  * Send a cancelled job's escrow back to the poster through Razorpay. The
  * amount is worked out by the database (escrow_refund_due), the refund is made

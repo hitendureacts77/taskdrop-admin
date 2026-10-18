@@ -1,4 +1,7 @@
+import { Suspense } from 'react';
+import { SystemHealthCard, SystemHealthSkeleton } from '@/components/SystemHealthCard';
 import { DashboardView } from '@/components/views/DashboardView';
+import { SalesDashboardView } from '@/components/views/SalesDashboardView';
 import {
   getAllTimeEarnings,
   getEscrowJobs,
@@ -12,11 +15,16 @@ import {
   requireAdmin,
 } from '@/lib/data';
 import { getEarningsSeries, parseRange } from '@/lib/earnings';
+import { staffCanSee } from '@/lib/staff-roles';
 
 type SP = Promise<Record<string, string | string[] | undefined>>;
 
 export default async function DashboardPage({ searchParams }: { searchParams: SP }) {
-  await requireAdmin();
+  const me = await requireAdmin();
+  // Sales gets a dashboard of customers and jobs; none of the money below is even read for them.
+  if (!staffCanSee(me.staffRole, 'money')) {
+    return <SalesDashboardView today={await getTodayCounts()} now={new Date().toISOString()} />;
+  }
   const sp = await searchParams;
   const range = parseRange(sp.range, 'month');
   const [earnings, allTime, settings, escrow, queue, payoutTotals, held, today, movements, nav] = await Promise.all([
@@ -47,6 +55,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: SP
         disputes: nav.disputes,
         support: nav.support,
       }}
+      health={
+        <Suspense fallback={<SystemHealthSkeleton />}>
+          <SystemHealthCard />
+        </Suspense>
+      }
     />
   );
 }

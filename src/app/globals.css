@@ -2095,6 +2095,11 @@ select.field { appearance: auto; }
 .top-user { min-width: 0; flex-shrink: 1; color: var(--ink); }
 @media (max-width: 1200px) { .top-date { display: none; } }
 @media (max-width: 1080px) { .top-user { display: none; } }
+/* Phones: let the status chips wrap onto a second line instead of pushing the page wider than the screen */
+@media (max-width: 900px) {
+  .top-search { max-width: none; flex: 1 1 100%; }
+  .top-right { flex-wrap: wrap; gap: 8px; width: 100%; }
+}
 .click-row[data-pending] > td, .click-card[data-pending] { opacity: 0.55; cursor: progress; }
 .chart-opening { cursor: progress; opacity: 0.6; }
 
@@ -2164,6 +2169,7 @@ select.field { appearance: auto; }
 
 .role-badge.role-finance { background: var(--blue-soft); color: var(--blue-deep); border-color: var(--blue-line); }
 .role-badge.role-support { background: #f1ebfc; color: #5a32a3; border-color: #d9c9f6; }
+.role-badge.role-sales { background: #fdf1e3; color: #9a5a0b; border-color: #f3d9b3; }
 .role-badge.role-viewer { background: var(--sunk); color: var(--ink2); }
 .role-also { display: flex; margin-top: 4px; }
 .staff-role-form { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
@@ -2330,3 +2336,35 @@ a.need-link:hover { text-decoration: none; color: var(--ink); background: rgba(0
   .need-when { flex-direction: row; align-items: center; gap: 8px; margin-left: 42px; }
   .need-go { margin-left: auto; }
 }
+
+/* ----------------------------------------- nightly checks + system health -- */
+.run-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; width: 100%; }
+.run-row .run-when { flex: 1 1 180px; min-width: 0; }
+li.run-row { padding: 9px 0; border-bottom: 1px solid var(--line); }
+.run-details { width: 100%; }
+.run-details > summary { cursor: pointer; list-style: none; }
+.run-details > summary::-webkit-details-marker { display: none; }
+.run-details > summary::after { content: '\25BE'; color: var(--muted); }
+.run-details[open] > summary::after { content: '\25B4'; }
+.run-diffs { margin: 8px 0 0 4px; padding-left: 12px; border-left: 2px solid var(--line); }
+.health-card .plain-list li { align-items: center; }
+
+/* ------------------------------------------------- leads, owners, rules -- */
+.lead-list { list-style: none; margin: 0; padding: 0; }
+.lead { display: grid; gap: 8px; padding: 14px 22px; border-top: 1px solid var(--line); list-style: none; }
+.lead-list .lead:first-child { border-top: 0; }
+.lead-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.lead-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; align-items: end; }
+.lead-form .confirm-field { display: grid; gap: 6px; }
+.lead-form .lead-note { grid-column: 1 / -1; }
+.lead-save { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; grid-column: 1 / -1; }
+.lead-pick { width: auto; max-width: 100%; min-width: 0; }
+.bulk-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 22px; border-top: 1px solid var(--line); background: var(--sunk); }
+.bulk-select { width: auto; max-width: 100%; min-width: 180px; }
+.pick { width: 18px; height: 18px; cursor: pointer; accent-color: var(--brand); }
+.pick-col { width: 1%; padding-right: 0; }
+.rule-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px; }
+.rule-edit { flex: 1 1 100%; min-width: 0; }
+.rule-edit > summary { display: inline-flex; cursor: pointer; list-style: none; }
+.rule-edit[open] > summary { margin-bottom: 12px; }
+.rule-edit > summary::-webkit-details-marker { display: none; }

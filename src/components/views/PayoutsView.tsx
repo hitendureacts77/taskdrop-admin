@@ -141,7 +141,7 @@ function PayTo({ p }: { p: QueuedPayout }) {
   );
 }
 
-function QueueTable({ rows, rxOn, roles, now }: { rows: { p: QueuedPayout; stage: Stage }[]; rxOn: boolean; roles: Record<string, string[]>; now: Date }) {
+function QueueTable({ rows, rxOn, roles, now, canPay }: { rows: { p: QueuedPayout; stage: Stage }[]; rxOn: boolean; roles: Record<string, string[]>; now: Date; canPay: boolean }) {
   return (
     <div className="table-wrap">
       <table className="table-compact">
@@ -180,8 +180,8 @@ function QueueTable({ rows, rxOn, roles, now }: { rows: { p: QueuedPayout; stage
                   <Pill tone={st.tone}>{st.label}</Pill>
                 </td>
                 <td className="td right">
-                  <Link href={`/payouts/${p.id}`} className={`btn btn-small${byHand ? ' btn-primary' : ''}`}>
-                    {byHand ? 'Pay' : 'Open'}
+                  <Link href={`/payouts/${p.id}`} className={`btn btn-small${byHand && canPay ? ' btn-primary' : ''}`}>
+                    {byHand && canPay ? 'Pay' : 'Open'}
                   </Link>
                 </td>
               </ClickRow>
@@ -198,8 +198,10 @@ export function PayoutsView({
   mfa,
   checkAll,
   setMethod,
+  canPay = true,
 }: {
   d: PayoutsData;
+  canPay?: boolean;
   mfa: MfaState;
   checkAll: FormAction;
   setMethod: FormAction;
@@ -305,7 +307,7 @@ export function PayoutsView({
         flush={needsYou.length > 0}
       >
         {needsYou.length ? (
-          <QueueTable rows={needsYou} rxOn={rxOn} roles={d.roles} now={now} />
+          <QueueTable rows={needsYou} rxOn={rxOn} roles={d.roles} now={now} canPay={canPay} />
         ) : (
           <Empty title="Nothing to pay right now">
             {rxOn ? 'Withdrawals are going out by themselves. Anything stuck shows up here.' : 'New withdrawal requests from workers and posters appear here.'}
@@ -315,7 +317,7 @@ export function PayoutsView({
 
       {onTheWay.length ? (
         <Card id="on-the-way" title={`On the way · ${onTheWay.length}`} sub="Sent; waiting for the bank to confirm. Nothing to do unless one gets stuck." flush>
-          <QueueTable rows={onTheWay} rxOn={rxOn} roles={d.roles} now={now} />
+          <QueueTable rows={onTheWay} rxOn={rxOn} roles={d.roles} now={now} canPay={canPay} />
         </Card>
       ) : null}
 

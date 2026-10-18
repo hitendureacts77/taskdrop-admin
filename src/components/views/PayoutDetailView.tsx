@@ -21,7 +21,9 @@ export function PayoutDetailView({
   markPayout,
   checkAll,
   giveBack,
+  canPay = true,
 }: {
+  canPay?: boolean;
   d: PayoutDetail;
   now: string;
   rx: RazorpayXState;
@@ -92,6 +94,11 @@ export function PayoutDetailView({
         }
       />
 
+      {!canPay ? (
+        <Notice tone="gold" title="You can look at this, not pay it.">
+          Your staff role can see withdrawals but not send or record them. Ask a Finance or full admin colleague.
+        </Notice>
+      ) : null}
       <MoneyLock mfa={mfa} />
 
       {open && !q ? (

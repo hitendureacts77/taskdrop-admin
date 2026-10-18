@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { getDisputes, getPayoutQueue, getRefundsOwed, getTickets } from './data';
 import { PAYOUT_STAGE, payoutStage } from './labels';
 import { copyrightNeed, disputeNeed, helpNeed, payoutNeed, refundNeed, type NeedsItem } from './needs-you';
+import { staffCanSee, type StaffRole } from './staff-roles';
 import { createClient as createSessionClient } from './supabase/server';
 
 /**
@@ -32,14 +33,17 @@ async function waitingNotices(): Promise<NeedsItem[]> {
   );
 }
 
-export async function getNeedsYou(): Promise<NeedsItem[] | null> {
+export async function getNeedsYou(role: StaffRole = 'admin'): Promise<NeedsItem[] | null> {
   const nowMs = Date.now();
   const nowIso = new Date(nowMs).toISOString();
 
+  // A role that cannot see company money never reads those sources (the database refuses it too, migration 099).
+  const money = staffCanSee(role, 'money');
+  const none = Promise.resolve(null);
   const [payouts, refunds, disputes, tickets, notices] = await Promise.allSettled([
-    getPayoutQueue(),
-    getRefundsOwed(),
-    getDisputes(),
+    money ? getPayoutQueue() : Promise.resolve([] as Awaited<ReturnType<typeof getPayoutQueue>>),
+    money ? getRefundsOwed() : none,
+    money ? getDisputes() : Promise.resolve([] as Awaited<ReturnType<typeof getDisputes>>),
     getTickets('waiting'),
     waitingNotices(),
   ]);
@@ -80,5 +84,6 @@ export async function getNeedsYou(): Promise<NeedsItem[] | null> {
   }
   if (notices.status === 'fulfilled') items.push(...notices.value);
 
-  return items;
+  // Withdrawals, refunds and disputes are company money: a role that cannot see money gets none of them.
+  return staffCanSee(role, 'money') ? items : items.filter((i) => i.area !== 'money');
 }

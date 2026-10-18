@@ -9,7 +9,7 @@ import { Card, Empty, JobLink, Money, Notice, PageHeader, PersonLink, Pill, Sear
 
 // -------------------------------------------------------------- promotions --
 
-export function PromotionsView({ rows }: { rows: PromotionRow[] }) {
+export function PromotionsView({ rows, stop }: { rows: PromotionRow[]; /** Only given to money staff. */ stop?: FormAction }) {
   const active = rows.filter((r) => r.status === 'active');
   const paid = rows.filter((r) => r.status === 'active' || r.status === 'expired');
   return (
@@ -48,6 +48,7 @@ export function PromotionsView({ rows }: { rows: PromotionRow[] }) {
                   <th className="th">For</th>
                   <th className="th">Status</th>
                   <th className="th">Runs</th>
+                  {stop ? <th className="th" /> : null}
                 </tr>
               </thead>
               <tbody>
@@ -71,6 +72,22 @@ export function PromotionsView({ rows }: { rows: PromotionRow[] }) {
                         <Pill tone={st.tone}>{st.label}</Pill>
                       </td>
                       <td className="td nowrap small">{r.startsAt ? `${istDate(r.startsAt)} – ${r.endsAt ? istDate(r.endsAt) : '…'}` : 'Not started'}</td>
+                      {stop ? (
+                        <td className="td">
+                          {r.status === 'active' || r.status === 'pending' ? (
+                            <ConfirmAction
+                              action={stop}
+                              hidden={{ promotionId: r.id }}
+                              trigger="Stop"
+                              tone="danger"
+                              title={`Stop the promotion on “${r.title}”?`}
+                              consequence={<>It stops showing now. What it had not used is back in {r.user}’s TaskDrop wallet; what it already delivered stays as TaskDrop’s earnings. {r.user} is told. This cannot be undone.</>}
+                              field={{ name: 'reason', label: 'Why (the advertiser sees this)', placeholder: 'e.g. misleading picture', required: true }}
+                              confirmLabel="Stop the promotion"
+                            />
+                          ) : null}
+                        </td>
+                      ) : null}
                     </ClickRow>
                   );
                 })}
@@ -149,7 +166,7 @@ function inputValue(kind: Info['kind'], v: unknown): string {
   return String(Number(v));
 }
 
-export function SettingsView({ rows, update }: { rows: SettingRow[]; update: FormAction }) {
+export function SettingsView({ rows, update }: { rows: SettingRow[]; update?: FormAction }) {
   // Shown in the order SETTINGS lists them, which is the order of the design.
   const order = Object.keys(SETTINGS);
   const known = rows.filter((r) => SETTINGS[r.key]).sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key));
@@ -173,7 +190,7 @@ export function SettingsView({ rows, update }: { rows: SettingRow[]; update: For
                   <span className="muted small">Last changed {istDateTime(r.updated_at)}</span>
                 </div>
                 <div className="setting-value">{show(info.kind, r.value)}</div>
-                {info.editable ? (
+                {info.editable && update ? (
                   <ConfirmAction
                     action={update}
                     hidden={{ key: r.key }}
@@ -258,7 +275,7 @@ export function ReportsView({ s, days, earnedMinor }: { s: PlatformStats; days: 
 
 // ------------------------------------------------------------------ search --
 
-export function SearchView({ q, tasks, people }: { q: string; tasks: TaskRow[]; people: UserRow[] }) {
+export function SearchView({ q, tasks, people, hideMoney = false }: { q: string; tasks: TaskRow[]; people: UserRow[]; /** Sales does not see wallets. */ hideMoney?: boolean }) {
   return (
     <>
       <PageHeader crumbs={[{ label: 'Search' }]} title="Search" right={<SearchBox action="/search" defaultValue={q} placeholder="Search jobs and people" />} />
@@ -289,7 +306,7 @@ export function SearchView({ q, tasks, people }: { q: string; tasks: TaskRow[]; 
                 {people.map((u) => (
                   <ClickCard as="li" key={u.id} href={`/users/${u.id}`}>
                     <PersonLink id={u.id} name={u.name} />
-                    <span className="muted small">{u.walletMinor ? inr(u.walletMinor) : ''}</span>
+                    <span className="muted small">{!hideMoney && u.walletMinor ? inr(u.walletMinor) : ''}</span>
                   </ClickCard>
                 ))}
               </ul>

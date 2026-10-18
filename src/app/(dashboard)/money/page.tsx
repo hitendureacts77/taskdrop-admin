@@ -1,11 +1,11 @@
 import { MoneyView } from '@/components/views/MoneyView';
-import { getAllTimeEarnings, getEscrowJobs, getLedger, getMoneyHeld, getMoneySettings, getPayoutQueue, requireAdmin } from '@/lib/data';
+import { getAllTimeEarnings, getEscrowJobs, getLedger, getMoneyHeld, getMoneySettings, getPayoutQueue, requireSeeing } from '@/lib/data';
 import { getEarningsSeries, parseRange } from '@/lib/earnings';
 
 type SP = Promise<Record<string, string | string[] | undefined>>;
 
 export default async function MoneyPage({ searchParams }: { searchParams: SP }) {
-  await requireAdmin();
+  await requireSeeing('money');
   const sp = await searchParams;
   const range = parseRange(sp.range, 'month');
   const view = sp.view === 'types' ? 'types' : 'total';

@@ -5,6 +5,7 @@ import type { UserDetail } from '@/lib/data';
 import { istDate, istDateTime } from '@/lib/format';
 import { ConfirmAction } from '../ConfirmAction';
 import { BroadcastForm, MiniButton, NoteForm, TagForm } from '../CrmForms';
+import { OwnerForm } from '../CrmOwnerForms';
 import { Card, Notice } from '../ui';
 
 export function TagChip({ tag }: { tag: Tag }) {
@@ -141,6 +142,15 @@ export function TagsCard({ userId, crm }: { userId: string; crm: PersonCrm }) {
         <p className="muted small">No tags yet.</p>
       )}
       <TagForm userId={userId} suggestions={crm.allTags.filter((t) => !crm.tags.some((x) => x.id === t.id)).map((t) => t.name)} />
+    </Card>
+  );
+}
+
+/** Which member of staff looks after this customer, with a way to change it. */
+export function OwnerCard({ userId, crm }: { userId: string; crm: PersonCrm }) {
+  return (
+    <Card title="Looked after by" sub={crm.owner ? crm.owner.name : 'Nobody yet. Pick someone to keep in touch with this customer.'}>
+      <OwnerForm userId={userId} current={crm.owner?.id ?? null} staff={crm.staff} />
     </Card>
   );
 }

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import type { AuditRow, Health, Integrations, Switch, SwitchKey, TeamMember } from '@/lib/admin-config';
 import { AUDIT_TABLES } from '@/lib/admin-config';
+import { allowlistActive, allowlistCount, type Allowlist } from '@/lib/allowlist';
 import type { PayoutMethod } from '@/lib/data';
 import { inr, istDateTime, phone as prettyPhone, timeAgo } from '@/lib/format';
 import { AREA_LABEL, STAFF_ROLES, roleLabel, staffCan, type StaffArea, type StaffRole } from '@/lib/staff-roles';
@@ -12,12 +13,14 @@ import { Card, Empty, Notice, PageHeader, Pager, Pill, Tabs } from '../ui';
 
 // ------------------------------------------------------------------ header --
 
-export type ConfigTab = 'team' | 'settings' | 'switches' | 'integrations' | 'health' | 'audit' | 'security';
+export type ConfigTab = 'team' | 'settings' | 'switches' | 'rules' | 'controls' | 'integrations' | 'health' | 'audit' | 'security';
 
 const TABS: { key: ConfigTab; href: string; label: string }[] = [
   { key: 'team', href: '/settings/team', label: 'Team & access' },
   { key: 'settings', href: '/settings', label: 'Money & timing' },
   { key: 'switches', href: '/settings/switches', label: 'App switches' },
+  { key: 'rules', href: '/settings/rules', label: 'Rules' },
+  { key: 'controls', href: '/settings/controls', label: 'Web, Android & iOS' },
   { key: 'integrations', href: '/settings/integrations', label: 'Integrations' },
   { key: 'health', href: '/settings/health', label: 'System health' },
   { key: 'audit', href: '/settings/audit', label: 'Audit log' },
@@ -65,14 +68,15 @@ export function TeamView({
   team: TeamMember[];
   meId: string;
   meRole: StaffRole;
-  allowlist: { email: string; phone: string };
+  allowlist: Allowlist;
   serviceKey: boolean;
   add: FormAction;
   remove: FormAction;
   setRole: FormAction;
   setNotify: FormAction;
 }) {
-  const locked = Boolean(allowlist.email || allowlist.phone.length === 10);
+  const locked = allowlistActive(allowlist);
+  const allowed = allowlistCount(allowlist);
   const withMfa = team.filter((m) => m.authenticator).length;
   const manage = meRole === 'admin';
   return (
@@ -97,7 +101,7 @@ export function TeamView({
         <div className="figure card">
           <span className="figure-label">Panel sign-in</span>
           <span className="figure-num plain">{locked ? 'Allowlist' : 'Role only'}</span>
-          <span className="muted small">{locked ? 'Only the account in ADMIN_EMAIL / ADMIN_PHONE gets in' : 'Every admin can open this panel'}</span>
+          <span className="muted small">{locked ? `Only the ${allowed} ${allowed === 1 ? 'account' : 'accounts'} listed in ADMIN_EMAIL / ADMIN_PHONE get in` : 'Every admin can open this panel'}</span>
         </div>
       </div>
 
@@ -125,13 +129,13 @@ export function TeamView({
                 {locked ? (
                   <>
                     {' '}
-                    This panel only lets in <strong>{allowlist.email || `the phone in ADMIN_PHONE`}</strong>, so add their account there too.
+                    This panel only lets in the {allowed === 1 ? 'account' : `${allowed} accounts`} listed in ADMIN_EMAIL / ADMIN_PHONE, so add theirs there too.
                   </>
                 ) : null}
               </>
             }
             choice={{ name: 'role', label: 'Role', defaultValue: 'viewer', options: STAFF_ROLES.map((r) => ({ value: r.value, label: `${r.label}: ${r.short}` })) }}
-            field={{ name: 'who', label: 'Their @username', placeholder: '@username', required: true, help: 'They must already have a TaskDrop account.' }}
+            field={{ name: 'who', label: 'Their @username or Google address', placeholder: '@username or name@gmail.com', required: true, help: 'They must already have a TaskDrop account (signed in once).' }}
             confirmLabel="Add to the team"
           />
           )
@@ -200,7 +204,7 @@ export function TeamView({
                         ) : m.canOpenPanel ? (
                           <Pill tone="green">Can sign in</Pill>
                         ) : (
-                          <Pill tone="gold" title="Not the account in ADMIN_EMAIL / ADMIN_PHONE, so the panel turns them away">
+                          <Pill tone="gold" title="Not listed in ADMIN_EMAIL / ADMIN_PHONE, so the panel turns them away">
                             Not on allowlist
                           </Pill>
                         )}
@@ -240,7 +244,7 @@ export function TeamView({
 
       <Card
         title="What each role can do"
-        sub="Enforced by the database, not just this panel. Everyone can see everything and switch their own alerts. Alerts are an in-app notification and phone push: withdrawals and disputes go to Admin and Finance, help requests to Admin and Support."
+        sub="Enforced by the database, not just this panel. Everyone can see everything and switch their own alerts. Alerts are an in-app notification and phone push: withdrawals and disputes go to Admin and Finance, help requests to Admin and Support. Sales has no alerts."
         flush
       >
         <div className="table-wrap">
@@ -273,7 +277,7 @@ export function TeamView({
           </table>
         </div>
         <p className="card-body muted small roles-note">
-          Money: payouts, refunds, wallet changes, disputes. People: help requests, customer notes, tags, messages, suspensions, copyright. Admin: settings, app switches, the team and deleting accounts.
+          Money: payouts, refunds, wallet changes, disputes. People: help requests, customer notes, follow-ups, tags, messages, leads, moderation, suspensions, copyright. Admin: settings, app switches, the team and deleting accounts.
         </p>
       </Card>
     </>
@@ -378,7 +382,8 @@ function Integration({ icon, name, status, tone, children }: { icon: string; nam
 }
 
 export function IntegrationsView({ i }: { i: Integrations }) {
-  const allow = i.allowlist.email || (i.allowlist.phone.length === 10 ? `+91 ${i.allowlist.phone}` : '');
+  const n = allowlistCount(i.allowlist);
+  const allow = n > 1 ? `${n} accounts` : i.allowlist.emails[0] || (i.allowlist.phones[0] ? `+91 ${i.allowlist.phones[0]}` : '');
   const rx = i.razorpayx;
   return (
     <>
@@ -404,7 +409,7 @@ export function IntegrationsView({ i }: { i: Integrations }) {
         <Integration icon="people" name="Panel sign-in" status={allow ? 'Allowlist on' : 'Role only'} tone={allow ? 'green' : 'gold'}>
           <p>Google, or @username and password. Signs you out after {i.idleMinutes} minutes idle.</p>
           <dl className="mini-kv">
-            <dt>Allowed account</dt>
+            <dt>{n > 1 ? 'Allowed accounts' : 'Allowed account'}</dt>
             <dd>{allow || 'Any account with the admin role'}</dd>
           </dl>
         </Integration>

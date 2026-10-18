@@ -1,11 +1,12 @@
 import { notFound } from 'next/navigation';
 import { mfaState } from '@/lib/mfa';
+import { staffCan } from '@/lib/staff-roles';
 import { PayoutDetailView } from '@/components/views/PayoutDetailView';
 import { checkWithRazorpayX, giveBackPayout, markPayout } from '@/lib/actions';
-import { getPayoutDetail, getPayoutMethod, getRazorpayXState, requireAdmin } from '@/lib/data';
+import { getPayoutDetail, getPayoutMethod, getRazorpayXState, requireSeeing } from '@/lib/data';
 
 export default async function PayoutPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireAdmin();
+  const me = await requireSeeing('money');
   const { id } = await params;
   const mfa = await mfaState();
   const d = await getPayoutDetail(id);
@@ -22,6 +23,7 @@ export default async function PayoutPage({ params }: { params: Promise<{ id: str
       rx={rx}
       method={method}
       mfa={mfa}
+      canPay={staffCan(me.staffRole, 'money')}
       markPayout={markPayout}
       checkAll={checkWithRazorpayX}
       giveBack={giveBackPayout}
