@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { sentryIngestOrigin } from './lib/sentry-dsn';
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
@@ -16,6 +17,7 @@ const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
  * 'unsafe-eval' is development only (React Refresh needs it).
  */
 function contentSecurityPolicy(nonce: string): string {
+  const sentry = sentryIngestOrigin();
   const dev = process.env.NODE_ENV !== 'production';
   const supabaseWs = URL.replace(/^https:/, 'wss:');
   return [
@@ -27,7 +29,7 @@ function contentSecurityPolicy(nonce: string): string {
     `style-src 'self' 'unsafe-inline'`,
     `img-src 'self' data: blob:`,
     `font-src 'self' data:`,
-    `connect-src 'self' ${URL} ${supabaseWs}`.trim(),
+    `connect-src 'self' ${URL} ${supabaseWs}${sentry ? ` ${sentry}` : ''}`.trim(),
     `frame-ancestors 'none'`,
     `base-uri 'self'`,
     `form-action 'self'`,
