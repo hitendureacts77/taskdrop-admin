@@ -30,6 +30,16 @@ npm run build       # production build
 npm run db:types    # regenerate src/lib/db/database.types.ts after a schema change (needs the Supabase CLI)
 ```
 
+## Environments
+
+- **Test environment: the cloud Supabase project** (`wjxvingpfbfvkfqhrguj`). There is no local Supabase and no Docker; whatever is in the cloud is treated as testing, with fake data.
+- Locally: `npm run dev` on http://localhost:3001, using the cloud project's keys from `.env.local`.
+- Hosted: `admin.taskdrop.in` (Vercel). In Supabase → Authentication → URL Configuration, the Redirect URLs need `http://localhost:3001/auth/callback` and `https://admin.taskdrop.in/auth/callback` (add the second once the domain is connected in Vercel).
+
+## Branches and pull requests
+
+Only `main` and `redesigned-2.0` exist. All new work goes into `redesigned-2.0`; `main` is promoted by hand after testing. Cut a short branch from `redesigned-2.0` for each piece of work (for example `upgrade/phase-1-sentry`), open a pull request into `redesigned-2.0`, fix or answer CI and the CodeRabbit review, merge, and delete the branch. The full plan is `docs/UPGRADE_PLAN.md` in the app repo.
+
 ## Deploy (Vercel)
 
 Import this repo as a new Vercel project. The defaults are right: framework **Next.js**, root directory `./`. Add the three environment variables above, then deploy. Add the deployed `/auth/callback` address to Supabase's Redirect URLs.
