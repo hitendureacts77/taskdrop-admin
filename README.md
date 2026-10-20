@@ -27,7 +27,7 @@ Other commands:
 ```bash
 npm run typecheck   # TypeScript
 npm run build       # production build
-npm run db:types    # regenerate src/lib/db/database.types.ts after a schema change (needs the Supabase CLI)
+npm run db:types    # regenerate src/lib/db/database.types.ts after a schema change (needs the Supabase CLI and a login; project id from SUPABASE_PROJECT_ID)
 ```
 
 ## Environments
@@ -46,13 +46,9 @@ Import this repo as a new Vercel project. The defaults are right: framework **Ne
 
 ## Database changes this panel expects
 
-The database schema lives in the TaskDrop app repo (`supabase/migrations/`). Three migrations there are used by this panel and were **not yet applied to the live project** when this repo was created:
+The database schema lives in the TaskDrop app repo (`supabase/migrations/`); its `docs/DEPLOY.md` says how a change reaches the test project. The functions this panel relies on are all in the cloud project (checked 2026-10-20): `admin_earnings_daily` (060), `admin_resolve_dispute` (061), `admin_money_position` (066), the CRM tables and functions (071) and the live-event feed (091). Some were applied by hand under other names, which is why the cloud's migration history does not list them by number.
 
-- **060_admin_earnings_daily**: adds up earnings per day in the database, so the 1-year, 5-year and all-time charts stay fast. The panel works without it; it just reads more rows.
-- **061_fix_admin_resolve_dispute**: without it, `admin_resolve_dispute` fails, so the "Decide this dispute" buttons show an error and nothing changes.
-- **071_crm**: adds the CRM tables and functions above. Without it the Customers pages and the notes, tags and Suspend panels on a person's page show an error.
-- **091_admin_live_events**: the Dashboard's live strip and feed, and the "Live" light in the top bar. Without it they stay hidden and the top bar says "Live off"; everything else works.
-- **066_razorpayx_hardening**: adds `admin_money_position`, which fills in the RazorpayX cards on Worker payouts. Until it's applied, those cards show "—".
+CI regenerates `src/lib/db/database.types.ts` from the live schema and fails if the committed file differs. After a schema change run `npm run db:types` (needs the Supabase CLI and `supabase login`) and commit the result. The check needs the `SUPABASE_ACCESS_TOKEN` secret in this repo's GitHub settings; without it the check is skipped.
 
 ## What each screen does
 
