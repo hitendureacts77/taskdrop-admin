@@ -48,7 +48,7 @@ Import this repo as a new Vercel project. The defaults are right: framework **Ne
 
 The database schema lives in the TaskDrop app repo (`supabase/migrations/`); its `docs/DEPLOY.md` says how a change reaches the test project. The functions this panel relies on are all in the cloud project (checked 2026-10-20): `admin_earnings_daily` (060), `admin_resolve_dispute` (061), `admin_money_position` (066), the CRM tables and functions (071) and the live-event feed (091). Some were applied by hand under other names, which is why the cloud's migration history does not list them by number.
 
-CI regenerates `src/lib/db/database.types.ts` from the live schema and fails if the committed file differs. After a schema change run `npm run db:types` (needs the Supabase CLI and `supabase login`) and commit the result. The check needs the `SUPABASE_ACCESS_TOKEN` secret in this repo's GitHub settings; without it the check is skipped.
+After a schema change run `npm run db:types` (needs `SUPABASE_ACCESS_TOKEN` in your environment) and commit `src/lib/db/database.types.ts`. CI has a job that would fail if the committed file differs from the live schema, but GitHub holds no secrets (it only stores the code; Vercel deploys), so that job is skipped.
 
 ## What each screen does
 
