@@ -27,14 +27,14 @@ Other commands:
 ```bash
 npm run typecheck   # TypeScript
 npm run build       # production build
-npm run db:types    # regenerate src/lib/db/database.types.ts after a schema change (needs the Supabase CLI)
+npm run db:types    # regenerate src/lib/db/database.types.ts after a schema change (needs the Supabase CLI and a login; project id from SUPABASE_PROJECT_ID)
 ```
 
 ## Environments
 
 - **Test environment: the cloud Supabase project** (`wjxvingpfbfvkfqhrguj`). There is no local Supabase and no Docker; whatever is in the cloud is treated as testing, with fake data. It is **shared with the old app and old admin** (your testers use them) until Phase 9, so a destructive change there affects their data too.
 - Locally: `npm run dev` on http://localhost:3001, using the cloud project's keys from `.env.local`.
-- Hosted: `admin.taskdrop.in` (Vercel). In Supabase → Authentication → URL Configuration, the Redirect URLs need `http://localhost:3001/auth/callback` and `https://admin.taskdrop.in/auth/callback` (add the second once the domain is connected in Vercel).
+- Hosted: the admin runs on its Vercel address (`taskdrop-admin.vercel.app`); there is no admin subdomain for now. Its sign-in callbacks (`/auth/callback` on the Vercel addresses and `http://localhost:3001`) are already in Supabase → Authentication → URL Configuration → Redirect URLs.
 
 ## Branches and pull requests
 
@@ -46,13 +46,9 @@ Import this repo as a new Vercel project. The defaults are right: framework **Ne
 
 ## Database changes this panel expects
 
-The database schema lives in the TaskDrop app repo (`supabase/migrations/`). Three migrations there are used by this panel and were **not yet applied to the live project** when this repo was created:
+The database schema lives in the TaskDrop app repo (`supabase/migrations/`); its `docs/DEPLOY.md` says how a change reaches the test project. The functions this panel relies on are all in the cloud project (checked 2026-10-20): `admin_earnings_daily` (060), `admin_resolve_dispute` (061), `admin_money_position` (066), the CRM tables and functions (071) and the live-event feed (091). Some were applied by hand under other names, which is why the cloud's migration history does not list them by number.
 
-- **060_admin_earnings_daily**: adds up earnings per day in the database, so the 1-year, 5-year and all-time charts stay fast. The panel works without it; it just reads more rows.
-- **061_fix_admin_resolve_dispute**: without it, `admin_resolve_dispute` fails, so the "Decide this dispute" buttons show an error and nothing changes.
-- **071_crm**: adds the CRM tables and functions above. Without it the Customers pages and the notes, tags and Suspend panels on a person's page show an error.
-- **091_admin_live_events**: the Dashboard's live strip and feed, and the "Live" light in the top bar. Without it they stay hidden and the top bar says "Live off"; everything else works.
-- **066_razorpayx_hardening**: adds `admin_money_position`, which fills in the RazorpayX cards on Worker payouts. Until it's applied, those cards show "—".
+After a schema change run `npm run db:types` (needs `SUPABASE_ACCESS_TOKEN` in your environment) and commit `src/lib/db/database.types.ts`. CI has a job that would fail if the committed file differs from the live schema, but GitHub holds no secrets (it only stores the code; Vercel deploys), so that job is skipped.
 
 ## What each screen does
 

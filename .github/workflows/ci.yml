@@ -37,3 +37,45 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
         run: npm run build
+
+  # The database types are generated from the live schema (`npm run db:types`). This regenerates
+  # them and fails when the committed file differs, so a migration in the app repo cannot leave
+  # the panel's types behind. It needs a Supabase access token; without the secret (a fork's or
+  # Dependabot's pull request) it is skipped with a notice instead of failing.
+  types:
+    name: database types match the schema
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      SUPABASE_PROJECT_ID: wjxvingpfbfvkfqhrguj
+    steps:
+      - name: check the secret is set
+        id: ready
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "::notice title=Types check skipped::SUPABASE_ACCESS_TOKEN is not available to this run."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        if: steps.ready.outputs.ready == 'true'
+        with:
+          persist-credentials: false
+      - uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
+        if: steps.ready.outputs.ready == 'true'
+        with:
+          version: latest
+      - name: regenerate and compare
+        if: steps.ready.outputs.ready == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase gen types typescript --project-id "$SUPABASE_PROJECT_ID" --schema public > "$RUNNER_TEMP/database.types.ts"
+          if ! diff -u src/lib/db/database.types.ts "$RUNNER_TEMP/database.types.ts"; then
+            echo "::error title=Database types are out of date::Run 'npm run db:types' and commit src/lib/db/database.types.ts."
+            exit 1
+          fi

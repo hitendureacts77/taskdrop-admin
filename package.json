@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --test src/lib/live-describe.test.ts src/lib/needs-you.test.ts src/lib/live-alerts.test.ts src/lib/csv.test.ts src/lib/staff-roles.test.ts src/lib/growth-calc.test.ts src/lib/controls-meta.test.ts src/lib/allowlist.test.ts src/lib/find-person.test.ts src/lib/devices-calc.test.ts src/lib/ops-calc.test.ts src/lib/crm-calc.test.ts",
     "lint": "eslint .",
-    "db:types": "supabase gen types typescript --project-id wjxvingpfbfvkfqhrguj --schema public > src/lib/db/database.types.ts"
+    "db:types": "node scripts/gen-db-types.mjs"
   },
   "dependencies": {
     "@sentry/nextjs": "^11.8.0",
