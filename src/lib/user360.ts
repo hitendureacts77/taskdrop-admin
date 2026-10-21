@@ -22,6 +22,9 @@ export type UserPayment = {
 
 export type UserDevice = { platform: string; registeredAt: string; lastSeenAt: string; appVersion?: string | null; osVersion?: string | null };
 
+/** How a person can sign in, read from the auth service (never a token or a password). */
+export type UserSignIn = { methods: string[]; phone: boolean; lastSignInAt: string | null };
+
 export type UserAuditEntry = { id: number; at: string; actor: string; action: string; table: string | null; detail: string | null };
 
 function serviceOrNull() {
@@ -107,4 +110,29 @@ export async function getUserAudit(userId: string): Promise<UserAuditEntry[]> {
     table: r.target_table,
     detail: r.detail,
   }));
+}
+
+const PROVIDER_LABEL: Record<'google' | 'apple' | 'phone' | 'email', string> = { google: 'Google', apple: 'Apple', phone: 'Phone code', email: 'Email' };
+
+/**
+ * The sign-in methods on this account: phone (a confirmed number, or the
+ * synthetic phone address the apps use), Google, Apple, and username +
+ * password when they have set one. Null when there is no service key.
+ */
+export async function getUserSignIn(userId: string, hasUsername: boolean): Promise<UserSignIn | null> {
+  if (!isUuid(userId)) return { methods: [], phone: false, lastSignInAt: null };
+  const service = serviceOrNull();
+  if (!service) return null;
+  const { data, error } = await service.auth.admin.getUserById(userId);
+  if (error || !data.user) throw new Error(`Could not read their sign-in methods: ${error?.message ?? 'no such account'}`);
+  const u = data.user;
+  const methods = new Set<string>();
+  const phone = Boolean(u.phone) || (u.email ?? '').endsWith('@phone.taskdrop.app');
+  if (phone) methods.add(PROVIDER_LABEL.phone);
+  for (const i of u.identities ?? []) {
+    if (i.provider === 'google' || i.provider === 'apple') methods.add(PROVIDER_LABEL[i.provider]);
+    else if (i.provider === 'email' && !(u.email ?? '').endsWith('@phone.taskdrop.app')) methods.add(PROVIDER_LABEL.email);
+  }
+  if (hasUsername) methods.add('Username + password');
+  return { methods: [...methods], phone, lastSignInAt: u.last_sign_in_at ?? null };
 }
