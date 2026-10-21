@@ -35,6 +35,7 @@ const SECTIONS: { title: string | null; items: Item[] }[] = [
       { href: '/devices', label: 'Devices', icon: 'device' },
       { href: '/disputes', label: 'Disputes', icon: 'scale', badge: 'disputes', alert: true, view: 'money' },
       { href: '/reports-queue', label: 'Reports', icon: 'alert' },
+      { href: '/alerts', label: 'Alerts', icon: 'alert' },
       { href: '/support', label: 'Help requests', icon: 'help', badge: 'support' },
       { href: '/copyright', label: 'Copyright notices', icon: 'alert' },
       { href: '/promotions', label: 'Promotions', icon: 'megaphone', view: 'money' },
