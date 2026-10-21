@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { namesFor } from './data';
 import type { DailyRow, FunnelRow, RetentionRow, StaffPerf } from './growth-calc';
 import { createClient } from './supabase/server';
+import { createClient as createServiceClient } from './supabase/service';
 
 /**
  * Reads for the moderation queue, follow-ups, pipeline, team performance,
@@ -57,7 +58,28 @@ export type ReportRow = {
   handledBy: string | null;
   createdAt: string;
   hidden: boolean;
+  /** For a reported message: what it says and whether staff have hidden it. Null when it cannot be read. */
+  message: { body: string; hidden: boolean } | null;
 };
+
+/** Reported messages, read with the service key (an admin is not in the thread, so RLS shows nothing). */
+async function reportedMessages(ids: string[]): Promise<Map<string, { body: string; hidden: boolean }>> {
+  const out = new Map<string, { body: string; hidden: boolean }>();
+  if (!ids.length) return out;
+  try {
+    // message_moderation is newer than the generated types.
+    const service = createServiceClient() as unknown as SupabaseClient;
+    const [msgs, mods] = await Promise.all([
+      service.from('messages').select('id, body').in('id', ids),
+      service.from('message_moderation').select('message_id').in('message_id', ids),
+    ]);
+    const hidden = new Set(((mods.data ?? []) as { message_id: string }[]).map((m) => m.message_id));
+    for (const m of (msgs.data ?? []) as { id: string; body: string }[]) out.set(m.id, { body: m.body.startsWith('::media::') ? '(a photo)' : m.body.slice(0, 1000), hidden: hidden.has(m.id) });
+  } catch {
+    /* no service key, or migration 118 not applied: the card just shows no text */
+  }
+  return out;
+}
 
 export async function getReports(status: 'open' | 'done'): Promise<Read<ReportRow[]>> {
   const r = await select<ReportRow[]>(
@@ -80,6 +102,7 @@ export async function getReports(status: 'open' | 'done'): Promise<Read<ReportRo
         const { data: h } = await supabase.from('task_moderation').select('task_id').in('task_id', taskIds);
         for (const x of (h ?? []) as { task_id: string }[]) hidden.add(x.task_id);
       }
+      const messages = await reportedMessages(rows.filter((x) => x.target_type === 'message').map((x) => str(x.target_id)));
       return rows.map((x) => {
         const type = str(x.target_type);
         const target = str(x.target_id);
@@ -96,6 +119,7 @@ export async function getReports(status: 'open' | 'done'): Promise<Read<ReportRo
           handledBy: x.handled_by ? names.get(str(x.handled_by)) ?? 'An admin' : null,
           createdAt: str(x.created_at),
           hidden: hidden.has(target),
+          message: type === 'message' ? messages.get(target) ?? null : null,
         };
       });
     },
