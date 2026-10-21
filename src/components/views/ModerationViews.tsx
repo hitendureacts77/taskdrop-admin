@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { ConfirmAction } from '../ConfirmAction';
-import { hideTask, resolveReport, unhideTask } from '@/lib/growth-actions';
+import { hideMessage, hideTask, resolveReport, unhideMessage, unhideTask } from '@/lib/growth-actions';
 import type { ReportRow, Read } from '@/lib/growth';
 import { timeAgo } from '@/lib/format';
 import { Card, Empty, PageHeader, Pill, Tabs } from '../ui';
@@ -45,6 +45,34 @@ export function ReportsQueueView({ view, reports, now }: { view: 'open' | 'done'
                   right={r.hidden ? <Pill tone="red">Hidden</Pill> : r.status !== 'open' ? <Pill tone={r.status === 'actioned' ? 'green' : 'grey'}>{r.status === 'actioned' ? 'Acted on' : 'Dismissed'}</Pill> : null}
                 >
                   <p className="prose">“{r.reason}”</p>
+                  {r.message ? (
+                    <div>
+                      <p className="muted small">The reported message{r.message.hidden ? ' (hidden from the chat)' : ''}:</p>
+                      <blockquote className="prose">{r.message.body}</blockquote>
+                      {r.message.hidden ? (
+                        <ConfirmAction
+                          action={unhideMessage}
+                          hidden={{ messageId: r.targetId }}
+                          trigger="Show it in the chat again"
+                          tone="quiet"
+                          title="Show this message again?"
+                          consequence="Both people in the chat can see it again."
+                          confirmLabel="Show it again"
+                        />
+                      ) : (
+                        <ConfirmAction
+                          action={hideMessage}
+                          hidden={{ messageId: r.targetId }}
+                          trigger="Hide this message"
+                          tone="danger"
+                          title="Hide this message?"
+                          consequence="It disappears for both people in the chat. It is kept, so you can bring it back. Hiding does not close the report."
+                          field={{ name: 'reason', label: 'Why', required: true }}
+                          confirmLabel="Yes, hide it"
+                        />
+                      )}
+                    </div>
+                  ) : null}
                   {r.status === 'open' ? (
                     <div className="pill-row">
                       <ConfirmAction

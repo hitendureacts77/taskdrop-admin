@@ -44,6 +44,30 @@ export async function resolveReport(_prev: ActionResult, form: FormData): Promis
   return { ok: true, message: status === 'actioned' ? 'Marked as acted on.' : 'Dismissed.' };
 }
 
+export async function hideMessage(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const denied = await guard();
+  if (denied) return { ok: false, message: denied };
+  const id = str(form, 'messageId');
+  const reason = str(form, 'reason');
+  if (!isUuid(id)) return { ok: false, message: 'That message id looks wrong. Refresh the page.' };
+  if (!reason) return { ok: false, message: 'Say why you are hiding it.' };
+  const err = await call('admin_hide_message', { p_message: id, p_reason: reason.slice(0, 500) });
+  if (err) return { ok: false, message: err };
+  revalidatePath('/reports-queue');
+  return { ok: true, message: 'Hidden. Neither person in the chat sees it now; it is kept for the record.' };
+}
+
+export async function unhideMessage(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const denied = await guard();
+  if (denied) return { ok: false, message: denied };
+  const id = str(form, 'messageId');
+  if (!isUuid(id)) return { ok: false, message: 'That message id looks wrong. Refresh the page.' };
+  const err = await call('admin_unhide_message', { p_message: id });
+  if (err) return { ok: false, message: err };
+  revalidatePath('/reports-queue');
+  return { ok: true, message: 'Visible in the chat again.' };
+}
+
 export async function hideTask(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   const denied = await guard();
   if (denied) return { ok: false, message: denied };

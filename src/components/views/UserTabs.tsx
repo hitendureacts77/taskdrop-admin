@@ -1,9 +1,11 @@
-import type { UserAuditEntry, UserDevice, UserPayment } from '@/lib/user360';
+import type { UserAuditEntry, UserDevice, UserPayment, UserSignIn } from '@/lib/user360';
 import type { UserDetail } from '@/lib/data';
 import { istDateTime, timeAgo } from '@/lib/format';
 import type { Tone } from '@/lib/labels';
 import type { FollowUp, Read } from '@/lib/growth';
 import { FinishButton, FollowUpForm } from '../GrowthForms';
+import { signOutEverywhere } from '@/lib/session-actions';
+import { ConfirmAction } from '../ConfirmAction';
 import { Card, Empty, JobLink, Money, Pill } from '../ui';
 import { SetupNotice } from './SetupNotice';
 
@@ -120,8 +122,36 @@ export function MoneyTab({ u, payments }: { u: UserDetail; payments: UserPayment
 const PLATFORM_LABEL: Record<string, string> = { android: 'Android', ios: 'iPhone / iPad', web: 'Web browser' };
 
 /** The phones and browsers that can receive this person’s notifications. */
-export function DevicesTab({ devices, now }: { devices: UserDevice[] | null; now: Date }) {
+export function DevicesTab({ devices, now, signIn, userId, name, canSignOut }: { devices: UserDevice[] | null; now: Date; signIn: UserSignIn | null; userId: string; name: string; canSignOut: boolean }) {
+  const first = name.split(' ')[0] ?? name;
   return (
+    <>
+    <Card title="Sign-in" sub="How this person can get into their account.">
+      {signIn === null ? (
+        NEEDS_KEY
+      ) : (
+        <>
+          <p>
+            {signIn.methods.length ? signIn.methods.map((m) => (
+              <Pill key={m} tone="grey">{m}</Pill>
+            )) : <span className="muted small">No sign-in method found.</span>}
+          </p>
+          <p className="muted small">{signIn.lastSignInAt ? `Last signed in ${istDateTime(signIn.lastSignInAt)}` : 'Has not signed in yet.'}</p>
+          {canSignOut ? (
+            <ConfirmAction
+              action={signOutEverywhere}
+              hidden={{ userId, name: first }}
+              trigger="Sign out everywhere"
+              tone="danger"
+              title={`Sign ${first} out of every device?`}
+              consequence={<>Ends all of their sessions. They can sign in again with the same method. A phone or browser that is already open may keep working for up to an hour. Nothing else about the account changes.</>}
+              field={{ name: 'reason', label: 'Why', placeholder: 'e.g. lost phone, asked by support', required: true }}
+              confirmLabel={`Yes, sign ${first} out`}
+            />
+          ) : null}
+        </>
+      )}
+    </Card>
     <Card title="Devices" sub="Installs this person has used, newest first.">
       {devices === null ? (
         NEEDS_KEY
@@ -147,6 +177,7 @@ export function DevicesTab({ devices, now }: { devices: UserDevice[] | null; now
       )}
       <p className="muted small">App version and operating system show once the person has opened a build that reports them.</p>
     </Card>
+    </>
   );
 }
 

@@ -5,7 +5,7 @@ import { getPersonCrm, getTimeline } from '@/lib/crm';
 import { getMoneySettings, getUser, requireAdmin } from '@/lib/data';
 import { staffCanSee } from '@/lib/staff-roles';
 import { getStaffList, getUserFollowUps } from '@/lib/growth';
-import { getUserAudit, getUserDevices, getUserPayments } from '@/lib/user360';
+import { getUserAudit, getUserDevices, getUserPayments, getUserSignIn } from '@/lib/user360';
 
 export default async function UserPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string }> }) {
   const me = await requireAdmin();
@@ -26,7 +26,10 @@ export default async function UserPage({ params, searchParams }: { params: Promi
   let extra = null;
   if (tab === 'money' && !hideMoney) extra = <MoneyTab u={user} payments={await getUserPayments(id)} />;
   else if (tab === 'followups') extra = <FollowUpsTab userId={id} items={await getUserFollowUps(id)} staff={await getStaffList()} me={me.id} />;
-  else if (tab === 'devices') extra = <DevicesTab devices={await getUserDevices(id)} now={now} />;
+  else if (tab === 'devices') {
+    const [devices, signIn] = await Promise.all([getUserDevices(id), getUserSignIn(id, Boolean(user.username))]);
+    extra = <DevicesTab devices={devices} now={now} signIn={signIn} userId={id} name={user.name} canSignOut={id !== me.id} />;
+  }
   else if (tab === 'audit') extra = <AuditTab entries={await getUserAudit(id)} />;
 
   return <UserView u={user} settings={settings} now={now.toISOString()} crm={crm} timeline={timeline} tab={hideMoney && tab === 'money' ? 'overview' : tab} extra={extra} hideMoney={hideMoney} />;
