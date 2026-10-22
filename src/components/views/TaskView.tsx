@@ -7,7 +7,7 @@ import { ledgerKind, taskStatus } from '@/lib/labels';
 import { ConfirmAction, type FormAction } from '../ConfirmAction';
 import { Icon } from '../Icon';
 import { Card, Empty, KV, Money, Notice, PageHeader, PersonLink, Pill } from '../ui';
-import { HideTaskCard } from './ModerationViews';
+import { HideTaskCard, TaskCategoryCard } from './ModerationViews';
 
 const HOLDING = new Set(['assigned', 'started']);
 
@@ -247,6 +247,7 @@ export function TaskView({
           </Card>
 
           {moderation ? <HideTaskCard taskId={t.id} state={moderation} /> : null}
+          {moderation ? <TaskCategoryCard taskId={t.id} category={t.category} /> : null}
 
           {cancelTask && (t.status === 'OPEN' || t.status === 'LOCKED') ? (
             <Card title="Cancel this job" sub="For a job where work has not started.">

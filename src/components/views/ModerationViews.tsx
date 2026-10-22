@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { ConfirmAction } from '../ConfirmAction';
-import { hideMessage, hideTask, resolveReport, unhideMessage, unhideTask } from '@/lib/growth-actions';
+import { hideMessage, hideTask, resolveReport, setTaskCategory, unhideMessage, unhideTask } from '@/lib/growth-actions';
 import type { ReportRow, Read } from '@/lib/growth';
 import { timeAgo } from '@/lib/format';
 import { Card, Empty, PageHeader, Pill, Tabs } from '../ui';
@@ -143,6 +143,24 @@ export function HideTaskCard({ taskId, state }: { taskId: string; state: { hidde
           confirmLabel="Hide it"
         />
       )}
+    </Card>
+  );
+}
+
+/** Fix a wrong category on a job, on the job's page. Money and status are not touched. */
+export function TaskCategoryCard({ taskId, category }: { taskId: string; category: string | null }) {
+  return (
+    <Card title="Category" sub={category ? `Filed under ${category}.` : 'This job has no category.'}>
+      <ConfirmAction
+        action={setTaskCategory}
+        hidden={{ taskId }}
+        trigger="Change category"
+        tone="quiet"
+        title="Change this job’s category?"
+        consequence="Where the job appears in search and category lists changes. Money, offers and status are not touched, and the change is written to the audit log."
+        field={{ name: 'category', label: 'Category', required: true, defaultValue: category ?? '' }}
+        confirmLabel="Change it"
+      />
     </Card>
   );
 }

@@ -34,7 +34,7 @@ function greeting(now: Date) {
   return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
 }
 
-export function DashboardView({ d, health }: { d: DashboardData; health?: ReactNode }) {
+export function DashboardView({ d, health, devices }: { d: DashboardData; health?: ReactNode; devices?: ReactNode }) {
   const now = new Date(d.now);
   const e = d.earnings;
   const chart = earningsChart(e, 'total');
@@ -278,6 +278,8 @@ export function DashboardView({ d, health }: { d: DashboardData; health?: ReactN
       <LiveFeed />
 
       {health}
+
+      {devices}
 
       <div className="grid-2">
         <Card title="Things to do" right={<Pill tone={openTodos ? 'gold' : 'green'}>{openTodos ? `${openTodos} need you` : 'All clear'}</Pill>}>

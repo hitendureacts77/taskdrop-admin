@@ -91,6 +91,17 @@ export function safeSentryUrl(raw: string | undefined | null): string | null {
   }
 }
 
+export type ToolLink = { label: string; envName: string; url: string | null };
+
+/** The outside dashboards the admin links to, each shown only when its env var holds a plain https URL. */
+export function toolLinks(env: Record<string, string | undefined>): ToolLink[] {
+  return [
+    { label: 'Sentry (errors)', envName: 'SENTRY_PROJECT_URL' },
+    { label: 'Inngest (background jobs)', envName: 'INNGEST_DASHBOARD_URL' },
+    { label: 'ImageKit (images)', envName: 'IMAGEKIT_DASHBOARD_URL' },
+  ].map((t) => ({ ...t, url: safeSentryUrl(env[t.envName]) }));
+}
+
 /** True when a database error means "your staff role may not see this" rather than a real failure. */
 export function isStaffRefusal(message: string | null | undefined, code?: string | null): boolean {
   return code === '42501' || /staff role|can.?t see this|admins only|permission denied/i.test(message ?? '');

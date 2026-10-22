@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import { DevicesToolsCard } from '@/components/DevicesToolsCard';
 import { SystemHealthCard, SystemHealthSkeleton } from '@/components/SystemHealthCard';
 import { DashboardView } from '@/components/views/DashboardView';
 import { SalesDashboardView } from '@/components/views/SalesDashboardView';
@@ -58,6 +59,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: SP
       health={
         <Suspense fallback={<SystemHealthSkeleton />}>
           <SystemHealthCard />
+        </Suspense>
+      }
+      devices={
+        <Suspense fallback={null}>
+          <DevicesToolsCard />
         </Suspense>
       }
     />

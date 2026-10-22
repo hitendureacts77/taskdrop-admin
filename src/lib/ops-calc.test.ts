@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { asRunKind, isRunStale, isStaffRefusal, latestPerKind, parseRunDetail, razorpayLine, safeSentryUrl } from './ops-calc.ts';
+import { asRunKind, isRunStale, isStaffRefusal, latestPerKind, parseRunDetail, razorpayLine, safeSentryUrl, toolLinks } from './ops-calc.ts';
 
 test('parseRunDetail reads internal and razorpay rows and ignores junk', () => {
   const internal = parseRunDetail('internal', [
@@ -61,4 +61,16 @@ test('isStaffRefusal spots the role refusal but not real failures', () => {
   assert.equal(isStaffRefusal("Your staff role (support) can't see this.", '42501'), true);
   assert.equal(isStaffRefusal('Your staff role (support) can’t do this.'), true);
   assert.equal(isStaffRefusal('connection reset'), false);
+});
+
+test('toolLinks shows a dashboard link only for an https URL', () => {
+  const links = toolLinks({ SENTRY_PROJECT_URL: 'https://sentry.io/x/', INNGEST_DASHBOARD_URL: 'http://app.inngest.com', IMAGEKIT_DASHBOARD_URL: undefined });
+  assert.deepEqual(
+    links.map((l) => [l.envName, l.url]),
+    [
+      ['SENTRY_PROJECT_URL', 'https://sentry.io/x/'],
+      ['INNGEST_DASHBOARD_URL', null],
+      ['IMAGEKIT_DASHBOARD_URL', null],
+    ],
+  );
 });

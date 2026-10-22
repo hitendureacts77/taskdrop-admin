@@ -94,6 +94,19 @@ export async function unhideTask(_prev: ActionResult, form: FormData): Promise<A
   return { ok: true, message: 'Visible to everyone again.' };
 }
 
+export async function setTaskCategory(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const denied = await guard();
+  if (denied) return { ok: false, message: denied };
+  const id = str(form, 'taskId');
+  const category = str(form, 'category').slice(0, 100);
+  if (!isUuid(id)) return { ok: false, message: 'That job id looks wrong. Refresh the page.' };
+  if (!category) return { ok: false, message: 'Type the category this job belongs in.' };
+  const err = await call('admin_set_task_category', { p_task: id, p_category: category });
+  if (err) return { ok: false, message: err };
+  revalidatePath(`/tasks/${id}`);
+  return { ok: true, message: 'Category changed.' };
+}
+
 export async function addFollowUp(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   const denied = await guard();
   if (denied) return { ok: false, message: denied };
