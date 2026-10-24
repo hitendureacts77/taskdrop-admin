@@ -44,6 +44,22 @@ export async function resolveReport(_prev: ActionResult, form: FormData): Promis
   return { ok: true, message: status === 'actioned' ? 'Marked as acted on.' : 'Dismissed.' };
 }
 
+/** Warn the person a report is about. The database closes the report as acted on. */
+export async function warnUser(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const denied = await guard();
+  if (denied) return { ok: false, message: denied };
+  const userId = str(form, 'userId');
+  const reportId = str(form, 'reportId');
+  const reason = str(form, 'reason');
+  if (!isUuid(userId)) return { ok: false, message: 'That person id looks wrong. Refresh the page.' };
+  if (reportId && !isUuid(reportId)) return { ok: false, message: 'That report id looks wrong. Refresh the page.' };
+  if (!reason) return { ok: false, message: 'Say what the warning is for.' };
+  const err = await call('admin_warn_user', { p_user: userId, p_reason: reason.slice(0, 500), p_report: reportId || null });
+  if (err) return { ok: false, message: err };
+  revalidatePath('/reports-queue');
+  return { ok: true, message: 'Warning sent. They will see it in their notifications.' };
+}
+
 export async function hideMessage(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   const denied = await guard();
   if (denied) return { ok: false, message: denied };

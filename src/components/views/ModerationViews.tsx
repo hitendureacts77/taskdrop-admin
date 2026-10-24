@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { ConfirmAction } from '../ConfirmAction';
-import { hideMessage, hideTask, resolveReport, setTaskCategory, unhideMessage, unhideTask } from '@/lib/growth-actions';
+import { hideMessage, hideTask, resolveReport, setTaskCategory, unhideMessage, unhideTask, warnUser } from '@/lib/growth-actions';
 import type { ReportRow, Read } from '@/lib/growth';
 import { timeAgo } from '@/lib/format';
 import { Card, Empty, PageHeader, Pill, Tabs } from '../ui';
@@ -75,6 +75,17 @@ export function ReportsQueueView({ view, reports, now }: { view: 'open' | 'done'
                   ) : null}
                   {r.status === 'open' ? (
                     <div className="pill-row">
+                      {r.targetType === 'user' ? (
+                        <ConfirmAction
+                          action={warnUser}
+                          hidden={{ userId: r.targetId, reportId: r.id }}
+                          trigger="Warn them"
+                          title="Warn this person?"
+                          consequence="They get a notification with your message, the warning is kept on their record, and this report is closed as acted on. Repeated warnings are your call to escalate to a suspension."
+                          field={{ name: 'reason', label: 'What they did wrong (they will read this)', required: true }}
+                          confirmLabel="Send warning"
+                        />
+                      ) : null}
                       <ConfirmAction
                         action={resolveReport}
                         hidden={{ reportId: r.id, status: 'actioned' }}
