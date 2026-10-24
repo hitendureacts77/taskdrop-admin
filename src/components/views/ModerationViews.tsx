@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { ConfirmAction } from '../ConfirmAction';
-import { hideMessage, hideTask, resolveReport, setTaskCategory, unhideMessage, unhideTask, warnUser } from '@/lib/growth-actions';
+import { hideMessage, hideReview, hideTask, resolveReport, setTaskCategory, unhideMessage, unhideReview, unhideTask, warnUser } from '@/lib/growth-actions';
 import type { ReportRow, Read } from '@/lib/growth';
 import { timeAgo } from '@/lib/format';
 import { Card, Empty, PageHeader, Pill, Tabs } from '../ui';
@@ -69,6 +69,36 @@ export function ReportsQueueView({ view, reports, now }: { view: 'open' | 'done'
                           consequence="It disappears for both people in the chat. It is kept, so you can bring it back. Hiding does not close the report."
                           field={{ name: 'reason', label: 'Why', required: true }}
                           confirmLabel="Yes, hide it"
+                        />
+                      )}
+                    </div>
+                  ) : null}
+                  {r.review ? (
+                    <div>
+                      <p className="muted small">
+                        The reported review ({r.review.rating} of 5 stars){r.review.hidden ? ' (removed, not counted in their rating)' : ''}:
+                      </p>
+                      <blockquote className="prose">{r.review.comment || '(no comment, stars only)'}</blockquote>
+                      {r.review.hidden ? (
+                        <ConfirmAction
+                          action={unhideReview}
+                          hidden={{ reviewId: r.targetId }}
+                          trigger="Put the review back"
+                          tone="quiet"
+                          title="Put this review back?"
+                          consequence="It shows on their profile again and counts toward their rating."
+                          confirmLabel="Put it back"
+                        />
+                      ) : (
+                        <ConfirmAction
+                          action={hideReview}
+                          hidden={{ reviewId: r.targetId }}
+                          trigger="Remove this review"
+                          tone="danger"
+                          title="Remove this review?"
+                          consequence="It stops showing, and the person's rating and review count are worked out again without it. It is kept, so you can put it back. Removing does not close the report."
+                          field={{ name: 'reason', label: 'Why', required: true }}
+                          confirmLabel="Yes, remove it"
                         />
                       )}
                     </div>

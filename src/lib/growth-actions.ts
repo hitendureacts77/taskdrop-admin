@@ -84,6 +84,31 @@ export async function unhideMessage(_prev: ActionResult, form: FormData): Promis
   return { ok: true, message: 'Visible in the chat again.' };
 }
 
+/** Remove a reviewer's review: it disappears and the person's average is worked out again without it. */
+export async function hideReview(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const denied = await guard();
+  if (denied) return { ok: false, message: denied };
+  const id = str(form, 'reviewId');
+  const reason = str(form, 'reason');
+  if (!isUuid(id)) return { ok: false, message: 'That review id looks wrong. Refresh the page.' };
+  if (!reason) return { ok: false, message: 'Say why you are removing it.' };
+  const err = await call('admin_hide_review', { p_review: id, p_reason: reason.slice(0, 500) });
+  if (err) return { ok: false, message: err };
+  revalidatePath('/reports-queue');
+  return { ok: true, message: 'Removed. It no longer shows, and their rating is worked out again without it.' };
+}
+
+export async function unhideReview(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const denied = await guard();
+  if (denied) return { ok: false, message: denied };
+  const id = str(form, 'reviewId');
+  if (!isUuid(id)) return { ok: false, message: 'That review id looks wrong. Refresh the page.' };
+  const err = await call('admin_unhide_review', { p_review: id });
+  if (err) return { ok: false, message: err };
+  revalidatePath('/reports-queue');
+  return { ok: true, message: 'The review shows again and counts toward their rating.' };
+}
+
 export async function hideTask(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   const denied = await guard();
   if (denied) return { ok: false, message: denied };

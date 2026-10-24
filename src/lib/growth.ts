@@ -60,7 +60,29 @@ export type ReportRow = {
   hidden: boolean;
   /** For a reported message: what it says and whether staff have hidden it. Null when it cannot be read. */
   message: { body: string; hidden: boolean } | null;
+  /** For a reported review: the stars, what it says and whether staff have removed it. Null when it cannot be read. */
+  review: { rating: number; comment: string; hidden: boolean } | null;
 };
+
+/** Reported reviews, with whether staff have removed them (review_moderation is newer than the generated types). */
+async function reportedReviews(ids: string[]): Promise<Map<string, { rating: number; comment: string; hidden: boolean }>> {
+  const out = new Map<string, { rating: number; comment: string; hidden: boolean }>();
+  if (!ids.length) return out;
+  try {
+    const supabase = (await db()) as unknown as SupabaseClient;
+    const [revs, mods] = await Promise.all([
+      supabase.from('reviews').select('id, rating, comment').in('id', ids),
+      supabase.from('review_moderation').select('review_id').in('review_id', ids),
+    ]);
+    const hidden = new Set(((mods.data ?? []) as { review_id: string }[]).map((m) => m.review_id));
+    for (const r of (revs.data ?? []) as { id: string; rating: number; comment: string | null }[]) {
+      out.set(r.id, { rating: r.rating, comment: (r.comment ?? '').slice(0, 1000), hidden: hidden.has(r.id) });
+    }
+  } catch {
+    /* migration 121 not applied: the card just shows no review text */
+  }
+  return out;
+}
 
 /** Reported messages, read with the service key (an admin is not in the thread, so RLS shows nothing). */
 async function reportedMessages(ids: string[]): Promise<Map<string, { body: string; hidden: boolean }>> {
@@ -103,6 +125,7 @@ export async function getReports(status: 'open' | 'done'): Promise<Read<ReportRo
         for (const x of (h ?? []) as { task_id: string }[]) hidden.add(x.task_id);
       }
       const messages = await reportedMessages(rows.filter((x) => x.target_type === 'message').map((x) => str(x.target_id)));
+      const reviews = await reportedReviews(rows.filter((x) => x.target_type === 'review').map((x) => str(x.target_id)));
       return rows.map((x) => {
         const type = str(x.target_type);
         const target = str(x.target_id);
@@ -120,6 +143,7 @@ export async function getReports(status: 'open' | 'done'): Promise<Read<ReportRo
           createdAt: str(x.created_at),
           hidden: hidden.has(target),
           message: type === 'message' ? messages.get(target) ?? null : null,
+          review: type === 'review' ? reviews.get(target) ?? null : null,
         };
       });
     },
