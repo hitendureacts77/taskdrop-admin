@@ -47,8 +47,8 @@ function contentSecurityPolicy(nonce: string): string {
 // The absolute limit reads the sign-in time from the access token's `amr`
 // claim, which Supabase signs, so it cannot be stretched. Idle time is kept in
 // an httpOnly cookie bound to the session id and signed with
-// ADMIN_SESSION_SECRET (falling back to the service role key), so it cannot be
-// forged or carried to another session; a session that has lost the cookie
+// ADMIN_SESSION_SECRET alone (one key, one job: it no longer falls back to the
+// service role key), so it cannot be forged or carried to another session; a session that has lost the cookie
 // counts as idle unless it signed in moments ago.
 //
 // Supabase's own "inactivity timeout" setting is project-wide and would sign
@@ -67,7 +67,7 @@ let hmacKey: Promise<CryptoKey | null> | null = null;
 
 function signingKey(): Promise<CryptoKey | null> {
   hmacKey ??= (async () => {
-    const raw = process.env.ADMIN_SESSION_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+    const raw = process.env.ADMIN_SESSION_SECRET || '';
     if (!raw) {
       console.error('middleware: ADMIN_SESSION_SECRET is not set; the idle timeout is off');
       return null;
