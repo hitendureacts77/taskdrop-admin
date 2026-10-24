@@ -5,6 +5,7 @@ import { requireAdmin, isUuid, getRazorpayXState } from './data';
 import { moneyMfaGate } from './mfa';
 import { createClient } from './supabase/server';
 import { staffGate } from './staff';
+import { parseTierList } from './tiers';
 import type { ActionResult } from '@/components/ConfirmAction';
 
 /**
@@ -336,12 +337,15 @@ export async function resolveTicket(_prev: ActionResult, form: FormData): Promis
  *    Change it in a migration, when nothing is clearing.
  *  - dev_otp_for_all: a sign-in switch for every account; too dangerous for one click.
  */
-const EDITABLE: Record<string, { kind: 'percent' | 'days' | 'count' | 'bool'; min?: number; max?: number }> = {
+const EDITABLE: Record<string, { kind: 'percent' | 'days' | 'count' | 'bool' | 'rupee_list' | 'day_list'; min?: number; max?: number }> = {
   poster_service_fee_pct: { kind: 'percent', min: 0, max: 20 },
   post_start_cancel_penalty_pct: { kind: 'percent', min: 0, max: 50 },
   review_window_days: { kind: 'days', min: 1, max: 30 },
   clearing_period_days: { kind: 'days', min: 0, max: 30 },
   max_video_seconds: { kind: 'count', min: 5, max: 600 },
+  // What PromoteScreen offers and start_promotion accepts (migration 114). Budgets are typed in rupees and stored in paise.
+  promotion_daily_budgets_minor: { kind: 'rupee_list', min: 10, max: 5000 },
+  promotion_durations_days: { kind: 'day_list', min: 1, max: 30 },
 };
 
 export async function updateSetting(_prev: ActionResult, form: FormData): Promise<ActionResult> {
@@ -356,8 +360,12 @@ export async function updateSetting(_prev: ActionResult, form: FormData): Promis
   const rule = EDITABLE[key];
   if (!rule) return { ok: false, message: 'That setting can’t be changed from the panel.' };
 
-  let value: number | boolean;
-  if (rule.kind === 'bool') {
+  let value: number | boolean | number[];
+  if (rule.kind === 'rupee_list' || rule.kind === 'day_list') {
+    const list = parseTierList(raw, rule.min ?? 1, rule.max ?? 1000);
+    if (typeof list === 'string') return { ok: false, message: list };
+    value = rule.kind === 'rupee_list' ? list.map((r) => r * 100) : list;
+  } else if (rule.kind === 'bool') {
     const v = raw.toLowerCase();
     if (!['on', 'off', 'true', 'false', 'yes', 'no'].includes(v)) return { ok: false, message: 'Type On or Off.' };
     value = v === 'on' || v === 'true' || v === 'yes';

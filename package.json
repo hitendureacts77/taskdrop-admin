@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start --port 3001",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test src/lib/live-describe.test.ts src/lib/needs-you.test.ts src/lib/live-alerts.test.ts src/lib/csv.test.ts src/lib/staff-roles.test.ts src/lib/growth-calc.test.ts src/lib/controls-meta.test.ts src/lib/allowlist.test.ts src/lib/find-person.test.ts src/lib/devices-calc.test.ts src/lib/ops-calc.test.ts src/lib/crm-calc.test.ts",
+    "test": "node --experimental-strip-types --test src/lib/live-describe.test.ts src/lib/needs-you.test.ts src/lib/live-alerts.test.ts src/lib/csv.test.ts src/lib/staff-roles.test.ts src/lib/growth-calc.test.ts src/lib/controls-meta.test.ts src/lib/allowlist.test.ts src/lib/find-person.test.ts src/lib/devices-calc.test.ts src/lib/ops-calc.test.ts src/lib/crm-calc.test.ts src/lib/tiers.test.ts",
     "lint": "eslint .",
     "db:types": "node scripts/gen-db-types.mjs"
   },

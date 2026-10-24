@@ -104,7 +104,7 @@ export function PromotionsView({ rows, stop }: { rows: PromotionRow[]; /** Only 
 
 // ---------------------------------------------------------------- settings --
 
-type Info = { label: string; help: string; kind: 'percent' | 'days' | 'seconds' | 'count' | 'bool' | 'raw'; editable: boolean; consequence?: string };
+type Info = { label: string; help: string; kind: 'percent' | 'days' | 'seconds' | 'count' | 'bool' | 'raw' | 'budgets' | 'lengths'; editable: boolean; consequence?: string };
 
 const SETTINGS: Record<string, Info> = {
   worker_commission_pct: {
@@ -143,6 +143,20 @@ const SETTINGS: Record<string, Info> = {
     consequence: 'Applies to jobs approved from now on.',
   },
   max_video_seconds: { label: 'Longest video on a job post', help: 'In seconds.', kind: 'seconds', editable: true },
+  promotion_daily_budgets_minor: {
+    label: 'Promotion daily budgets',
+    help: 'The daily budgets offered when someone promotes a job. People earning see the lowest three, people hiring the highest three.',
+    kind: 'budgets',
+    editable: true,
+    consequence: 'The app offers exactly these from the next time the Promote screen opens, and the server refuses any other amount. Campaigns already running are not changed.',
+  },
+  promotion_durations_days: {
+    label: 'Promotion lengths',
+    help: 'How many days a promotion can run for.',
+    kind: 'lengths',
+    editable: true,
+    consequence: 'The app offers exactly these from the next time the Promote screen opens. Campaigns already running are not changed.',
+  },
   dev_otp_for_all: {
     label: 'Developer sign-in switch (dev_otp_for_all)',
     help: 'A testing switch for sign-in codes that affects every account. Turn it on or off on the App switches tab; it should be Off once real people use the app.',
@@ -157,12 +171,16 @@ function show(kind: Info['kind'], v: unknown): string {
   if (kind === 'seconds') return `${Number(v)} seconds`;
   if (kind === 'bool') return v === true || v === 'true' ? 'On' : 'Off';
   if (kind === 'count') return String(Number(v));
+  if (kind === 'budgets') return Array.isArray(v) ? v.map((n) => `₹${Number(n) / 100}`).join(', ') : String(v);
+  if (kind === 'lengths') return Array.isArray(v) ? v.map((n) => `${Number(n)} day${Number(n) === 1 ? '' : 's'}`).join(', ') : String(v);
   return typeof v === 'string' ? v : JSON.stringify(v);
 }
 
 function inputValue(kind: Info['kind'], v: unknown): string {
   if (kind === 'percent') return String(Number((Number(v) * 100).toFixed(2)));
   if (kind === 'bool') return v === true || v === 'true' ? 'On' : 'Off';
+  if (kind === 'budgets') return Array.isArray(v) ? v.map((n) => Number(n) / 100).join(', ') : '';
+  if (kind === 'lengths') return Array.isArray(v) ? v.map((n) => Number(n)).join(', ') : '';
   return String(Number(v));
 }
 
@@ -181,7 +199,7 @@ export function SettingsView({ rows, update }: { rows: SettingRow[]; update?: Fo
         <ul className="settings">
           {known.map((r) => {
             const info = SETTINGS[r.key]!;
-            const unit = info.kind === 'percent' ? ' (in %)' : info.kind === 'days' ? ' (days)' : info.kind === 'bool' ? ' (On or Off)' : '';
+            const unit = info.kind === 'percent' ? ' (in %)' : info.kind === 'days' ? ' (days)' : info.kind === 'bool' ? ' (On or Off)' : info.kind === 'budgets' ? ' (rupees, separated by commas)' : info.kind === 'lengths' ? ' (days, separated by commas)' : '';
             return (
               <li key={r.key} className="setting">
                 <div className="setting-text">
@@ -202,7 +220,7 @@ export function SettingsView({ rows, update }: { rows: SettingRow[]; update?: Fo
                         Now: <strong>{show(info.kind, r.value)}</strong>. {info.consequence ?? 'Applies from now on.'}
                       </>
                     }
-                    field={{ name: 'value', label: `New value${unit}`, defaultValue: inputValue(info.kind, r.value), required: true, inputMode: info.kind === 'bool' ? 'text' : 'decimal' }}
+                    field={{ name: 'value', label: `New value${unit}`, defaultValue: inputValue(info.kind, r.value), required: true, inputMode: info.kind === 'bool' || info.kind === 'budgets' || info.kind === 'lengths' ? 'text' : 'decimal' }}
                     confirmLabel="Save the new value"
                   />
                 ) : null}
