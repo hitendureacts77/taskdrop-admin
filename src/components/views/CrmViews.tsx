@@ -291,6 +291,19 @@ export function SegmentsView({ d }: { d: SegmentsData }) {
             </label>
           )}
           <label className="confirm-field">
+            <span>Uses</span>
+            <select name="platform" defaultValue={c.platform ?? ''} className="field">
+              <option value="">Any platform</option>
+              <option value="android">Android</option>
+              <option value="ios">iOS</option>
+              <option value="web">Web</option>
+            </select>
+          </label>
+          <label className="confirm-field">
+            <span>App older than (e.g. 1.4.0)</span>
+            <input name="below" type="text" inputMode="decimal" pattern="[0-9]{1,6}(\.[0-9]{1,6}){0,2}" maxLength={20} className="field" defaultValue={c.app_version_below ?? ''} placeholder="any version" />
+          </label>
+          <label className="confirm-field">
             <span>Looked after by</span>
             <select name="owner" defaultValue={d.owner} className="field">
               <option value="anyone">Anyone</option>

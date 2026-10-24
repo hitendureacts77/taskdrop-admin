@@ -35,7 +35,15 @@ export type Criteria = {
   never_posted?: boolean;
   available_now?: boolean;
   include_suspended?: boolean;
+  platform?: Platform;
+  app_version_below?: string;
 };
+
+export const PLATFORMS = ['web', 'android', 'ios'] as const;
+export type Platform = (typeof PLATFORMS)[number];
+const PLATFORM_LABEL: Record<Platform, string> = { web: 'the web app', android: 'Android', ios: 'iOS' };
+/** Same shape the database accepts (1, 1.4 or 1.4.0), so a typo is dropped here instead of failing the whole page. */
+const VERSION = /^[0-9]{1,6}(\.[0-9]{1,6}){0,2}$/;
 
 type SP = Record<string, string | string[] | undefined>;
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
@@ -60,6 +68,10 @@ export function parseCriteria(sp: SP): Criteria {
   if (first(sp.never_posted) === '1') c.never_posted = true;
   if (first(sp.live) === '1') c.available_now = true;
   if (first(sp.suspended) === '1') c.include_suspended = true;
+  const platform = first(sp.platform);
+  if (platform && (PLATFORMS as readonly string[]).includes(platform)) c.platform = platform as Platform;
+  const below = first(sp.below)?.trim();
+  if (below && VERSION.test(below)) c.app_version_below = below;
   return c;
 }
 
@@ -73,6 +85,8 @@ export function criteriaToQuery(c: Criteria): string {
   if (c.never_posted) p.set('never_posted', '1');
   if (c.available_now) p.set('live', '1');
   if (c.include_suspended) p.set('suspended', '1');
+  if (c.platform) p.set('platform', c.platform);
+  if (c.app_version_below) p.set('below', c.app_version_below);
   return p.toString();
 }
 
@@ -86,6 +100,8 @@ export function describeCriteria(c: Criteria, tags: Tag[]): string {
   if (c.never_posted) parts.push('never posted a job');
   if (c.available_now) parts.push('available now');
   if (c.include_suspended) parts.push('including suspended');
+  if (c.platform) parts.push(`on ${PLATFORM_LABEL[c.platform]}`);
+  if (c.app_version_below) parts.push(`app older than ${c.app_version_below}`);
   return parts.join(' · ');
 }
 
