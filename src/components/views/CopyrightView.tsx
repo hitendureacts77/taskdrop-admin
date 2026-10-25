@@ -5,6 +5,7 @@ import { istDate, timeAgo } from '@/lib/format';
 import type { Tone } from '@/lib/labels';
 import { ConfirmAction } from '../ConfirmAction';
 import { LogNoticeForm } from '../CopyrightForms';
+import { PhotoStrip } from '../PhotoStrip';
 import { Card, Empty, HowItWorks, PageHeader, Pill } from '../ui';
 
 /** Upheld notices against one person at which suspension is offered. */
@@ -109,6 +110,7 @@ function NoticeTable({ title, rows, at, today, empty }: { title: string; rows: N
                       </Link>
                     ) : null}
                     <span className="muted block">{clip(n.material)}</span>
+                    {n.photo ? <PhotoStrip photos={[n.photo]} /> : null}
                     {n.strikes >= REPEAT_INFRINGER ? (
                       <Pill tone="red" title="Suspend from their People page">
                         {n.strikes} upheld notices: repeat infringer

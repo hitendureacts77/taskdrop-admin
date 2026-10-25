@@ -27,7 +27,8 @@ function contentSecurityPolicy(nonce: string): string {
     // typeface is self-hosted (public/fonts), so no third-party style or font
     // origin is allowed: a stray Google Fonts link would be blocked, not loaded.
     `style-src 'self' 'unsafe-inline'`,
-    `img-src 'self' data: blob:`,
+    // Job pictures are signed links: private ImageKit files, and older uploads in the Supabase Storage bucket.
+    `img-src 'self' data: blob: https://ik.imagekit.io ${URL}`.trim(),
     `font-src 'self' data:`,
     `connect-src 'self' ${URL} ${supabaseWs}${sentry ? ` ${sentry}` : ''}`.trim(),
     `frame-ancestors 'none'`,

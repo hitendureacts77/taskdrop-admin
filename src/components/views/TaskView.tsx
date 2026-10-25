@@ -6,6 +6,8 @@ import { inr, istDateTime, pct } from '@/lib/format';
 import { ledgerKind, taskStatus } from '@/lib/labels';
 import { ConfirmAction, type FormAction } from '../ConfirmAction';
 import { Icon } from '../Icon';
+import { PhotoStrip } from '../PhotoStrip';
+import type { TaskPhotos } from '@/lib/photos';
 import { Card, Empty, KV, Money, Notice, PageHeader, PersonLink, Pill } from '../ui';
 import { HideTaskCard, TaskCategoryCard } from './ModerationViews';
 
@@ -20,6 +22,7 @@ export function TaskView({
   moderation = null,
   cancelTask,
   hideMoney = false,
+  photos = null,
 }: {
   t: TaskDetail;
   settings: MoneySettings;
@@ -33,6 +36,8 @@ export function TaskView({
   cancelTask?: FormAction;
   /** Sales sees the job and its price, not what TaskDrop earns or where the money sits (staff-roles.ts, staffCanSee). */
   hideMoney?: boolean;
+  /** Signed links for the job's photo and proof files (lib/photos.ts); null when they could not be read. */
+  photos?: TaskPhotos | null;
 }) {
   const now = new Date(nowIso);
   const st = taskStatus(t.status);
@@ -201,6 +206,17 @@ export function TaskView({
             <p className="prose">{t.description || <span className="muted">No description.</span>}</p>
             <p className="muted small">{[t.category, t.place, t.kind].filter(Boolean).join(' · ')}</p>
           </Card>
+
+          {photos && photos.photos.length ? (
+            <Card title={`Photos and files (${photos.photos.length})`} sub="The job’s own photo and the worker’s proof. Each opens full size in a new tab; the links stop working within two hours.">
+              <PhotoStrip photos={photos.photos} />
+              {!photos.imageKitReady ? (
+                <Notice tone="gold" title="Some pictures cannot be shown yet">
+                  They are stored in ImageKit, and this panel has no ImageKit settings. Add IMAGEKIT_PRIVATE_KEY and IMAGEKIT_URL_ENDPOINT to the taskdrop-admin project in Vercel.
+                </Notice>
+              ) : null}
+            </Card>
+          ) : null}
 
           <Card title={`Quotes (${t.quotes.length})`} flush>
             {t.quotes.length ? (
