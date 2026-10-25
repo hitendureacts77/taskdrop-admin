@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import type { AuditRow, Health, Integrations, Switch, SwitchKey, TeamMember } from '@/lib/admin-config';
-import { AUDIT_TABLES } from '@/lib/admin-config';
+import { AUDIT_TABLES, EVENT_WORDS } from '@/lib/admin-config';
 import { allowlistActive, allowlistCount, type Allowlist } from '@/lib/allowlist';
 import type { PayoutMethod } from '@/lib/data';
 import { inr, istDateTime, phone as prettyPhone, timeAgo } from '@/lib/format';
@@ -564,6 +564,8 @@ function describe(r: AuditRow): string {
     if (verb === 'UPDATE' && a?.status && b?.status && a.status !== b.status) return `Withdrawal ${b.status} → ${a.status}`;
     if (verb === 'INSERT') return !a?.status || a.status === 'requested' ? 'Withdrawal requested' : `Withdrawal added as ${a.status}`;
   }
+  // A staff action (admin_log_event): say what it was, not "Changed event".
+  if (r.table === 'event') return EVENT_WORDS[r.action] ?? r.action.replace(/[._]/g, ' ');
   return `${verb === 'INSERT' ? 'Added' : verb === 'DELETE' ? 'Removed' : 'Changed'} ${what.toLowerCase()}`;
 }
 

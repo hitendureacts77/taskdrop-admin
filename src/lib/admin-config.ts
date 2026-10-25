@@ -294,6 +294,27 @@ export const AUDIT_TABLES: Record<string, string> = {
   user_suspensions: 'Suspensions',
   crm_broadcasts: 'Messages sent',
   copyright_notices: 'Copyright',
+  // Staff actions written with admin_log_event: warnings, reports closed, things hidden, promotions paused.
+  event: 'Staff actions',
+};
+
+/** The staff actions in plain words, by the name the database logs them under. */
+export const EVENT_WORDS: Record<string, string> = {
+  'user.warn': 'Warned a person',
+  'report.actioned': 'Closed a report as acted on',
+  'report.dismissed': 'Dismissed a report',
+  'message.hide': 'Hid a message',
+  'message.unhide': 'Showed a hidden message again',
+  'review.hide': 'Removed a review',
+  'review.unhide': 'Put a review back',
+  'media.hide': 'Hid a photo',
+  'media.unhide': 'Showed a hidden photo again',
+  'task.hide': 'Hid a job',
+  'task.unhide': 'Showed a hidden job again',
+  'task.category': 'Changed a job\'s category',
+  pause_promotion: 'Paused a promotion',
+  'crm.assign_owner': 'Assigned a customer to staff',
+  'crm.task_add': 'Added a follow-up',
 };
 
 export async function getAuditLog(table: string | null, page: number, pageSize = 40): Promise<{ rows: AuditRow[]; total: number }> {
