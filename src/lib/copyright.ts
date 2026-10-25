@@ -2,6 +2,7 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient as createSessionClient } from './supabase/server';
 import { namesFor } from './data';
+import { getJobPhotos, type AdminPhoto } from './photos';
 
 /**
  * Copyright notices (migration 085). Read as the signed-in admin: the table's
@@ -33,6 +34,8 @@ export type Notice = {
   strikes: number;
   /** What can still be taken down for a notice that is waiting. */
   can: { media: boolean; listing: boolean; avatar: boolean };
+  /** The job's photo as signed links, so staff can compare it with the complaint; null when it has none or cannot be read. */
+  photo: AdminPhoto | null;
 };
 
 type Row = {
@@ -65,12 +68,14 @@ export async function getCopyrightNotices(): Promise<{ ready: boolean; rows: Not
 
   const taskIds = [...new Set(rows.map((r) => r.task_id).filter((x): x is string => Boolean(x)))];
   const uploaderIds = [...new Set(rows.map((r) => r.uploader_id).filter((x): x is string => Boolean(x)))];
-  const [tasks, avatars, names] = await Promise.all([
+  const [tasks, avatars, names, photos] = await Promise.all([
     taskIds.length
       ? db.from('tasks').select('id, title, media_path, status, funded_at').in('id', taskIds)
       : Promise.resolve({ data: [] }),
     uploaderIds.length ? db.from('profiles').select('id, avatar_url').in('id', uploaderIds) : Promise.resolve({ data: [] }),
     namesFor(uploaderIds),
+    // Pictures are a nicety: the page still opens if they cannot be signed.
+    getJobPhotos(taskIds).catch(() => new Map<string, AdminPhoto>()),
   ]);
   const taskById = new Map(
     ((tasks.data ?? []) as { id: string; title: string; media_path: string | null; status: string; funded_at: string | null }[]).map((t) => [t.id, t]),
@@ -112,6 +117,7 @@ export async function getCopyrightNotices(): Promise<{ ready: boolean; rows: Not
           listing: task?.status === 'OPEN' && !task.funded_at,
           avatar: Boolean(r.uploader_id && avatarById.get(r.uploader_id)),
         },
+        photo: r.task_id ? photos.get(r.task_id) ?? null : null,
       };
     }),
   };
