@@ -165,7 +165,9 @@ export function LiveProvider({
     try {
       const res = await fetch('/api/live', { cache: 'no-store', headers: { 'x-td-background': '1' } });
       if (res.status === 401) {
-        window.location.assign('/login');
+        // The middleware says why ("signed out after 30 minutes without activity"); the login page shows it.
+        const why = (await res.json().catch(() => null)) as { message?: string } | null;
+        window.location.assign(why?.message ? `/login?error=${encodeURIComponent(why.message)}` : '/login');
         return;
       }
       if (!res.ok) return;
