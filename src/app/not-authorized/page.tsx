@@ -9,7 +9,7 @@ export default async function NotAuthorizedPage() {
   return (
     <main
       style={{
-        minHeight: '100vh',
+        minHeight: 'calc(100vh - var(--ribbon-h))',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',

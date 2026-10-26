@@ -113,3 +113,7 @@ src/
   lib/db/             generated database types
   middleware.ts       refreshes the Supabase session on every request
 ```
+
+## Staging ribbon
+
+Every screen, the sign-in page included, shows a gold bar reading "Staging: fake money and fake data" unless the `environment` app control is exactly `production` (read from the public `get_app_controls` function, kept for 15 seconds; a missing, unknown or unreachable value counts as staging). The admin is `noindex` and `Disallow: /` in robots.txt in every environment, because it is a staff-only console; the ribbon is the only part that depends on the environment value.
