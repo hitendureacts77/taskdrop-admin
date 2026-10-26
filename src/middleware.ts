@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { describeActivity, isBackgroundRequest } from './lib/idle-activity';
 import { sentryIngestOrigin } from './lib/sentry-dsn';
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
@@ -124,12 +125,7 @@ function loginWith(request: NextRequest, message: string) {
  * would otherwise keep an unattended panel signed in forever.
  */
 function isPrefetch(request: NextRequest): boolean {
-  return (
-    request.headers.get('x-td-background') === '1' ||
-    request.headers.get('next-router-prefetch') === '1' ||
-    request.headers.get('purpose') === 'prefetch' ||
-    (request.headers.get('sec-purpose') ?? '').includes('prefetch')
-  );
+  return isBackgroundRequest((name) => request.headers.get(name));
 }
 
 /**
@@ -228,6 +224,13 @@ export async function middleware(request: NextRequest) {
   }
 
   if (key && !isPrefetch(request) && (seen === null || now - seen > BUMP_MS)) {
+    // At most once a minute per session. If a session stays alive when nobody is
+    // there (P2-43), this line names the request that kept it alive.
+    console.info(
+      JSON.stringify(
+        describeActivity(request.method, request.nextUrl.pathname, (name) => request.headers.get(name), seen === null ? null : now - seen),
+      ),
+    );
     const value = `${sessionId}.${now}`;
     response.cookies.set(ACTIVE_COOKIE, `${value}.${await mac(key, value)}`, {
       httpOnly: true,
