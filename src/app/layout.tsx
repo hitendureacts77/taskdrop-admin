@@ -1,4 +1,7 @@
 import type { Metadata } from 'next';
+import { EnvRibbon } from '@/components/EnvRibbon';
+import { showStagingRibbon } from '@/lib/environment';
+import { getEnvironment } from '@/lib/environment-server';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -12,9 +15,13 @@ export const metadata: Metadata = {
 // cannot have one stamped on its scripts -- it would load blank under the CSP.
 export const dynamic = 'force-dynamic';
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // The staging ribbon lives here, above every page including sign-in. The
+  // html attribute tells the stylesheet how tall it is, so the sticky sidebar
+  // and top bar sit just below it instead of under it.
+  const ribbon = showStagingRibbon(await getEnvironment());
   return (
-    <html lang="en">
+    <html lang="en" data-ribbon={ribbon ? 'on' : undefined}>
       <head>
         {/* Same typeface the mobile app ships (Plus Jakarta Sans), self-hosted:
             the @font-face rules are in globals.css. No third-party requests. */}
@@ -26,7 +33,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           crossOrigin="anonymous"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        {ribbon ? <EnvRibbon /> : null}
+        {children}
+      </body>
     </html>
   );
 }

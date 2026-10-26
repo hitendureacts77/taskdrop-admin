@@ -78,6 +78,12 @@
   --font: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --radius: 16px;
   --shadow: 0 1px 2px rgba(16, 24, 20, 0.04), 0 2px 8px rgba(16, 24, 20, 0.04);
+
+  /* Height of the staging ribbon (0 in production); sticky things sit below it. */
+  --ribbon-h: 0px;
+}
+html[data-ribbon='on'] {
+  --ribbon-h: 34px;
 }
 
 * {
@@ -164,17 +170,58 @@ h3 {
 }
 .skip:focus {
   left: 8px;
+  top: calc(var(--ribbon-h) + 8px);
 }
 :focus-visible {
   outline: 2px solid var(--brand);
   outline-offset: 2px;
 }
 
+/* ------------------------------------------------------- staging ribbon -- */
+
+/*
+ * "Staging: fake money and fake data" -- the tinted, hair-lined look of the
+ * gold status pill (waiting / be careful), in the same tokens, so it follows
+ * the palette wherever it goes. Sticky, so it stays in view; a fixed height
+ * (--ribbon-h) so the sidebar and top bar can sit below it. Gold ink on
+ * gold-soft is about 6:1. Nothing moves, so reduced motion needs no case.
+ */
+.env-ribbon {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  height: var(--ribbon-h);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 12px;
+  background: var(--gold-soft);
+  color: var(--gold-ink);
+  border-bottom: 1px solid var(--gold-line);
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.env-ribbon-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.env-ribbon-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+
 /* ------------------------------------------------------------------ shell -- */
 
 .shell {
   display: flex;
-  min-height: 100vh;
+  min-height: calc(100vh - var(--ribbon-h));
 }
 .sidebar {
   width: 244px;
@@ -186,8 +233,8 @@ h3 {
   flex-direction: column;
   gap: 6px;
   position: sticky;
-  top: 0;
-  height: 100vh;
+  top: var(--ribbon-h);
+  height: calc(100vh - var(--ribbon-h));
   overflow-y: auto;
 }
 .brand {
@@ -309,7 +356,7 @@ h3 {
   background: var(--surface);
   border-bottom: 1px solid var(--line);
   position: sticky;
-  top: 0;
+  top: var(--ribbon-h);
   z-index: 10;
 }
 .top-search {
