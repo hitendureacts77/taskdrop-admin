@@ -32,8 +32,8 @@ export default async function PayoutsPage({ searchParams }: { searchParams: SP }
   const hist = histParam === 'paid' || histParam === 'failed' || histParam === 'cancelled' ? histParam : 'all';
   const histPage = Math.max(0, Math.floor(Number(one(sp.hp)) || 0));
 
-  const mfa = await mfaState();
-  const [queue, totals, history, position, rx, method, daily, dayRows] = await Promise.all([
+  const [mfa, queue, totals, history, position, rx, method, daily, dayRows] = await Promise.all([
+    mfaState(),
     getPayoutQueue(),
     getPayoutTotals(),
     getSettledPayouts(new Date(Date.now() - 30 * 86400000), 1000),

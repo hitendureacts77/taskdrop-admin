@@ -1,6 +1,6 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { getDisputes, getPayoutQueue, getRefundsOwed, getTickets } from './data';
+import { getDisputes, getPayoutQueue, getRefundsOwed, getTickets, type RefundOwed } from './data';
 import { PAYOUT_STAGE, payoutStage } from './labels';
 import { copyrightNeed, disputeNeed, helpNeed, payoutNeed, refundNeed, type NeedsItem } from './needs-you';
 import { staffCanSee, type StaffRole } from './staff-roles';
@@ -33,7 +33,8 @@ async function waitingNotices(): Promise<NeedsItem[]> {
   );
 }
 
-export async function getNeedsYou(role: StaffRole = 'admin'): Promise<NeedsItem[] | null> {
+/** `refundsRead`: a caller that already started the refund list's read hands it in, so it is not read twice. */
+export async function getNeedsYou(role: StaffRole = 'admin', refundsRead?: Promise<RefundOwed[] | null>): Promise<NeedsItem[] | null> {
   const nowMs = Date.now();
   const nowIso = new Date(nowMs).toISOString();
 
@@ -42,7 +43,7 @@ export async function getNeedsYou(role: StaffRole = 'admin'): Promise<NeedsItem[
   const none = Promise.resolve(null);
   const [payouts, refunds, disputes, tickets, notices] = await Promise.allSettled([
     money ? getPayoutQueue() : Promise.resolve([] as Awaited<ReturnType<typeof getPayoutQueue>>),
-    money ? getRefundsOwed() : none,
+    money ? (refundsRead ?? getRefundsOwed()) : none,
     money ? getDisputes() : Promise.resolve([] as Awaited<ReturnType<typeof getDisputes>>),
     getTickets('waiting'),
     waitingNotices(),

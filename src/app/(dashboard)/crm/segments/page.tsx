@@ -18,8 +18,14 @@ export default async function SegmentsPage({ searchParams }: { searchParams: SP 
   const owner = parseOwnerFilter(sp.owner);
   const page = Math.max(0, Math.min(1000, Number(first(sp.page)) || 0));
   const pageSize = 30;
-  const tags = await getTags();
-  const [fetched, segments, staff] = await Promise.all([getMembers(criteria, page, pageSize, { filter: owner, me: me.id }), getSegments(tags), getStaffList()]);
+  // getSegments needs the tag list; the members and the staff list do not, so none of them waits for the others.
+  const tagsRead = getTags();
+  const [fetched, tags, segments, staff] = await Promise.all([
+    getMembers(criteria, page, pageSize, { filter: owner, me: me.id }),
+    tagsRead,
+    tagsRead.then(getSegments),
+    getStaffList(),
+  ]);
   const members = hideMoney ? { ...fetched, rows: fetched.rows.map((r) => ({ ...r, walletMinor: 0, clearingMinor: 0 })) } : fetched;
   return (
     <SegmentsView

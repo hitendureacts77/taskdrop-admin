@@ -299,7 +299,9 @@ export type EarningsSeries = {
 
 export async function getEarningsSeries(range: RangeKey, now: Date = new Date()): Promise<EarningsSeries> {
   const today = istDayKey(now);
-  const first = await firstEarningDay();
+  // Read while the daily totals are, except for "all time", which needs it to pick its buckets.
+  const firstRead = firstEarningDay();
+  firstRead.catch(() => undefined);
 
   let unit: Unit;
   let cur: Bucket[];
@@ -363,7 +365,7 @@ export async function getEarningsSeries(range: RangeKey, now: Date = new Date())
       break;
     default: {
       // All time: from the first rupee TaskDrop earned, at a sensible grain.
-      const start = first ?? today;
+      const start = (await firstRead) ?? today;
       const span = daysBetween(start, today) + 1;
       if (span <= 62) {
         unit = 'day';
@@ -381,7 +383,7 @@ export async function getEarningsSeries(range: RangeKey, now: Date = new Date())
 
   const earliest = (prev ?? cur)[0]!.from < cur[0]!.from ? (prev ?? cur)[0]!.from : cur[0]!.from;
   const since = earliest < addDays(today, -1) ? earliest : addDays(today, -1);
-  const byDay = await dailyTotals(since);
+  const [first, byDay] = await Promise.all([firstRead, dailyTotals(since)]);
 
   const sumBucket = (b: Bucket): Split => {
     const s = emptySplit();

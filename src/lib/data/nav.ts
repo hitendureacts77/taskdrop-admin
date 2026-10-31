@@ -1,13 +1,23 @@
 import 'server-only';
+import { cache } from 'react';
 import { createClient as createSessionClient } from '../supabase/server';
-import { getRefundsOwed } from './money';
+import { getRefundsOwed, type RefundOwed } from './money';
 
 // -------------------------------------------------------------- nav counts --
 
 export type NavCounts = { payouts: number; disputes: number; refunds: number; support: number };
 
-/** The little numbers in the sidebar. Never throws: a missing count shows as nothing. */
-export async function getNavCounts(): Promise<NavCounts> {
+/**
+ * The little numbers in the sidebar. Never throws: a missing count shows as nothing.
+ * Read once per request: the layout and the page both ask for it.
+ */
+export const getNavCounts = cache(() => readNavCounts(getRefundsOwed()));
+
+/** For callers that already hold the refund list's read (the live snapshot), so it is not read twice. */
+export const getNavCountsWith = readNavCounts;
+
+async function readNavCounts(refundsRead: Promise<RefundOwed[] | null>): Promise<NavCounts> {
+  refundsRead.catch(() => undefined); // read below; a failure there only leaves its count at 0
   const out: NavCounts = { payouts: 0, disputes: 0, refunds: 0, support: 0 };
   const supabase = await createSessionClient();
   await Promise.allSettled([
@@ -37,7 +47,7 @@ export async function getNavCounts(): Promise<NavCounts> {
       out.support = count ?? 0;
     })(),
     (async () => {
-      const refunds = await getRefundsOwed();
+      const refunds = await refundsRead;
       out.refunds = refunds?.length ?? 0;
     })(),
   ]);

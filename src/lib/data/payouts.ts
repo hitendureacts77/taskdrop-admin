@@ -178,8 +178,10 @@ export async function getRolesFor(ids: string[]): Promise<Record<string, string[
   const out: Record<string, string[]> = {};
   if (!unique.length) return out;
   const supabase = await createSessionClient();
-  for (let i = 0; i < unique.length; i += 200) {
-    const { data } = await supabase.from('user_roles').select('user_id, role').in('user_id', unique.slice(i, i + 200));
+  const chunks: string[][] = [];
+  for (let i = 0; i < unique.length; i += 200) chunks.push(unique.slice(i, i + 200));
+  const pages = await Promise.all(chunks.map((ids) => supabase.from('user_roles').select('user_id, role').in('user_id', ids)));
+  for (const { data } of pages) {
     for (const r of (data ?? []) as { user_id: string; role: string }[]) {
       if (r.role === 'worker' || r.role === 'poster') (out[r.user_id] ??= []).push(r.role);
     }
