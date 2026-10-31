@@ -25,8 +25,7 @@ async function signOutAction() {
  */
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const user = await requireAdmin();
-  const counts = await getNavCounts();
-  const mfa = await mfaState();
+  const [counts, mfa] = await Promise.all([getNavCounts(), mfaState()]);
   const seesMoney = staffCanSee(user.staffRole, 'money');
   const seesSettings = staffCanSee(user.staffRole, 'settings');
   const today = new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'short', day: 'numeric', month: 'short' });

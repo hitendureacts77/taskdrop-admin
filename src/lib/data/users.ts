@@ -182,7 +182,11 @@ export async function getUser(id: string): Promise<UserDetail | null> {
   if (!prof) return null;
   const p = prof as unknown as ProfileRow & { bio: string | null };
 
-  const [roles, wallet, posted, worked, adjustments, reviews, payouts] = await Promise.all([
+  // Bound: a bare reference to supabase.rpc loses the client it belongs to.
+  const rpc = (supabase.rpc as unknown as (f: string, a: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>).bind(supabase);
+  const service = serviceOrNull();
+  // Everything below needs only the id (and whether the account is deleted), so it is all read together.
+  const [roles, wallet, posted, worked, adjustments, reviews, payouts, auth, deletionRead, blockersRead] = await Promise.all([
     supabase.from('user_roles').select('role').eq('user_id', id),
     supabase.from('wallets').select('balance_minor, clearing_minor').eq('user_id', id).maybeSingle(),
     supabase.from('tasks').select('id, title, status, locked_minor, benchmark_minor, created_at').eq('poster_id', id).order('created_at', { ascending: false }).limit(25),
@@ -190,33 +194,23 @@ export async function getUser(id: string): Promise<UserDetail | null> {
     supabase.from('wallet_adjustments').select('delta_minor, reason, created_at').eq('user_id', id).order('created_at', { ascending: false }).limit(10),
     supabase.from('reviews').select('rating, comment, about_role, author_id, created_at, task_id').eq('subject_id', id).order('created_at', { ascending: false }).limit(10),
     getSettledPayouts(null, 25, id),
+    service ? service.auth.admin.getUserById(id) : null,
+    // account_deletions and its check function are newer than the generated types.
+    p.deleted_at ? (supabase as unknown as SupabaseClient).from('account_deletions').select('deleted_at, deleted_by, reason').eq('user_id', id).maybeSingle() : null,
+    p.deleted_at ? null : rpc('admin_account_deletion_check', { p_user: id }),
   ]);
 
-  let email: string | null = null;
-  let phone: string | null = null;
-  const service = serviceOrNull();
-  if (service) {
-    const { data } = await service.auth.admin.getUserById(id);
-    email = data?.user?.email ?? null;
-    phone = data?.user?.phone ?? null;
-  }
+  const email = auth?.data?.user?.email ?? null;
+  const phone = auth?.data?.user?.phone ?? null;
 
-  // account_deletions and its check function are newer than the generated types.
   let deletion: UserDetail['deletion'] = null;
   let deletionBlockers: UserDetail['deletionBlockers'] = [];
-  if (p.deleted_at) {
-    const { data } = await (supabase as unknown as SupabaseClient)
-      .from('account_deletions')
-      .select('deleted_at, deleted_by, reason')
-      .eq('user_id', id)
-      .maybeSingle();
-    const d = data as { deleted_at: string; deleted_by: string | null; reason: string | null } | null;
+  if (deletionRead) {
+    const d = deletionRead.data as { deleted_at: string; deleted_by: string | null; reason: string | null } | null;
     const by = d?.deleted_by ? (await namesFor([d.deleted_by])).get(d.deleted_by) ?? 'an admin' : null;
-    deletion = { at: d?.deleted_at ?? p.deleted_at, by, reason: d?.reason ?? null };
-  } else {
-    // Bound: a bare reference to supabase.rpc loses the client it belongs to.
-    const rpc = (supabase.rpc as unknown as (f: string, a: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>).bind(supabase);
-    const { data, error: checkError } = await rpc('admin_account_deletion_check', { p_user: id });
+    deletion = { at: d?.deleted_at ?? p.deleted_at!, by, reason: d?.reason ?? null };
+  } else if (blockersRead) {
+    const { data, error: checkError } = blockersRead;
     deletionBlockers = checkError
       ? [{ code: 'UNKNOWN', message: `Could not check: ${checkError.message}` }]
       : ((Array.isArray(data) ? data : []) as { code: string; message: string }[]);

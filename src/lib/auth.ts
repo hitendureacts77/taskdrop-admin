@@ -59,22 +59,18 @@ export const checkAdmin = cache(async function checkAdmin(): Promise<AdminCheck>
   } = await supabase.auth.getUser();
   if (!user) return { status: 'unauthenticated' };
 
-  const { data: role } = await supabase
-    .from('user_roles')
-    .select('role')
-    .eq('user_id', user.id)
-    .eq('role', 'admin')
-    .maybeSingle();
+  // Both reads only need the user id, so they go out together: this runs in
+  // front of every page, and the second used to wait for the first. The staff
+  // row is not looked at unless the admin role is there.
+  const [{ data: role }, { data: staff }] = await Promise.all([
+    supabase.from('user_roles').select('role').eq('user_id', user.id).eq('role', 'admin').maybeSingle(),
+    // No admin_staff row (or no migration 089 yet) means a full admin.
+    (supabase as unknown as SupabaseClient).from('admin_staff').select('staff_role, notify').eq('user_id', user.id).maybeSingle(),
+  ]);
 
   if (!role) return { status: 'forbidden' };
   // A database admin outside the allowlist is still turned away here.
   if (!isAllowedIdentity(user.email ?? null)) return { status: 'forbidden' };
-  // No admin_staff row (or no migration 089 yet) means a full admin.
-  const { data: staff } = await (supabase as unknown as SupabaseClient)
-    .from('admin_staff')
-    .select('staff_role, notify')
-    .eq('user_id', user.id)
-    .maybeSingle();
   const row = staff as { staff_role?: string; notify?: boolean } | null;
   const staffRole = asStaffRole(row?.staff_role);
   return { status: 'ok', user: { id: user.id, email: user.email ?? null, staffRole, notify: row?.notify !== false } };

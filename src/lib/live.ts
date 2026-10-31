@@ -1,6 +1,6 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { getNavCounts } from './data';
+import { getNavCountsWith, getRefundsOwed } from './data';
 import { getNeedsYou } from './needs-you-data';
 import type { LiveCounters, LiveEvent, LiveSnapshot } from './live-types';
 import { liveEventIsMoney, staffCanSee, type StaffRole } from './staff-roles';
@@ -39,11 +39,14 @@ export async function getLiveEvents(limit = 40): Promise<LiveEvent[] | null> {
 
 /** Everything the live parts of the panel need, in one round trip. */
 export async function getLiveSnapshot(role: StaffRole = 'admin'): Promise<LiveSnapshot> {
+  // The sidebar count and the "needs you" list both want the refund list: read it once.
+  // (A role that cannot see money has its refund count zeroed below, so it is not read for them.)
+  const refundsRead = staffCanSee(role, 'money') ? getRefundsOwed() : Promise.resolve(null);
   const [counters, events, nav, needs] = await Promise.all([
     getLiveCounters().catch(() => null),
     getLiveEvents().catch(() => null),
-    getNavCounts().catch(() => null),
-    getNeedsYou(role).catch(() => null),
+    getNavCountsWith(refundsRead).catch(() => null),
+    getNeedsYou(role, refundsRead).catch(() => null),
   ]);
   if (staffCanSee(role, 'money')) return { counters, events, nav, needs };
   // A role that cannot see money gets no withdrawals, payouts, wallet changes or disputes, not even as counts.

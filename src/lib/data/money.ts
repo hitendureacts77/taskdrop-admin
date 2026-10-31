@@ -1,4 +1,5 @@
 import 'server-only';
+import { cache } from 'react';
 import { createClient as createSessionClient } from '../supabase/server';
 import { serviceOrNull, one } from './shared';
 import { namesFor } from './people';
@@ -81,6 +82,10 @@ export type MoneyHeld = {
 /** Users' money sitting in TaskDrop's account. */
 export async function getMoneyHeld(): Promise<MoneyHeld> {
   const supabase = await createSessionClient();
+  // Started now so it runs while the wallets are paged through below. A refund
+  // list that fails still fails the card, as before: it is awaited after the loop.
+  const refundsRead = getRefundsOwed();
+  refundsRead.catch(() => undefined);
   let walletBalances = 0;
   let clearing = 0;
   let credits = 0;
@@ -101,7 +106,7 @@ export async function getMoneyHeld(): Promise<MoneyHeld> {
     }
     if (page.length < 1000) break;
   }
-  const refunds = await getRefundsOwed();
+  const refunds = await refundsRead;
   return {
     walletBalances,
     credits,
@@ -126,7 +131,11 @@ export type RefundOwed = {
 };
 
 /** Posters' money to hand back after a cancellation. Null without the service key. */
-export async function getRefundsOwed(): Promise<RefundOwed[] | null> {
+export const getRefundsOwed = cache(readRefundsOwed);
+
+// One read per request: the sidebar count in the layout, the dashboard's
+// "money held" card and the Refunds page all want this same list.
+async function readRefundsOwed(): Promise<RefundOwed[] | null> {
   const service = serviceOrNull();
   if (!service) return null;
   const { data, error } = await service

@@ -20,14 +20,12 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
   const pageSize = 30;
 
   // The CRM filters (a tag, the suspended) are worked out into lists of people first.
-  let restrict: string[] | null = null;
-  if (filter === 'suspended') restrict = await idsSuspended();
-  if (tag) {
-    const tagged = await idsWithTag(tag);
-    restrict = restrict ? restrict.filter((id) => tagged.includes(id)) : tagged;
-  }
+  // (The tag list does not depend on them, so it is read meanwhile.)
+  const [suspendedIds, tagged, allTags] = await Promise.all([filter === 'suspended' ? idsSuspended() : null, tag ? idsWithTag(tag) : null, getTags()]);
+  let restrict: string[] | null = suspendedIds;
+  if (tagged) restrict = restrict ? restrict.filter((id) => tagged.includes(id)) : tagged;
 
-  const [{ rows: fetched, total }, allTags] = await Promise.all([getUsers(filter, q, page, pageSize, restrict), getTags()]);
+  const { rows: fetched, total } = await getUsers(filter, q, page, pageSize, restrict);
   const rows = hideMoney ? fetched.map((r) => ({ ...r, walletMinor: 0, clearingMinor: 0 })) : fetched;
   const ids = rows.map((r) => r.id);
   const [tagsByUser, suspended] = await Promise.all([getTagsFor(ids), getSuspendedAmong(ids)]);

@@ -215,11 +215,17 @@ export async function getTask(id: string): Promise<TaskDetail | null> {
     funding_payment_id: string | null;
   };
 
-  const [assignments, bids, ledgerRows, reviews] = await Promise.all([
+  // payments are own-rows only in RLS; read with the service key when it's there.
+  const service = serviceOrNull();
+  const [assignments, bids, ledgerRows, reviews, pay] = await Promise.all([
     supabase.from('assignments').select('id, worker_id, escrow_minor, status, created_at').eq('task_id', id).order('created_at', { ascending: false }).limit(1),
     supabase.from('bids').select('id, worker_id, price_minor, message, created_at, is_locked').eq('task_id', id).order('created_at', { ascending: true }).limit(100),
     supabase.from('platform_ledger').select('id, kind, amount_minor, note, created_at, task_id').eq('task_id', id).order('created_at', { ascending: true }),
     supabase.from('reviews').select('rating, comment, about_role, author_id, created_at').eq('task_id', id),
+    // The payment that actually funded the job, not just the newest link the poster opened.
+    service && t.funding_payment_id
+      ? service.from('payments').select('amount_minor, status, paid_at, provider_payment_id, refunded_minor, created_at').eq('id', t.funding_payment_id).limit(1)
+      : null,
   ]);
 
   const a = ((assignments.data ?? []) as { id: string; worker_id: string; escrow_minor: number; status: string; created_at: string }[])[0] ?? null;
@@ -227,19 +233,9 @@ export async function getTask(id: string): Promise<TaskDetail | null> {
   const reviewRows = (reviews.data ?? []) as { rating: number; comment: string | null; about_role: string; author_id: string; created_at: string }[];
   const names = await namesFor([t.poster_id, a?.worker_id ?? '', ...bidRows.map((b) => b.worker_id), ...reviewRows.map((r) => r.author_id)]);
 
-  // payments are own-rows only in RLS; read with the service key when it's there.
   let payment: TaskDetail['payment'] = null;
-  const service = serviceOrNull();
-  if (service && t.funding_payment_id) {
-    // The payment that actually funded the job, not just the newest link the poster opened.
-    const { data: pay } = await service
-      .from('payments')
-      .select('amount_minor, status, paid_at, provider_payment_id, refunded_minor, created_at')
-      .eq('id', t.funding_payment_id)
-      .limit(1);
-    const p = ((pay ?? []) as { amount_minor: number; status: string; paid_at: string | null; provider_payment_id: string | null; refunded_minor: number }[])[0];
-    if (p) payment = { amountMinor: Number(p.amount_minor), status: p.status, paidAt: p.paid_at, providerPaymentId: p.provider_payment_id, refundedMinor: Number(p.refunded_minor) };
-  }
+  const p = ((pay?.data ?? []) as { amount_minor: number; status: string; paid_at: string | null; provider_payment_id: string | null; refunded_minor: number }[])[0];
+  if (p) payment = { amountMinor: Number(p.amount_minor), status: p.status, paidAt: p.paid_at, providerPaymentId: p.provider_payment_id, refundedMinor: Number(p.refunded_minor) };
 
   return {
     id: t.id,
