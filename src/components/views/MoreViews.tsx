@@ -104,7 +104,7 @@ export function PromotionsView({ rows, stop }: { rows: PromotionRow[]; /** Only 
 
 // ---------------------------------------------------------------- settings --
 
-type Info = { label: string; help: string; kind: 'percent' | 'days' | 'seconds' | 'count' | 'bool' | 'raw' | 'budgets' | 'lengths'; editable: boolean; consequence?: string };
+type Info = { label: string; help: string; kind: 'percent' | 'days' | 'seconds' | 'count' | 'bool' | 'raw' | 'budgets' | 'lengths' | 'rupees'; editable: boolean; consequence?: string };
 
 const SETTINGS: Record<string, Info> = {
   worker_commission_pct: {
@@ -150,6 +150,34 @@ const SETTINGS: Record<string, Info> = {
     editable: true,
     consequence: 'Takes effect on the next code. At 80% of the limit, and again when it is reached, you get an alert.',
   },
+  new_account_max_task_minor: {
+    label: 'Biggest job a new account can post',
+    help: 'Until an account is both old enough and has finished enough jobs, one job can be worth at most this. It grows by this much for each finished job reviewed 4 stars or more.',
+    kind: 'rupees',
+    editable: true,
+    consequence: 'Applies to jobs posted and offers chosen from now on. Jobs already posted are not changed.',
+  },
+  new_account_max_withdraw_day_minor: {
+    label: 'Most a new account can withdraw in a day',
+    help: 'The total of one new account’s withdrawals in an India day. It grows the same way as the job limit.',
+    kind: 'rupees',
+    editable: true,
+    consequence: 'Applies to withdrawals requested from now on. The 7-day clearing of earnings is unchanged.',
+  },
+  new_account_days: {
+    label: 'Days an account counts as new',
+    help: 'An account is new until it is this many days old and has also finished the number of jobs below.',
+    kind: 'days',
+    editable: true,
+    consequence: 'Applies from now on, to everyone.',
+  },
+  new_account_tasks: {
+    label: 'Finished jobs that end “new”',
+    help: 'An account stops being new once it has finished this many jobs (as poster or worker) and is old enough.',
+    kind: 'count',
+    editable: true,
+    consequence: 'Applies from now on, to everyone.',
+  },
   promotion_daily_budgets_minor: {
     label: 'Promotion daily budgets',
     help: 'The daily budgets offered when someone promotes a job. People earning see the lowest three, people hiring the highest three.',
@@ -178,6 +206,7 @@ function show(kind: Info['kind'], v: unknown): string {
   if (kind === 'seconds') return `${Number(v)} seconds`;
   if (kind === 'bool') return v === true || v === 'true' ? 'On' : 'Off';
   if (kind === 'count') return String(Number(v));
+  if (kind === 'rupees') return `₹${(Number(v) / 100).toLocaleString('en-IN')}`;
   if (kind === 'budgets') return Array.isArray(v) ? v.map((n) => `₹${Number(n) / 100}`).join(', ') : String(v);
   if (kind === 'lengths') return Array.isArray(v) ? v.map((n) => `${Number(n)} day${Number(n) === 1 ? '' : 's'}`).join(', ') : String(v);
   return typeof v === 'string' ? v : JSON.stringify(v);
@@ -186,6 +215,7 @@ function show(kind: Info['kind'], v: unknown): string {
 function inputValue(kind: Info['kind'], v: unknown): string {
   if (kind === 'percent') return String(Number((Number(v) * 100).toFixed(2)));
   if (kind === 'bool') return v === true || v === 'true' ? 'On' : 'Off';
+  if (kind === 'rupees') return String(Number(v) / 100);
   if (kind === 'budgets') return Array.isArray(v) ? v.map((n) => Number(n) / 100).join(', ') : '';
   if (kind === 'lengths') return Array.isArray(v) ? v.map((n) => Number(n)).join(', ') : '';
   return String(Number(v));
@@ -206,7 +236,7 @@ export function SettingsView({ rows, update }: { rows: SettingRow[]; update?: Fo
         <ul className="settings">
           {known.map((r) => {
             const info = SETTINGS[r.key]!;
-            const unit = info.kind === 'percent' ? ' (in %)' : info.kind === 'days' ? ' (days)' : info.kind === 'bool' ? ' (On or Off)' : info.kind === 'budgets' ? ' (rupees, separated by commas)' : info.kind === 'lengths' ? ' (days, separated by commas)' : '';
+            const unit = info.kind === 'percent' ? ' (in %)' : info.kind === 'days' ? ' (days)' : info.kind === 'bool' ? ' (On or Off)' : info.kind === 'rupees' ? ' (rupees)' : info.kind === 'budgets' ? ' (rupees, separated by commas)' : info.kind === 'lengths' ? ' (days, separated by commas)' : '';
             return (
               <li key={r.key} className="setting">
                 <div className="setting-text">
