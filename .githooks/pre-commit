@@ -1,0 +1,4 @@
+#!/bin/sh
+# Stops a commit that contains a key (scripts/secret-guard.mjs). Turned on by `npm install`
+# through the "prepare" script, which points git at this folder.
+exec node scripts/secret-guard.mjs --staged
