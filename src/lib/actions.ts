@@ -337,7 +337,7 @@ export async function resolveTicket(_prev: ActionResult, form: FormData): Promis
  *    Change it in a migration, when nothing is clearing.
  *  - dev_otp_for_all: a sign-in switch for every account; too dangerous for one click.
  */
-const EDITABLE: Record<string, { kind: 'percent' | 'days' | 'count' | 'bool' | 'rupee_list' | 'day_list'; min?: number; max?: number }> = {
+const EDITABLE: Record<string, { kind: 'percent' | 'days' | 'count' | 'bool' | 'rupee_list' | 'day_list' | 'rupees'; min?: number; max?: number }> = {
   poster_service_fee_pct: { kind: 'percent', min: 0, max: 20 },
   post_start_cancel_penalty_pct: { kind: 'percent', min: 0, max: 50 },
   review_window_days: { kind: 'days', min: 1, max: 30 },
@@ -348,6 +348,11 @@ const EDITABLE: Record<string, { kind: 'percent' | 'days' | 'count' | 'bool' | '
   // What PromoteScreen offers and start_promotion accepts (migration 114). Budgets are typed in rupees and stored in paise.
   promotion_daily_budgets_minor: { kind: 'rupee_list', min: 10, max: 5000 },
   promotion_durations_days: { kind: 'day_list', min: 1, max: 30 },
+  // Limits for new accounts (migration 133 in the app repo). Typed in rupees, stored in paise.
+  new_account_max_task_minor: { kind: 'rupees', min: 500, max: 100000 },
+  new_account_max_withdraw_day_minor: { kind: 'rupees', min: 500, max: 100000 },
+  new_account_days: { kind: 'days', min: 1, max: 365 },
+  new_account_tasks: { kind: 'count', min: 0, max: 50 },
 };
 
 export async function updateSetting(_prev: ActionResult, form: FormData): Promise<ActionResult> {
@@ -377,7 +382,7 @@ export async function updateSetting(_prev: ActionResult, form: FormData): Promis
     if (rule.min !== undefined && n < rule.min) return { ok: false, message: `It can’t be below ${rule.min}.` };
     if (rule.max !== undefined && n > rule.max) return { ok: false, message: `It can’t be above ${rule.max}.` };
     if (rule.kind !== 'percent' && !Number.isInteger(n)) return { ok: false, message: 'Use a whole number.' };
-    value = rule.kind === 'percent' ? Math.round(n * 100) / 10000 : n; // 10 (%) -> 0.1, as the database stores it
+    value = rule.kind === 'percent' ? Math.round(n * 100) / 10000 : rule.kind === 'rupees' ? n * 100 : n; // 10 (%) -> 0.1; Rs 5000 -> 500000 paise, as the database stores them
   }
 
   const supabase = await createClient();
