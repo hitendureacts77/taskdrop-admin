@@ -143,6 +143,13 @@ const SETTINGS: Record<string, Info> = {
     consequence: 'Applies to jobs approved from now on.',
   },
   max_video_seconds: { label: 'Longest video on a job post', help: 'In seconds.', kind: 'seconds', editable: true },
+  sms_daily_cap: {
+    label: 'Sign-in codes a day',
+    help: 'The most text messages with a sign-in code that go out in one day (India time). It stops bots from running up the SMS bill; people can still sign in with Google.',
+    kind: 'count',
+    editable: true,
+    consequence: 'Takes effect on the next code. At 80% of the limit, and again when it is reached, you get an alert.',
+  },
   promotion_daily_budgets_minor: {
     label: 'Promotion daily budgets',
     help: 'The daily budgets offered when someone promotes a job. People earning see the lowest three, people hiring the highest three.',

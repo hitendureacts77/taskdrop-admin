@@ -13,3 +13,4 @@ The admin panel (Next.js 16, port 3001) controls the user apps; the server enfor
 
 - Staging is a test copy with fake data; `admin.taskdrop.in` is production's and is not used for staging.
 - Never read, print or commit secret values. Use `.env.example` for shape.
+- **Security review before every merge (plan task 2.6, user repo):** run the `security-review` skill on the diff of each pull request and fix every Critical or High finding first; say in the PR what it found.

@@ -343,6 +343,8 @@ const EDITABLE: Record<string, { kind: 'percent' | 'days' | 'count' | 'bool' | '
   review_window_days: { kind: 'days', min: 1, max: 30 },
   clearing_period_days: { kind: 'days', min: 0, max: 30 },
   max_video_seconds: { kind: 'count', min: 5, max: 600 },
+  // Real sign-in SMS per day (migration 132 in the app repo). Low enough to cap a bot's cost, high enough not to block a busy day.
+  sms_daily_cap: { kind: 'count', min: 20, max: 20000 },
   // What PromoteScreen offers and start_promotion accepts (migration 114). Budgets are typed in rupees and stored in paise.
   promotion_daily_budgets_minor: { kind: 'rupee_list', min: 10, max: 5000 },
   promotion_durations_days: { kind: 'day_list', min: 1, max: 30 },
