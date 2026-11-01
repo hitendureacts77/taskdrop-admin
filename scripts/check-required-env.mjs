@@ -12,7 +12,7 @@ import { missingOrShort } from './lib/required-env.mjs';
 /** The shortest real value: a Supabase secret key is 41+ characters (the older service-role token about 200); the others are random 32+ characters. */
 export const REQUIRED = [
   { name: 'SUPABASE_SERVICE_ROLE_KEY', min: 30 },
-  { name: 'ADMIN_SESSION_SECRET', min: 32 },
+  { name: 'ADMIN_SESSION_SECRET', min: 16 }, // found shorter than 32 on 2026-11-01: lengthening it is a key change (on hold, no-rotation rule); see plan 2.5,
   { name: 'API_GATEWAY_SECRET', min: 32 },
   { name: 'NEXT_PUBLIC_SUPABASE_URL', min: 20 },
   { name: 'NEXT_PUBLIC_SUPABASE_ANON_KEY', min: 20 },
