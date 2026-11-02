@@ -2,7 +2,7 @@ import { GrowthReports } from '@/components/views/AnalyticsViews';
 import { ReportsView } from '@/components/views/MoreViews';
 import { addIstDays, istDayKey, startOfIstDay } from '@/lib/days';
 import { getEarnedSince, getPlatformStats, requireSeeing } from '@/lib/data';
-import { getBusinessDaily, getFunnel, getPromotionRoi, getRetention } from '@/lib/growth';
+import { getBusinessDaily, getFunnel, getMarketplaceNumbers, getPromotionRoi, getRetention } from '@/lib/growth';
 import { previousWindow } from '@/lib/growth-calc';
 
 type SP = Promise<Record<string, string | string[] | undefined>>;
@@ -15,7 +15,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: SP }
   const to = istDayKey(startOfIstDay());
   const from = istDayKey(addIstDays(startOfIstDay(), -(days - 1)));
   const prev = previousWindow(from, to);
-  const [stats, earnedMinor, daily, previous, funnel, retention, promo] = await Promise.all([
+  const [stats, earnedMinor, daily, previous, funnel, retention, promo, marketplace] = await Promise.all([
     getPlatformStats(days),
     getEarnedSince(new Date(Date.now() - days * 86400000)),
     getBusinessDaily(from, to),
@@ -23,11 +23,12 @@ export default async function ReportsPage({ searchParams }: { searchParams: SP }
     getFunnel(from, to),
     getRetention(8),
     getPromotionRoi(from, to),
+    getMarketplaceNumbers(from, to),
   ]);
   return (
     <>
       <ReportsView s={stats} days={days} earnedMinor={earnedMinor} />
-      <GrowthReports days={days} daily={daily} previous={previous} funnel={funnel} retention={retention} promo={promo} />
+      <GrowthReports days={days} daily={daily} previous={previous} funnel={funnel} retention={retention} promo={promo} marketplace={marketplace} />
     </>
   );
 }

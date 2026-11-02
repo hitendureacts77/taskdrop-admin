@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { LineChart } from '../LineChart';
 import type { PromoRoi, Read, ReconcileRow } from '@/lib/growth';
-import { RECONCILE_CHECKS, checkTitle, funnelSteps, retentionGrid, totalDaily, type DailyRow, type FunnelRow, type RetentionRow } from '@/lib/growth-calc';
+import { RECONCILE_CHECKS, checkTitle, formatWait, funnelSteps, marketplaceShown, retentionGrid, totalDaily, type DailyRow, type FunnelRow, type MarketplaceRow, type MarketplaceShown, type RetentionRow } from '@/lib/growth-calc';
 import { CHART_COLORS } from '@/lib/labels';
 import { inr, istDate, pct } from '@/lib/format';
 import type { OpsRead } from '@/lib/ops';
@@ -20,6 +20,7 @@ export function GrowthReports({
   funnel,
   retention,
   promo,
+  marketplace,
 }: {
   days: number;
   daily: Read<DailyRow[]>;
@@ -27,6 +28,7 @@ export function GrowthReports({
   funnel: Read<FunnelRow | null>;
   retention: Read<RetentionRow[]>;
   promo: Read<PromoRoi | null>;
+  marketplace: Read<MarketplaceRow[]>;
 }) {
   if (daily.setup) {
     return (
@@ -126,6 +128,8 @@ export function GrowthReports({
           </div>
         </div>
       </Card>
+
+      <MarketplaceNumbers days={days} marketplace={marketplace} />
 
       <Card title="From joining to coming back" sub={`People who joined in the last ${days} days, and how far they got.`}>
         {funnel.setup ? (
@@ -285,6 +289,85 @@ export function ReconcileView({ days, rows, from, to, runs, refusal }: { days: n
             )}
           </Card>
         </>
+      )}
+    </>
+  );
+}
+
+const WAIT_NOTE = 'Time to first offer is counted only for tasks that got an offer. A task still being worked on counts as not filled yet, so the last few days look low.';
+
+function MarketplaceTable({ rows, first }: { rows: MarketplaceShown[]; first: string }) {
+  return (
+    <div className="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th className="th">{first}</th>
+            <th className="th num">Posted</th>
+            <th className="th num">Got an offer</th>
+            <th className="th num">Typical wait</th>
+            <th className="th num">Slowest 1 in 10</th>
+            <th className="th num">Filled</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.label}>
+              <td className="td">{r.label}</td>
+              <td className="td num">{r.posted}</td>
+              <td className="td num">{r.offerRate === null ? '—' : pct(r.offerRate)}</td>
+              <td className="td num">{formatWait(r.medianFirstOfferSeconds)}</td>
+              <td className="td num">{formatWait(r.p90FirstOfferSeconds)}</td>
+              <td className="td num">{r.fillRate === null ? '—' : pct(r.fillRate)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** The two numbers every marketplace watches: how long a task waits for its first offer, and how many get done and paid. */
+function MarketplaceNumbers({ days, marketplace }: { days: number; marketplace: Read<MarketplaceRow[]> }) {
+  if (marketplace.setup) return <SetupNotice what="The marketplace numbers" migration="141_marketplace_numbers" />;
+  if (marketplace.error) return <ReadError message={marketplace.error} />;
+  const all = marketplaceShown(marketplace.data, 'all')[0];
+  const categories = marketplaceShown(marketplace.data, 'category');
+  const areas = marketplaceShown(marketplace.data, 'area');
+  return (
+    <>
+      <Card title="Do tasks get offers, and get done?" sub={`Tasks posted in the last ${days} days. ${WAIT_NOTE}`}>
+        {all && all.posted > 0 ? (
+          <div className="figures">
+            <div className="figure">
+              <span className="figure-label">Time to first offer</span>
+              <span className="figure-num">{formatWait(all.medianFirstOfferSeconds)}</span>
+              <span className="muted small">Typical (the middle task). 1 in 10 waits {formatWait(all.p90FirstOfferSeconds)} or more</span>
+            </div>
+            <div className="figure">
+              <span className="figure-label">Fill rate</span>
+              <span className="figure-num">{all.fillRate === null ? '—' : pct(all.fillRate)}</span>
+              <span className="muted small">{all.filled} of {all.posted} tasks done and paid</span>
+            </div>
+            <div className="figure">
+              <span className="figure-label">Got at least one offer</span>
+              <span className="figure-num">{all.offerRate === null ? '—' : pct(all.offerRate)}</span>
+              <span className="muted small">{all.withOffer} of {all.posted} tasks</span>
+            </div>
+          </div>
+        ) : (
+          <Empty title="No tasks were posted in this period" />
+        )}
+      </Card>
+      {categories.length > 0 && (
+        <Card title="By category" sub="Tasks without a category are grouped as “Uncategorised”." flush>
+          <MarketplaceTable rows={categories} first="Category" />
+        </Card>
+      )}
+      {areas.length > 0 && (
+        <Card title="By area" sub="The 15 areas with the most tasks, as people typed them." flush>
+          <MarketplaceTable rows={areas} first="Area" />
+        </Card>
       )}
     </>
   );

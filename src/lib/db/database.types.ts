@@ -2611,6 +2611,18 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      admin_marketplace_numbers: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          group_kind: string
+          group_label: string
+          median_first_offer_seconds: number
+          p90_first_offer_seconds: number
+          tasks_filled: number
+          tasks_posted: number
+          tasks_with_offer: number
+        }[]
+      }
       admin_money_position: {
         Args: never
         Returns: {
