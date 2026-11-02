@@ -38,6 +38,7 @@ const SECTIONS: { title: string | null; items: Item[] }[] = [
       { href: '/alerts', label: 'Alerts', icon: 'alert' },
       { href: '/support', label: 'Help requests', icon: 'help', badge: 'support' },
       { href: '/copyright', label: 'Copyright notices', icon: 'alert' },
+      { href: '/feedback', label: 'Feedback board', icon: 'megaphone' },
       { href: '/promotions', label: 'Promotions', icon: 'megaphone', view: 'money' },
     ],
   },
