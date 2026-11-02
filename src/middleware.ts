@@ -155,17 +155,27 @@ export async function middleware(request: NextRequest) {
   };
 
   let response = proceed();
+  // @supabase/ssr (0.10+) hands over no-store cache headers with the first
+  // cookie write, and only then: a response that sets a session cookie must
+  // never be cached by a CDN and served to someone else. Kept here so every
+  // response built below (a rebuilt one, a redirect) carries them.
+  const noStore: Record<string, string> = {};
+  const withNoStore = <T extends NextResponse>(res: T): T => {
+    for (const [k, v] of Object.entries(noStore)) res.headers.set(k, v);
+    return res;
+  };
 
   const supabase = createServerClient(URL, ANON_KEY, {
     cookies: {
       getAll() {
         return request.cookies.getAll();
       },
-      setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
+      setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[], headers: Record<string, string>) {
+        Object.assign(noStore, headers);
         for (const { name, value } of cookiesToSet) {
           request.cookies.set(name, value);
         }
-        response = proceed();
+        response = withNoStore(proceed());
         for (const { name, value, options } of cookiesToSet) {
           response.cookies.set(name, value, options);
         }
@@ -220,7 +230,7 @@ export async function middleware(request: NextRequest) {
     }
     out.cookies.delete(ACTIVE_COOKIE);
     out.headers.set('Content-Security-Policy', csp);
-    return out;
+    return withNoStore(out);
   }
 
   if (key && !isPrefetch(request) && (seen === null || now - seen > BUMP_MS)) {
