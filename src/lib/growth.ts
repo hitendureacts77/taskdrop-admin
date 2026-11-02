@@ -1,7 +1,7 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { namesFor } from './data';
-import type { DailyRow, FunnelRow, RetentionRow, StaffPerf } from './growth-calc';
+import type { DailyRow, FunnelRow, MarketplaceRow, RetentionRow, StaffPerf } from './growth-calc';
 import { createClient } from './supabase/server';
 import { createClient as createServiceClient } from './supabase/service';
 
@@ -297,6 +297,21 @@ export async function getFunnel(from: string, to: string): Promise<Read<FunnelRo
 export async function getRetention(weeks = 8): Promise<Read<RetentionRow[]>> {
   return rpc('admin_retention', { p_weeks: weeks }, [], (rows) =>
     rows.map((x) => ({ cohortWeek: str(x.cohort_week), weekOffset: num(x.week_offset), cohortSize: num(x.cohort_size), active: num(x.active) })),
+  );
+}
+
+/** Time to first offer and fill rate, per category and per area (migration 141). */
+export async function getMarketplaceNumbers(from: string, to: string): Promise<Read<MarketplaceRow[]>> {
+  return rpc('admin_marketplace_numbers', { p_from: from, p_to: to }, [], (rows) =>
+    rows.map((x) => ({
+      kind: (str(x.group_kind) as MarketplaceRow['kind']) || 'all',
+      label: str(x.group_label),
+      posted: num(x.tasks_posted),
+      withOffer: num(x.tasks_with_offer),
+      filled: num(x.tasks_filled),
+      medianFirstOfferSeconds: x.median_first_offer_seconds == null ? null : num(x.median_first_offer_seconds),
+      p90FirstOfferSeconds: x.p90_first_offer_seconds == null ? null : num(x.p90_first_offer_seconds),
+    })),
   );
 }
 

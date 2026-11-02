@@ -136,3 +136,39 @@ export function formatMinutes(m: number | null): string {
   if (m < 60 * 24) return `${(m / 60).toFixed(1)} h`;
   return `${(m / 1440).toFixed(1)} days`;
 }
+
+// ------------------------------------------------- marketplace numbers --
+
+/** One row of `admin_marketplace_numbers` (migration 141, plan task 3.3b). */
+export type MarketplaceRow = {
+  kind: 'all' | 'category' | 'area';
+  label: string;
+  posted: number;
+  withOffer: number;
+  filled: number;
+  /** Seconds a task waited for its first offer. Null when no task in the group got one. */
+  medianFirstOfferSeconds: number | null;
+  p90FirstOfferSeconds: number | null;
+};
+
+export type MarketplaceShown = MarketplaceRow & {
+  /** Tasks done and paid, as a share of tasks posted. Null when nothing was posted. */
+  fillRate: number | null;
+  /** Tasks that got at least one offer, as a share of tasks posted. */
+  offerRate: number | null;
+};
+
+/** Adds the two shares, and puts the busiest groups first. */
+export function marketplaceShown(rows: MarketplaceRow[], kind: MarketplaceRow['kind']): MarketplaceShown[] {
+  return rows
+    .filter((r) => r.kind === kind)
+    .map((r) => ({ ...r, fillRate: rate(r.filled, r.posted), offerRate: rate(r.withOffer, r.posted) }))
+    .sort((a, b) => b.posted - a.posted || a.label.localeCompare(b.label));
+}
+
+/** "45 sec", "12 min", "3.5 h", "2.1 days" -- how long a task waited. A dash when no task got an offer. */
+export function formatWait(seconds: number | null): string {
+  if (seconds === null) return '—';
+  if (seconds < 60) return `${Math.round(seconds)} sec`;
+  return formatMinutes(seconds / 60);
+}

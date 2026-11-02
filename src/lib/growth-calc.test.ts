@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { activityTotal, formatMinutes, funnelSteps, previousWindow, rate, retentionGrid, totalDaily, type DailyRow, type StaffPerf } from './growth-calc.ts';
+import { activityTotal, formatMinutes, formatWait, funnelSteps, marketplaceShown, previousWindow, rate, retentionGrid, totalDaily, type DailyRow, type MarketplaceRow, type StaffPerf } from './growth-calc.ts';
 
 const day = (o: Partial<DailyRow>): DailyRow => ({ day: '2026-10-01', newPeople: 0, jobsPosted: 0, jobsFinished: 0, cancellations: 0, disputesDecided: 0, fundedMinor: 0, topupMinor: 0, revenueMinor: 0, ...o });
 
@@ -63,4 +63,22 @@ test('formatMinutes reads naturally', () => {
 test('activityTotal adds what a person did but not what they own', () => {
   const p: StaffPerf = { userId: 'u', tasksDone: 2, tasksOnTime: 1, tasksOpen: 9, tasksOverdue: 3, notes: 3, ticketReplies: 4, reportsHandled: 1, disputesDecided: 0, suspensions: 1, broadcasts: 0, customersOwned: 50, firstResponseMinutes: null };
   assert.equal(activityTotal(p), 11);
+});
+
+test('marketplaceShown works out the fill rate and offer rate, and a quiet group has none', () => {
+  const row = (o: Partial<MarketplaceRow>): MarketplaceRow => ({ kind: 'category', label: 'X', posted: 0, withOffer: 0, filled: 0, medianFirstOfferSeconds: null, p90FirstOfferSeconds: null, ...o });
+  const shown = marketplaceShown([row({ label: 'Few', posted: 2, withOffer: 1, filled: 1 }), row({ label: 'Many', posted: 10, withOffer: 8, filled: 3 }), row({ label: 'Silent', posted: 0 }), row({ kind: 'area', label: 'Elsewhere', posted: 99 })], 'category');
+  assert.deepEqual(shown.map((r) => r.label), ['Many', 'Few', 'Silent']);
+  assert.equal(shown[0]?.fillRate, 0.3);
+  assert.equal(shown[0]?.offerRate, 0.8);
+  assert.equal(shown[2]?.fillRate, null);
+  assert.equal(shown[2]?.offerRate, null);
+});
+
+test('formatWait reads in the unit a person would use', () => {
+  assert.equal(formatWait(null), '—');
+  assert.equal(formatWait(45), '45 sec');
+  assert.equal(formatWait(720), '12 min');
+  assert.equal(formatWait(12600), '3.5 h');
+  assert.equal(formatWait(3 * 86400), '3.0 days');
 });
