@@ -5,6 +5,7 @@ import { parseOwnerFilter } from '@/lib/crm-calc';
 import { applyOwnerFilter } from '@/lib/crm-owners';
 import { exportCsv, idsForCriteria, idsSuspended, idsWithTag, parseCriteria } from '@/lib/crm';
 import { getUsers, isUuid, parseUserFilter } from '@/lib/data';
+import { TOO_FAST, withinRate } from '@/lib/rate-limit';
 import { staffCanSee } from '@/lib/staff-roles';
 import { createClient } from '@/lib/supabase/server';
 
@@ -22,6 +23,8 @@ export async function GET(req: Request) {
   const who = await checkAdmin();
   if (who.status === 'unauthenticated') return NextResponse.json({ error: 'Sign in first' }, { status: 401 });
   if (who.status === 'forbidden') return NextResponse.json({ error: 'Admins only' }, { status: 403 });
+
+  if (!(await withinRate(who.user.id, 'admin-export', 10))) return NextResponse.json({ error: TOO_FAST }, { status: 429 });
 
   const sp = new URL(req.url).searchParams;
   let ids: string[];
