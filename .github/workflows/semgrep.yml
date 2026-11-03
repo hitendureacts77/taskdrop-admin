@@ -1,0 +1,50 @@
+name: Code scan
+
+# Task 2.13 part B (docs/ULTIMATE_PLAN.md). Semgrep reads the code itself for unsafe patterns
+# (unchecked input reaching the database, open redirects, cross-site scripting, hard-coded secrets)
+# with its OWASP Top 10 and JavaScript/TypeScript rules. It is open source, needs no account and
+# works on private code; GitHub's CodeQL is free only for public code, and the folder is going private.
+#
+# Findings of ERROR severity (Semgrep's word for high) fail the check. WARNING findings are printed
+# in the second step so they can be read and answered "fix" or "accept", but do not fail it.
+# Every Monday the whole code is read again, so a new rule is applied to old code too.
+
+on:
+  pull_request:
+  push:
+    branches: [redesigned-2.0]
+  schedule:
+    - cron: '41 3 * * 1' # Mondays 03:41 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  semgrep:
+    name: Semgrep code scan
+    runs-on: ubuntu-latest
+    env:
+      SEMGREP_VERSION: '1.100.0'
+      SEMGREP_SEND_METRICS: 'off'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - run: python3 -m pip install "semgrep==${SEMGREP_VERSION}"
+
+      - name: Fail on high-severity findings
+        run: >
+          semgrep scan --error --severity ERROR --metrics off --quiet
+          --config p/owasp-top-ten --config p/javascript --config p/typescript --config p/secrets
+          --exclude-rule generic.secrets.security.detected-generic-secret.detected-generic-secret
+          .
+
+      - name: List every other finding (does not fail)
+        if: always()
+        continue-on-error: true
+        run: >
+          semgrep scan --metrics off --quiet
+          --config p/owasp-top-ten --config p/javascript --config p/typescript --config p/secrets
+          .
