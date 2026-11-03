@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { checkAdmin } from '@/lib/auth';
+import { clientAddress } from '@/lib/rate-key';
+import { TOO_FAST, withinRate } from '@/lib/rate-limit';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -27,6 +29,10 @@ const WRONG = 'That username and password do not match';
 const fail = (message: string, status: number) => NextResponse.json({ ok: false, message }, { status });
 
 export async function POST(req: Request) {
+  // Ten tries a minute from one network address. The app's password-auth function limits per username
+  // too, but from there every admin sign-in comes from this server's address (task 2.13 part A).
+  if (!(await withinRate(clientAddress(req.headers), 'admin-signin', 10))) return fail(TOO_FAST, 429);
+
   let body: { username?: string; password?: string };
   try {
     body = await req.json();

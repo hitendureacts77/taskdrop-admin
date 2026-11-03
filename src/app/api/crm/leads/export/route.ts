@@ -3,6 +3,7 @@ import { checkAdmin } from '@/lib/auth';
 import { filterLeads, leadKindLabel, leadStageLabel, parseLeadFilter } from '@/lib/crm-calc';
 import { csvResponse, toCsv } from '@/lib/csv';
 import { getLeads } from '@/lib/leads';
+import { TOO_FAST, withinRate } from '@/lib/rate-limit';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -17,6 +18,8 @@ export async function GET(req: Request) {
   const who = await checkAdmin();
   if (who.status === 'unauthenticated') return NextResponse.json({ error: 'Sign in first' }, { status: 401 });
   if (who.status === 'forbidden') return NextResponse.json({ error: 'Admins only' }, { status: 403 });
+
+  if (!(await withinRate(who.user.id, 'admin-export', 10))) return NextResponse.json({ error: TOO_FAST }, { status: 429 });
 
   const filter = parseLeadFilter(Object.fromEntries(new URL(req.url).searchParams));
   const all = await getLeads();
