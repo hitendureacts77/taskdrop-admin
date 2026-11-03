@@ -1,0 +1,32 @@
+name: Weekly package audit
+
+# Task 2.13 part B (docs/ULTIMATE_PLAN.md). The package audit already runs on every pull request
+# (ci.yml, npm audit at moderate or above). A new warning on an old package can appear in a week with no
+# pull request, so the same gate also runs every Monday. A red run here means: open the log, then
+# update the package.
+
+on:
+  schedule:
+    - cron: '23 4 * * 1' # Mondays 04:23 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: npm audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci --ignore-scripts
+
+      - run: npm audit --audit-level=moderate

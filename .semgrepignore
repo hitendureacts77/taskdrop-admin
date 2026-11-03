@@ -1,0 +1,7 @@
+# Not shipped code: Semgrep skips these (task 2.13 part B).
+node_modules/
+.next/
+docs/
+*.test.ts
+*.test.mjs
+package-lock.json
