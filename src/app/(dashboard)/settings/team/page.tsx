@@ -1,6 +1,7 @@
 import { TeamView } from '@/components/views/AdminConfigViews';
 import { addAdmin, removeAdmin, setStaffNotify, setStaffRole } from '@/lib/admin-actions';
 import { getTeam } from '@/lib/admin-config';
+import { endAllStaffSessions } from '@/lib/session-actions';
 import { adminAllowlist } from '@/lib/auth';
 import { hasServiceKey, requireSeeing } from '@/lib/data';
 
@@ -18,6 +19,7 @@ export default async function TeamPage() {
       remove={removeAdmin}
       setRole={setStaffRole}
       setNotify={setStaffNotify}
+      endAll={endAllStaffSessions}
     />
   );
 }

@@ -31,5 +31,30 @@ export async function signOutEverywhere(_prev: ActionResult, form: FormData): Pr
   }
   revalidatePath(`/users/${userId}`);
   const n = Number(data ?? 0);
-  return { ok: true, message: `${name} is signed out of ${n} ${n === 1 ? 'session' : 'sessions'}. They can sign in again; a phone or browser that is open may keep working for up to an hour.` };
+  return { ok: true, message: `${name} is signed out of ${n} ${n === 1 ? 'session' : 'sessions'}. They can sign in again; a phone or browser that is open stops working on its next request.` };
+}
+
+/**
+ * Emergency: ends every other staff member's sessions (yours stays). The database function
+ * admin_end_all_staff_sessions checks the role again, needs a reason, and writes the audit log.
+ * Taking someone's admin role away already locks them out at once, because the panel checks the role on every request.
+ */
+export async function endAllStaffSessions(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  await requireAdmin();
+  const denied = await staffGate('admin');
+  if (denied) return { ok: false, message: denied };
+  const reason = String(form.get('reason') ?? '').trim();
+  if (!reason) return { ok: false, message: 'Say why, so the next admin knows.' };
+  const supabase = await createClient();
+  const { data, error } = await (supabase.rpc as unknown as (f: string, a: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>)(
+    'admin_end_all_staff_sessions',
+    { p_reason: reason.slice(0, 200) },
+  );
+  if (error) {
+    if (/does not exist|schema cache/i.test(error.message)) return { ok: false, message: 'This needs a database update that has not been applied yet.' };
+    return { ok: false, message: error.message.replace(/^(error:s*)/i, '') };
+  }
+  revalidatePath('/settings/team');
+  const n = Number(data ?? 0);
+  return { ok: true, message: `${n} staff ${n === 1 ? 'session' : 'sessions'} ended. Everyone else signs in again; yours stays.` };
 }
