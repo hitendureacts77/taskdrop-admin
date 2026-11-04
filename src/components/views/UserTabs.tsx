@@ -144,7 +144,7 @@ export function DevicesTab({ devices, now, signIn, userId, name, canSignOut }: {
               trigger="Sign out everywhere"
               tone="danger"
               title={`Sign ${first} out of every device?`}
-              consequence={<>Ends all of their sessions. They can sign in again with the same method. A phone or browser that is already open may keep working for up to an hour. Nothing else about the account changes.</>}
+              consequence={<>Ends all of their sessions. They can sign in again with the same method. A phone or browser that is already open stops working on its next request. Nothing else about the account changes.</>}
               field={{ name: 'reason', label: 'Why', placeholder: 'e.g. lost phone, asked by support', required: true }}
               confirmLabel={`Yes, sign ${first} out`}
             />

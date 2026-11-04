@@ -64,6 +64,7 @@ export function TeamView({
   remove,
   setRole,
   setNotify,
+  endAll,
 }: {
   team: TeamMember[];
   meId: string;
@@ -74,6 +75,7 @@ export function TeamView({
   remove: FormAction;
   setRole: FormAction;
   setNotify: FormAction;
+  endAll: FormAction;
 }) {
   const locked = allowlistActive(allowlist);
   const allowed = allowlistCount(allowlist);
@@ -118,6 +120,17 @@ export function TeamView({
           !manage ? (
             <span className="muted small">You’re {roleLabel(meRole)}: only a full Admin can change the team.</span>
           ) : (
+          <span className="row-actions">
+          <ConfirmAction
+            action={endAll}
+            hidden={{}}
+            trigger="End all staff sessions"
+            tone="danger"
+            title="Sign every other staff member out?"
+            consequence="Ends the panel sessions of everyone on the team except you. They can sign in again. Use it if a staff account or phone may have been taken over. It is written to the audit log."
+            field={{ name: 'reason', label: 'Why', placeholder: 'e.g. lost laptop, suspicious sign-in', required: true }}
+            confirmLabel="Yes, end them"
+          />
           <ConfirmAction
             action={add}
             hidden={{}}
@@ -138,6 +151,7 @@ export function TeamView({
             field={{ name: 'who', label: 'Their @username or Google address', placeholder: '@username or name@gmail.com', required: true, help: 'They must already have a TaskDrop account (signed in once).' }}
             confirmLabel="Add to the team"
           />
+          </span>
           )
         }
         flush
