@@ -12,8 +12,11 @@ export const dynamic = 'force-dynamic';
  * The app's password-auth function owns the check: it resolves the @username
  * to the account server-side, signs in exactly as the app would, and throttles
  * failures per username and per IP. This route adds two rules of its own:
- *   - The session tokens never reach the browser. They are turned into the
- *     panel's own httpOnly session cookies right here.
+ *   - The session tokens never reach the page's scripts. setSession() below
+ *     turns them into the panel's login cookies, which the server client
+ *     writes HttpOnly, Secure in production, SameSite=Lax and for at most
+ *     12 hours (lib/supabase/cookie-options.ts, H37). Before H37 these were
+ *     the library defaults (readable by scripts, 400 days).
  *   - After sign-in the account must be an allowed admin (role + allowlist);
  *     otherwise the session is thrown away straight away, with the same message
  *     as a wrong password so the panel does not reveal who is an admin.
