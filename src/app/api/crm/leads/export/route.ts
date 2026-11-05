@@ -22,7 +22,7 @@ export async function GET(req: Request) {
   if (!(await withinRate(who.user.id, 'admin-export', 10))) return NextResponse.json({ error: TOO_FAST }, { status: 429 });
 
   const filter = parseLeadFilter(Object.fromEntries(new URL(req.url).searchParams));
-  const all = await getLeads();
+  const all = await getLeads(who.user.staffRole);
   if (all.error || all.setup) return NextResponse.json({ error: all.error ?? 'Leads are not set up yet' }, { status: 500 });
   const rows = filterLeads(all.data, filter, who.user.id);
 

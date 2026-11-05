@@ -1,6 +1,8 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { contactTextFor } from './contact-mask';
 import { namesFor } from './data';
+import type { StaffRole } from './staff-roles';
 import type { Read } from './growth';
 import { createClient } from './supabase/server';
 
@@ -45,7 +47,7 @@ type Row = {
 const NOT_THERE = /does not exist|could not find the table|schema cache|PGRST20[24]|42P01/i;
 
 /** Newest first. A few thousand leads is far beyond what this list is for. */
-export async function getLeads(): Promise<Read<Lead[]>> {
+export async function getLeads(role: StaffRole): Promise<Read<Lead[]>> {
   const supabase = (await createClient()) as unknown as SupabaseClient;
   const { data, error } = await supabase
     .from('crm_leads')
@@ -64,7 +66,7 @@ export async function getLeads(): Promise<Read<Lead[]>> {
     data: rows.map((r) => ({
       id: r.id,
       name: r.name,
-      contact: r.contact,
+      contact: contactTextFor(role, r.contact),
       kind: r.kind,
       source: r.source,
       stage: r.stage,
