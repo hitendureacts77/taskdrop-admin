@@ -5,6 +5,7 @@ import { adminAllowlist, isAllowedIdentity } from './auth';
 import { getNavCounts, getRazorpayXState, getPayoutMethod, hasServiceKey, type NavCounts, type PayoutMethod, type RazorpayXState } from './data';
 import { createClient as createSessionClient } from './supabase/server';
 import { createClient as createServiceClient } from './supabase/service';
+import { emailFor, phoneFor } from './contact-mask';
 import { asStaffRole, type StaffRole } from './staff-roles';
 
 /**
@@ -43,7 +44,8 @@ export type TeamMember = {
   canOpenPanel: boolean | null;
 };
 
-export async function getTeam(): Promise<TeamMember[]> {
+/** `role` is the viewer's staff role: only Admin and Support get the team's full phones and emails (contact-mask.ts). */
+export async function getTeam(role: StaffRole): Promise<TeamMember[]> {
   const supabase = await createSessionClient();
   const { data: admins, error } = await supabase.from('user_roles').select('user_id').eq('role', 'admin');
   if (error) throw new Error(`Could not read admin roles: ${error.message}`);
@@ -89,8 +91,8 @@ export async function getTeam(): Promise<TeamMember[]> {
         otherRoles: all.filter((r) => r.user_id === id && r.role !== 'admin').map((r) => r.role),
         staffRole: asStaffRole(staff.get(id)?.staff_role),
         notify: staff.get(id)?.notify ?? true,
-        email: a?.email ?? null,
-        phone: a?.phone ?? null,
+        email: emailFor(role, a?.email),
+        phone: phoneFor(role, a?.phone),
         lastSignIn: a?.last ?? null,
         authenticator: a ? a.mfa : null,
         canOpenPanel: a ? isAllowedIdentity(a.email) : null,
@@ -301,6 +303,7 @@ export const AUDIT_TABLES: Record<string, string> = {
 /** The staff actions in plain words, by the name the database logs them under. */
 export const EVENT_WORDS: Record<string, string> = {
   'user.warn': 'Warned a person',
+  'people.view_contact': 'Opened a person page with phone and email showing',
   'report.actioned': 'Closed a report as acted on',
   'report.dismissed': 'Dismissed a report',
   'message.hide': 'Hid a message',

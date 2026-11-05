@@ -65,5 +65,5 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Could not record this export, so it was not produced' }, { status: 500 });
   }
 
-  return csvResponse(await exportCsv(ids, { hideMoney: !staffCanSee(who.user.staffRole, 'money') }), 'taskdrop-people');
+  return csvResponse(await exportCsv(ids, { role: who.user.staffRole, hideMoney: !staffCanSee(who.user.staffRole, 'money') }), 'taskdrop-people');
 }

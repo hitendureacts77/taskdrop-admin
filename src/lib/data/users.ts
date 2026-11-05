@@ -2,6 +2,7 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient as createSessionClient } from '../supabase/server';
 import { startOfIstDay } from '../days';
+import { maskEmail, maskPhone } from '../contact-mask';
 import { serviceOrNull, cleanSearch, one } from './shared';
 import { type SettledPayout, getSettledPayouts } from './payouts';
 import { namesFor } from './people';
@@ -163,6 +164,8 @@ export type UserDetail = UserRow & {
   email: string | null;
   phone: string | null;
   contactKnown: boolean;
+  /** True when email and phone above are already masked for display (the viewer's role, or the open was not logged). */
+  contactsMasked: boolean;
   posted: { id: string; title: string; status: string; priceMinor: number | null; createdAt: string }[];
   worked: { id: string; title: string; status: string; escrowMinor: number; assignmentStatus: string; createdAt: string }[];
   payouts: SettledPayout[];
@@ -174,7 +177,11 @@ export type UserDetail = UserRow & {
   deletionBlockers: { code: string; message: string }[];
 };
 
-export async function getUser(id: string): Promise<UserDetail | null> {
+/**
+ * `contacts` is required: 'full' only after the caller has checked the staff role (staffSeesContacts) and written the
+ * audit row; otherwise 'masked', and the full email and phone never leave this function.
+ */
+export async function getUser(id: string, contacts: 'full' | 'masked'): Promise<UserDetail | null> {
   if (!isUuid(id)) return null;
   const supabase = await createSessionClient();
   const { data: prof, error } = await supabase.from('profiles').select(`${PROFILE_COLS}, bio`).eq('id', id).maybeSingle();
@@ -200,8 +207,10 @@ export async function getUser(id: string): Promise<UserDetail | null> {
     p.deleted_at ? null : rpc('admin_account_deletion_check', { p_user: id }),
   ]);
 
-  const email = auth?.data?.user?.email ?? null;
-  const phone = auth?.data?.user?.phone ?? null;
+  const fullEmail = auth?.data?.user?.email ?? null;
+  const fullPhone = auth?.data?.user?.phone ?? null;
+  const email = contacts === 'full' ? fullEmail : maskEmail(fullEmail);
+  const phone = contacts === 'full' ? fullPhone : maskPhone(fullPhone);
 
   let deletion: UserDetail['deletion'] = null;
   let deletionBlockers: UserDetail['deletionBlockers'] = [];
@@ -229,6 +238,7 @@ export async function getUser(id: string): Promise<UserDetail | null> {
     email,
     phone,
     contactKnown: Boolean(service),
+    contactsMasked: contacts !== 'full',
     posted: ((posted.data ?? []) as { id: string; title: string; status: string; locked_minor: number | null; benchmark_minor: number; created_at: string }[]).map((t) => ({
       id: t.id,
       title: t.title,

@@ -212,13 +212,14 @@ export function UserView({
             {u.contactKnown ? (
               <KV
                 rows={[
-                  { label: 'Phone', value: u.phone ? phone(u.phone) : <span className="muted">—</span> },
+                  { label: 'Phone', value: u.phone ? (u.contactsMasked ? u.phone : phone(u.phone)) : <span className="muted">—</span> },
                   { label: 'Email', value: u.email ?? <span className="muted">—</span> },
                 ]}
               />
             ) : (
               <p className="muted small">Phone and email need SUPABASE_SERVICE_ROLE_KEY on the server.</p>
             )}
+            {u.contactKnown && u.contactsMasked ? <p className="muted small">Full phone and email are shown to Admin and Support only.</p> : null}
             {u.bio ? <p className="prose small">{u.bio}</p> : null}
           </Card>
 
