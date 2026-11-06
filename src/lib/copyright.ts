@@ -1,7 +1,9 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient as createSessionClient } from './supabase/server';
+import { emailFor } from './contact-mask';
 import { namesFor } from './data';
+import type { StaffRole } from './staff-roles';
 import { getJobPhotos, type AdminPhoto } from './photos';
 
 /**
@@ -56,7 +58,8 @@ type Row = {
   note: string | null;
 };
 
-export async function getCopyrightNotices(): Promise<{ ready: boolean; rows: Notice[] }> {
+/** `role` is the viewer's staff role: the complainant's email is masked for roles other than Admin and Support. */
+export async function getCopyrightNotices(role: StaffRole): Promise<{ ready: boolean; rows: Notice[] }> {
   // Newer than the generated types.
   const db = (await createSessionClient()) as unknown as SupabaseClient;
   const { data, error } = await db.from('copyright_notices').select('*').order('received_at', { ascending: false }).limit(300);
@@ -97,7 +100,7 @@ export async function getCopyrightNotices(): Promise<{ ready: boolean; rows: Not
         id: r.id,
         receivedAt: r.received_at,
         complainant: r.complainant,
-        email: r.complainant_email,
+        email: emailFor(role, r.complainant_email) ?? '',
         work: r.work,
         material: r.material,
         taskId: r.task_id,
