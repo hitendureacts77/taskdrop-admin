@@ -97,3 +97,8 @@ test('made-up keys marked THROWAWAY pass; spread dots elsewhere in the slice do 
   assert.deepEqual(scanBuffer(Buffer.from('rzp_live_THROWAWAYKEY01')), []);
   assert.equal(scanBuffer(Buffer.from('f(...args);' + KEY)).length, 1);
 });
+
+test('a camelCase identifier after private_ is not a key, a random one is', () => {
+  assert.deepEqual(scanBuffer(Buffer.from('x=private_' + 'connectionPoolManagerHandlerFactory')), []);
+  assert.deepEqual(scanBuffer(Buffer.from('x=private_' + long(28))).map((h) => h.rule), ['imagekit-private-key']);
+});
