@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { createClient } from '@/lib/supabase/browser';
 
 type Props = { required: boolean; enrolled: boolean; verified: boolean };
 
@@ -16,11 +15,36 @@ const input = {
   width: 180,
 } as const;
 
+type MfaReply = { ok?: boolean; message?: string; factorId?: string; qr?: string; secret?: string };
+
+/** One call to the server route; the session lives in HttpOnly cookies the page cannot read. */
+async function callMfa(body: Record<string, string>): Promise<MfaReply> {
+  try {
+    const res = await fetch('/api/auth/mfa', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      cache: 'no-store',
+    });
+    const out = (await res.json().catch(() => ({}))) as MfaReply;
+    if (res.status === 401) {
+      // Signed out (idle or 12 hours); the middleware's message, if any, is shown on the login page.
+      window.location.assign(out.message ? `/login?error=${encodeURIComponent(out.message)}` : '/login');
+      return { ok: false };
+    }
+    if (!res.ok || !out.ok) return { ok: false, message: out.message ?? 'Something went wrong. Try again.' };
+    return out;
+  } catch {
+    return { ok: false, message: 'Could not reach the server. Check your connection.' };
+  }
+}
+
 /**
  * Set up an authenticator app (TOTP), or enter a code from it to unlock money
- * actions for this session. Everything goes through Supabase Auth's MFA API from
- * the browser; the session cookie is upgraded to aal2 on success, so a reload
- * lets the server see it.
+ * actions for this session. Every step goes through /api/auth/mfa, which calls
+ * Supabase Auth's MFA API on the server (H37: the login cookies are HttpOnly).
+ * The session cookie is upgraded to aal2 on success, so a reload lets every
+ * server check see it.
  */
 export function MfaPanel({ required, enrolled, verified }: Props) {
   const [factorId, setFactorId] = useState<string | null>(null);
@@ -30,41 +54,28 @@ export function MfaPanel({ required, enrolled, verified }: Props) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  const supabase = createClient();
-
   const startSetup = async () => {
     setBusy(true);
     setMessage(null);
-    try {
-      // A half-finished set-up blocks a new one, so clear any unverified factor.
-      const { data: list } = await supabase.auth.mfa.listFactors();
-      for (const f of list?.all ?? []) {
-        if (f.status === 'unverified') await supabase.auth.mfa.unenroll({ factorId: f.id });
-      }
-      const { data, error } = await supabase.auth.mfa.enroll({
-        factorType: 'totp',
-        friendlyName: `TaskDrop admin ${new Date().toISOString().slice(0, 16)}`,
-      });
-      if (error) throw error;
-      setFactorId(data.id);
-      setQr(data.totp.qr_code);
-      setSecret(data.totp.secret);
-    } catch (e) {
-      setMessage(e instanceof Error ? e.message : 'Could not start the set-up. Try again.');
-    } finally {
-      setBusy(false);
+    const out = await callMfa({ action: 'setup' });
+    setBusy(false);
+    if (!out.ok || !out.factorId || !out.qr) {
+      if (out.message) setMessage(out.message);
+      return;
     }
+    setFactorId(out.factorId);
+    setQr(out.qr);
+    setSecret(out.secret ?? null);
   };
 
   const startVerify = async () => {
     setMessage(null);
-    const { data, error } = await supabase.auth.mfa.listFactors();
-    const factor = data?.totp?.[0];
-    if (error || !factor) {
-      setMessage('No authenticator is set up on this account yet.');
+    const out = await callMfa({ action: 'factor' });
+    if (!out.ok || !out.factorId) {
+      if (out.message) setMessage(out.message);
       return;
     }
-    setFactorId(factor.id);
+    setFactorId(out.factorId);
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -72,10 +83,10 @@ export function MfaPanel({ required, enrolled, verified }: Props) {
     if (!factorId) return;
     setBusy(true);
     setMessage(null);
-    const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId, code: code.replace(/\D/g, '') });
-    if (error) {
+    const out = await callMfa({ action: 'verify', factorId, code: code.replace(/\D/g, '') });
+    if (!out.ok) {
       setBusy(false);
-      setMessage(/invalid|incorrect/i.test(error.message) ? 'That code is not right. Codes change every 30 seconds.' : error.message);
+      if (out.message) setMessage(out.message);
       return;
     }
     // The session is aal2 now; reload so every server check sees it.

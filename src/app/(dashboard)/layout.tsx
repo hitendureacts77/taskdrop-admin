@@ -1,3 +1,4 @@
+import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Sidebar } from '@/components/Sidebar';
@@ -14,7 +15,13 @@ import { createClient } from '@/lib/supabase/server';
 async function signOutAction() {
   'use server';
   const supabase = await createClient();
-  await supabase.auth.signOut();
+  // Revokes the refresh token and clears the login cookies (via the server client's setAll).
+  await supabase.auth.signOut().catch(() => undefined);
+  // And the cookies go even if Supabase could not be reached (they are HttpOnly, so only the server can).
+  const jar = await cookies();
+  for (const { name } of jar.getAll()) {
+    if (name.startsWith('sb-') || name === 'td_admin_active') jar.delete(name);
+  }
   redirect('/login');
 }
 

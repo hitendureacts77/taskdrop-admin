@@ -20,6 +20,8 @@ import { fileURLToPath } from 'node:url';
 /** @type {Record<string, { kind: 'staff' | 'signin' | 'public', why?: string }>} */
 export const ROUTES = {
   'api/auth/password': { kind: 'signin' },
+  'api/auth/mfa': { kind: 'staff' },
+  'api/live/token': { kind: 'staff' },
   'api/auth/ping': { kind: 'public', why: 'answers { ok: true } and nothing else; the middleware decides whether the session is still alive' },
   'api/crm/export': { kind: 'staff' },
   'api/crm/leads/export': { kind: 'staff' },

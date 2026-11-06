@@ -2,6 +2,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { describeActivity, isBackgroundRequest } from './lib/idle-activity';
 import { sentryIngestOrigin } from './lib/sentry-dsn';
+import { adminAuthCookieBase, adminCookieWrite } from './lib/supabase/cookie-options';
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
@@ -165,7 +166,10 @@ export async function middleware(request: NextRequest) {
     return res;
   };
 
+  // Login cookies are HttpOnly, Secure in production and at most 12 hours (H37,
+  // lib/supabase/cookie-options.ts); setAll below rewrites each write's options.
   const supabase = createServerClient(URL, ANON_KEY, {
+    cookieOptions: adminAuthCookieBase(process.env.NODE_ENV === 'production'),
     cookies: {
       getAll() {
         return request.cookies.getAll();
@@ -177,7 +181,7 @@ export async function middleware(request: NextRequest) {
         }
         response = withNoStore(proceed());
         for (const { name, value, options } of cookiesToSet) {
-          response.cookies.set(name, value, options);
+          response.cookies.set(name, value, adminCookieWrite(options));
         }
       },
     },

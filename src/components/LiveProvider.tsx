@@ -2,12 +2,45 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import type { RealtimeChannel } from '@supabase/supabase-js';
+import { createClient, type RealtimeChannel } from '@supabase/supabase-js';
 import { alertFor, type LiveAlert } from '@/lib/live-alerts';
+import { parseLiveToken, tokenIsFresh, type LiveToken } from '@/lib/live-token';
 import type { LiveCounters, LiveEvent, LiveNav, LiveSnapshot } from '@/lib/live-types';
 import { needsSummary, rankNeeds, type NeedsItem, type RankedNeed } from '@/lib/needs-you';
 import { liveEventIsMoney, staffCanSee, type StaffRole } from '@/lib/staff-roles';
-import { createClient } from '@/lib/supabase/browser';
+
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+
+/** The Realtime token, held in this tab's memory only (H37). */
+let heldToken: LiveToken | null = null;
+let tokenRequest: Promise<string | null> | null = null;
+
+/**
+ * The access token for the private channel, from /api/live/token. The login cookies are HttpOnly,
+ * so this page cannot read the session; the server hands over the short-lived access token (never
+ * the refresh token). Realtime asks on every heartbeat; a held token is reused until a minute
+ * before it ends. Marked background so it does not count as activity for the idle sign-out.
+ */
+function liveAccessToken(): Promise<string | null> {
+  // The server render of this component builds the client too; only a browser asks.
+  if (typeof window === 'undefined') return Promise.resolve(null);
+  if (tokenIsFresh(heldToken, Date.now())) return Promise.resolve(heldToken.token);
+  tokenRequest ??= (async () => {
+    try {
+      const res = await fetch('/api/live/token', { cache: 'no-store', headers: { 'x-td-background': '1' } });
+      // A 401 is handled by the minute re-read (it sends the person to the login page).
+      const t = res.ok ? parseLiveToken(await res.json().catch(() => null)) : null;
+      if (t) heldToken = t;
+      return t?.token ?? null;
+    } catch {
+      return null;
+    } finally {
+      tokenRequest = null;
+    }
+  })();
+  return tokenRequest;
+}
 
 /**
  * The panel's one live connection (migration 091 in the TaskDrop app repo).
@@ -126,7 +159,14 @@ export function LiveProvider({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const supabase = useMemo(() => createClient(), []);
+  // Realtime only: no auth client, no storage, no cookies. The token comes from the server.
+  const supabase = useMemo(
+    () =>
+      createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        accessToken: liveAccessToken,
+      }),
+    [],
+  );
   const [status, setStatus] = useState<LiveStatus>('connecting');
   const [counters, setCounters] = useState<LiveCounters | null>(null);
   const [nav, setNav] = useState<LiveNav | null>(initialNav);
@@ -311,7 +351,7 @@ export function LiveProvider({
     let wasLive = false;
 
     (async () => {
-      // Private channels authorise with the signed-in token.
+      // Private channels authorise with the signed-in token (asked of the server, see liveAccessToken).
       await supabase.realtime.setAuth();
       if (cancelled) return;
       channel = supabase
@@ -329,13 +369,10 @@ export function LiveProvider({
         });
     })().catch(() => setStatus('reconnecting'));
 
-    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'TOKEN_REFRESHED' && session) void supabase.realtime.setAuth(session.access_token);
-    });
+    // No auth listener: Realtime calls liveAccessToken on every heartbeat, which renews the token.
 
     return () => {
       cancelled = true;
-      sub.subscription.unsubscribe();
       if (channel) void supabase.removeChannel(channel);
     };
   }, [supabase, onEvent, resync]);
