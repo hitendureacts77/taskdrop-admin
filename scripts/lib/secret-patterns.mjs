@@ -6,7 +6,7 @@
 // guard itself cannot leak what it finds.
 
 /** Made-up values that appear on purpose in tests and docs. */
-const FAKE = /THROWAWAY|EXAMPLE|PLACEHOLDER|xxxx|\.\.\.|<[a-z_ -]+>|changeme|your[-_ ]?(key|secret|token)/i;
+export const FAKE = /THROWAWAY|EXAMPLE|PLACEHOLDER|xxxx|\.\.\.|<[a-z_ -]+>|changeme|your[-_ ]?(key|secret|token)/i;
 
 export const RULES = [
   { id: 'private-key-block', re: /-----BEGIN (?:RSA |EC |DSA |OPENSSH |PGP |ENCRYPTED )?PRIVATE KEY(?: BLOCK)?-----/ },
