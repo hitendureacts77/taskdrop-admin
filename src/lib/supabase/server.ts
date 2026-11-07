@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/db';
+import { adminAuthCookieBase, adminCookieWrite } from './cookie-options';
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
@@ -34,6 +35,8 @@ export async function createClient(): Promise<SupabaseClient<Database>> {
   // object is a real SupabaseClient; this restores its types.
   const client = createServerClient<Database>(URL, ANON_KEY, {
     global: { headers: GATEWAY_HEADERS },
+    // HttpOnly, Secure in production, at most 12 hours (H37, ./cookie-options.ts).
+    cookieOptions: adminAuthCookieBase(process.env.NODE_ENV === 'production'),
     cookies: {
       getAll() {
         return cookieStore.getAll();
@@ -41,7 +44,7 @@ export async function createClient(): Promise<SupabaseClient<Database>> {
       setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
         try {
           for (const { name, value, options } of cookiesToSet) {
-            cookieStore.set(name, value, options);
+            cookieStore.set(name, value, adminCookieWrite(options));
           }
         } catch {
           // Called from a Server Component -- middleware owns refresh instead.

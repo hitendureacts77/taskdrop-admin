@@ -7,7 +7,7 @@ import { hasServiceKey, requireSeeing } from '@/lib/data';
 
 export default async function TeamPage() {
   const me = await requireSeeing('settings');
-  const team = await getTeam();
+  const team = await getTeam(me.staffRole);
   return (
     <TeamView
       team={team}

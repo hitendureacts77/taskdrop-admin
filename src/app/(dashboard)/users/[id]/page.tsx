@@ -2,7 +2,9 @@ import { notFound } from 'next/navigation';
 import { AuditTab, DevicesTab, FollowUpsTab, MoneyTab, parseUserTab } from '@/components/views/UserTabs';
 import { UserView } from '@/components/views/UserView';
 import { getPersonCrm, getTimeline } from '@/lib/crm';
-import { getMoneySettings, getUser, requireAdmin } from '@/lib/data';
+import { getMoneySettings, getUser, isUuid, requireAdmin } from '@/lib/data';
+import { logContactView } from '@/lib/contact-audit';
+import { staffSeesContacts } from '@/lib/contact-mask';
 import { staffCanSee } from '@/lib/staff-roles';
 import { getUserFollowUps } from '@/lib/growth';
 import { getUserAudit, getUserDevices, getUserPayments, getUserSignIn } from '@/lib/user360';
@@ -13,7 +15,11 @@ export default async function UserPage({ params, searchParams }: { params: Promi
   const hideMoney = !staffCanSee(me.staffRole, 'money');
   // Sales never gets the Money tab, even by typing the address.
   const tab = parseUserTab((await searchParams).tab);
-  const [fetched, settings] = await Promise.all([getUser(id), getMoneySettings()]);
+  // Full phone and email only for Admin and Support, only on the overview (the one tab that shows them), and only once
+  // the open is on record. If the audit row cannot be written the page still opens, with masked contacts.
+  const contacts: 'full' | 'masked' =
+    tab === 'overview' && staffSeesContacts(me.staffRole) && isUuid(id) && (await logContactView(id)) ? 'full' : 'masked';
+  const [fetched, settings] = await Promise.all([getUser(id, contacts), getMoneySettings()]);
   if (!fetched) notFound();
   // Their wallet, corrections, withdrawals and what posters paid are emptied here, before anything is drawn.
   const user = hideMoney

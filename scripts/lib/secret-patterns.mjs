@@ -6,7 +6,7 @@
 // guard itself cannot leak what it finds.
 
 /** Made-up values that appear on purpose in tests and docs. */
-const FAKE = /THROWAWAY|EXAMPLE|PLACEHOLDER|xxxx|\.\.\.|<[a-z_ -]+>|changeme|your[-_ ]?(key|secret|token)/i;
+export const FAKE = /THROWAWAY|EXAMPLE|PLACEHOLDER|xxxx|\.\.\.|<[a-z_ -]+>|changeme|your[-_ ]?(key|secret|token)/i;
 
 export const RULES = [
   { id: 'private-key-block', re: /-----BEGIN (?:RSA |EC |DSA |OPENSSH |PGP |ENCRYPTED )?PRIVATE KEY(?: BLOCK)?-----/ },
@@ -18,7 +18,12 @@ export const RULES = [
   { id: 'github-token', re: /\bgh[pousr]_[A-Za-z0-9]{36,}\b|\bgithub_pat_[A-Za-z0-9_]{50,}\b/ },
   { id: 'sentry-auth-token', re: /\bsntr[yu]s?_[A-Za-z0-9+/=_-]{40,}/ },
   { id: 'slack-token', re: /\bxox[abprs]-[A-Za-z0-9-]{10,}/ },
-  { id: 'imagekit-private-key', re: /\bprivate_[A-Za-z0-9+/=]{20,}/ },
+  {
+    id: 'imagekit-private-key',
+    re: /\bprivate_[A-Za-z0-9+/=]{20,}/,
+    // A camelCase identifier is not a key (an Android Hermes bundle holds one: private_ plus words, no digits).
+    verify: (v) => !/^private_[a-z]+(?:[A-Z][a-z]+)+$/.test(v),
+  },
   { id: 'google-service-account', re: /"type"\s*:\s*"service_account"/ },
   {
     // A JWT whose payload says role=service_role is the Supabase master key.

@@ -3,6 +3,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient as createSessionClient } from './supabase/server';
 import { createClient as createServiceClient } from './supabase/service';
 import { toCsv } from './csv';
+import { exportContactCells } from './contact-mask';
+import type { StaffRole } from './staff-roles';
 import { isUuid, namesFor } from './data';
 import { applyOwnerFilter, getOwnerMap, type OwnerRef } from './crm-owners';
 import type { OwnerFilter } from './crm-calc';
@@ -407,8 +409,12 @@ export async function getAudiences(extra?: Criteria): Promise<Audience[]> {
 
 // ------------------------------------------------------------------- export --
 
-/** A spreadsheet of the people in a view. Phone and email are included only when the server holds the service key. */
-export async function exportCsv(ids: string[], opts: { hideMoney?: boolean } = {}): Promise<string> {
+/**
+ * A spreadsheet of the people in a view. Phone and email are included only when the server holds the service key, and
+ * in full only for the roles that may see them (contact-mask.ts); the other roles get masked values. `role` is
+ * required so no caller can forget it.
+ */
+export async function exportCsv(ids: string[], opts: { role: StaffRole; hideMoney?: boolean }): Promise<string> {
   const rows: MemberRow[] = [];
   for (let i = 0; i < ids.length; i += 200) rows.push(...(await memberRows(ids.slice(i, i + 200))));
   let service: ReturnType<typeof createServiceClient> | null = null;
@@ -428,7 +434,7 @@ export async function exportCsv(ids: string[], opts: { hideMoney?: boolean } = {
       email = data?.user?.email ?? '';
       phone = data?.user?.phone ?? '';
     }
-    lines.push([r.name, r.isWorker ? 'Worker' : 'Poster', r.place ?? '', r.joinedAt.slice(0, 10), r.lastSeenAt?.slice(0, 10) ?? '', ...(money ? [(r.walletMinor / 100).toFixed(2), (r.clearingMinor / 100).toFixed(2)] : []), r.tags.map((t) => t.name).join('; '), r.suspended ? 'Yes' : 'No', r.owner?.name ?? '', ...(service ? [email, phone] : []), r.id]);
+    lines.push([r.name, r.isWorker ? 'Worker' : 'Poster', r.place ?? '', r.joinedAt.slice(0, 10), r.lastSeenAt?.slice(0, 10) ?? '', ...(money ? [(r.walletMinor / 100).toFixed(2), (r.clearingMinor / 100).toFixed(2)] : []), r.tags.map((t) => t.name).join('; '), r.suspended ? 'Yes' : 'No', r.owner?.name ?? '', ...(service ? exportContactCells(opts.role, email, phone) : []), r.id]);
   }
   return toCsv(head, lines);
 }

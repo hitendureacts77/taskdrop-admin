@@ -3,6 +3,7 @@ import { checkAdmin } from '@/lib/auth';
 import { csvResponse } from '@/lib/csv';
 import { parseOwnerFilter } from '@/lib/crm-calc';
 import { applyOwnerFilter } from '@/lib/crm-owners';
+import { filterNames } from '@/lib/export-audit';
 import { exportCsv, idsForCriteria, idsSuspended, idsWithTag, parseCriteria } from '@/lib/crm';
 import { getUsers, isUuid, parseUserFilter } from '@/lib/data';
 import { TOO_FAST, withinRate } from '@/lib/rate-limit';
@@ -57,12 +58,12 @@ export async function GET(req: Request) {
     {
       p_action: 'crm.export',
       p_target: sp.get('segment') === '1' ? 'segment' : `people:${sp.get('filter') ?? 'all'}`,
-      p_detail: `${ids.length} people; ${req.url.split('?')[1] ?? ''}`.slice(0, 480),
+      p_detail: `${ids.length} people; filters: ${filterNames(sp)}`.slice(0, 480),
     } as never,
   );
   if (auditError) {
     return NextResponse.json({ error: 'Could not record this export, so it was not produced' }, { status: 500 });
   }
 
-  return csvResponse(await exportCsv(ids, { hideMoney: !staffCanSee(who.user.staffRole, 'money') }), 'taskdrop-people');
+  return csvResponse(await exportCsv(ids, { role: who.user.staffRole, hideMoney: !staffCanSee(who.user.staffRole, 'money') }), 'taskdrop-people');
 }

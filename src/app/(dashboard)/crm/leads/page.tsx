@@ -10,6 +10,6 @@ type SP = Promise<Record<string, string | string[] | undefined>>;
 export default async function LeadsPage({ searchParams }: { searchParams: SP }) {
   const me = await requireAdmin();
   const filter = parseLeadFilter(await searchParams);
-  const [leads, staff] = await Promise.all([getLeads(), getStaffList()]);
+  const [leads, staff] = await Promise.all([getLeads(me.staffRole), getStaffList()]);
   return <LeadsView d={{ leads, filter, staff, me: me.id, canEdit: staffCan(me.staffRole, 'people'), now: new Date().toISOString() }} />;
 }
