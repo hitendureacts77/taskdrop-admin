@@ -34,7 +34,7 @@ npm run db:types    # regenerate src/lib/db/database.types.ts after a schema cha
 
 - **Test environment: the cloud Supabase project** (`wjxvingpfbfvkfqhrguj`). There is no local Supabase and no Docker; whatever is in the cloud is treated as testing, with fake data. It is **shared with the old app and old admin** (your testers use them) until Phase 9, so a destructive change there affects their data too.
 - Locally: `npm run dev` on http://localhost:3001, using the cloud project's keys from `.env.local`.
-- Hosted: the admin runs on its Vercel address (`taskdrop-admin.vercel.app`); there is no admin subdomain for now. Its sign-in callbacks (`/auth/callback` on the Vercel addresses and `http://localhost:3001`) are already in Supabase → Authentication → URL Configuration → Redirect URLs.
+- Hosted: the staging admin runs at `https://admin.taskdrop.in` (tied to branch `redesigned-2.0`; Vercel's login protection is off for this project, the admin's own sign-in is the gate). It also still answers on its Vercel addresses (`taskdrop-admin.vercel.app`). Its sign-in callbacks (`/auth/callback` on `admin.taskdrop.in`, the Vercel addresses and `http://localhost:3001`) are already in Supabase → Authentication → URL Configuration → Redirect URLs.
 
 ## Branches and pull requests
 
