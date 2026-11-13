@@ -5,6 +5,7 @@ import { inr, istDateTime, timeAgo } from '@/lib/format';
 import { CHART_COLORS, payoutStage, payoutStatus, PAYOUT_STAGE, type PayoutStage, type Tone } from '@/lib/labels';
 import { destinationOf } from '@/lib/payout-dest';
 import { settledSummary } from '@/lib/settled-summary';
+import { withdrawalMoney } from '@/lib/money-calc';
 import { MoneyLock } from '../MoneyLock';
 import { ClickRow } from '../Clickable';
 import { ConfirmAction, type FormAction } from '../ConfirmAction';
@@ -229,7 +230,9 @@ export function PayoutsView({
 
   const pos = d.position;
   const bal = d.rx.balanceMinor;
-  const ready = pos?.readyToWithdrawMinor ?? d.queue.reduce((a, p) => a + p.amount_minor, 0);
+  const wm = pos ? withdrawalMoney(pos) : null;
+  // What the account must be able to send right now: earnings people can ask for plus withdrawals already asked for (clearing money is not withdrawable yet).
+  const ready = wm?.coverMinor ?? d.queue.reduce((a, p) => a + p.amount_minor, 0);
   const shortBy = bal != null ? Math.max(ready - bal, 0) : 0;
   const ownMinor = bal != null && pos ? bal - pos.heldForPeopleMinor : null;
   const periodMinor = d.daily.reduce((a, x) => a + x.minor, 0);
@@ -261,7 +264,7 @@ export function PayoutsView({
         <StatLink href="#queue" icon="clock" label="Waiting for you" value={needsYou.length} sub={needsYou.length ? inr(needsMinor) : 'All paid'} />
         <StatLink href="#on-the-way" icon="send" label="On the way" value={onTheWay.length} sub={onTheWay.length ? inr(onTheWay.reduce((a, x) => a + x.p.amount_minor, 0)) : 'Nothing in flight'} />
         <StatLink href="#history" icon="check" label="Paid today" value={inr(d.totals.todayMinor)} sub={`${d.totals.todayCount} payout${d.totals.todayCount === 1 ? '' : 's'}`} />
-        <StatLink href="/users?filter=money" icon="wallet" label="Ready to withdraw" value={inr(ready)} sub="Earnings people can still ask for" />
+        <StatLink href="/users?filter=money" icon="wallet" label="Ready to withdraw" value={wm ? inr(wm.askMinor) : '—'} sub="Earnings people can still ask for" />
       </div>
 
       <Card
@@ -527,7 +530,9 @@ export function PayoutsView({
           <KV
             rows={[
               { label: 'In RazorpayX', value: bal != null ? <Money minor={bal} /> : <span className="muted">{d.rx.configured ? 'Unavailable' : 'Not connected'}</span> },
-              { label: 'Ready to withdraw', value: <Money minor={ready} />, hint: 'Earnings plus withdrawals on the way' },
+              { label: 'Ready to withdraw', value: wm ? <Money minor={wm.askMinor} /> : <span className="muted">—</span>, hint: 'Cleared earnings people can still ask for' },
+              { label: 'Still clearing', value: wm ? <Money minor={wm.clearingMinor} /> : <span className="muted">—</span>, hint: 'Not withdrawable yet' },
+              { label: 'On the way', value: wm ? <Money minor={wm.onTheWayMinor} /> : <span className="muted">—</span>, hint: 'Already asked for, not settled yet' },
               { label: 'Held for people', value: pos ? <Money minor={pos.heldForPeopleMinor} /> : <span className="muted">—</span> },
               { label: 'TaskDrop’s own', value: ownMinor != null ? <Money minor={ownMinor} /> : <span className="muted">—</span> },
             ]}
