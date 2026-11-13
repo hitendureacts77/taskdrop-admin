@@ -3,6 +3,7 @@ import { createClient as createSessionClient } from '../supabase/server';
 import { addIstDays, istDayKey, istFormat, startOfIstDay } from '../days';
 import { namesFor } from './people';
 import { isUuid } from './tasks';
+import { paidAt } from '../event-time';
 
 // ----------------------------------------------------------------- payouts --
 
@@ -49,17 +50,17 @@ export async function getPayoutTotals(): Promise<PayoutTotals> {
   for (let from = 0; ; from += 1000) {
     const { data, error } = await supabase
       .from('payouts')
-      .select('amount_minor, updated_at')
+      .select('amount_minor, updated_at, sent_at')
       .eq('status', 'paid')
       .order('updated_at', { ascending: false })
       .order('id', { ascending: true })
       .range(from, from + 999);
     if (error) throw new Error(`Could not read payouts: ${error.message}`);
-    const page = (data ?? []) as { amount_minor: number; updated_at: string }[];
+    const page = (data ?? []) as { amount_minor: number; updated_at: string; sent_at: string | null }[];
     for (const p of page) {
       out.totalMinor += Number(p.amount_minor);
       out.totalCount += 1;
-      if (new Date(p.updated_at).getTime() >= since) {
+      if (new Date(paidAt(p)).getTime() >= since) {
         out.todayMinor += Number(p.amount_minor);
         out.todayCount += 1;
       }

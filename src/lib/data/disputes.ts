@@ -2,6 +2,7 @@ import 'server-only';
 import { createClient as createSessionClient } from '../supabase/server';
 import { namesFor } from './people';
 import { isUuid } from './tasks';
+import { disputeSince } from '../event-time';
 
 // ---------------------------------------------------------------- disputes --
 
@@ -68,7 +69,7 @@ export async function getDisputes(): Promise<DisputeRow[]> {
     namesFor([...rows.map((r) => r.poster_id), ...rows.map((r) => latest(r)?.worker_id ?? '')]),
     getDisputeReasons(rows.map((r) => r.id)),
   ]);
-  return rows.map((r) => {
+  const mapped = rows.map((r) => {
     const a = latest(r);
     return {
       reason: reasons.get(r.id)?.reason ?? null,
@@ -82,7 +83,9 @@ export async function getDisputes(): Promise<DisputeRow[]> {
       escrowMinor: Number(a?.escrow_minor ?? 0),
       lockedMinor: Number(r.locked_minor ?? 0),
       funded: Boolean(r.funded_at),
-      since: r.updated_at,
+      since: disputeSince(reasons.get(r.id)?.at, r.updated_at),
     };
   });
+  // Longest-waiting first, by when the dispute opened.
+  return mapped.sort((x, y) => x.since.localeCompare(y.since));
 }
