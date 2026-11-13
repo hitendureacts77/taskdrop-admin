@@ -1,7 +1,7 @@
 import 'server-only';
 import { createClient as createSessionClient } from '../supabase/server';
 import { startOfIstDay } from '../days';
-import { serviceOrNull, cleanSearch } from './shared';
+import { serviceOrNull, likeTerm } from './shared';
 import { namesFor } from './people';
 import { stableOrder } from './paging';
 import { type LedgerEntry } from './activity';
@@ -93,7 +93,7 @@ export async function getTasks(filter: TaskFilter, search: string | undefined, p
       q = q.in('status', ['COMPLETED', 'AUTO_COMPLETED']).gte('completed_at', since);
       break;
   }
-  const s = cleanSearch(search);
+  const s = likeTerm(search);
   if (s) q = q.ilike('title', `%${s}%`);
   const from = page * pageSize;
   const { data, error, count } = await stableOrder(q, 'updated_at').range(from, from + pageSize - 1);

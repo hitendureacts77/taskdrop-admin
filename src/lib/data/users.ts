@@ -3,7 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient as createSessionClient } from '../supabase/server';
 import { startOfIstDay } from '../days';
 import { maskEmail, maskPhone } from '../contact-mask';
-import { serviceOrNull, cleanSearch, one } from './shared';
+import { serviceOrNull, likeTerm, one } from './shared';
 import { stableOrder } from './paging';
 import { type SettledPayout, getSettledPayouts } from './payouts';
 import { namesFor } from './people';
@@ -142,7 +142,7 @@ export async function getUsers(
   if (filter === 'online') q = q.gt('last_seen_at', new Date(Date.now() - 3 * 60_000).toISOString()).is('deleted_at', null);
   if (filter === 'workers') q = q.not('worker_onboarded_at', 'is', null);
   if (filter === 'deleted') q = q.not('deleted_at', 'is', null);
-  const s = cleanSearch(search);
+  const s = likeTerm(search);
   if (s) q = q.or(`display_name.ilike.%${s}%,username.ilike.%${s}%`);
   const from = page * pageSize;
   const { data, error, count } = await stableOrder(q, 'created_at').range(from, from + pageSize - 1);
