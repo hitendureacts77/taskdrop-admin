@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { buildTimeline } from '@/lib/task-timeline';
 import { ClickCard, ClickRow } from '../Clickable';
 import type { ReactNode } from 'react';
 import type { DisputeReason, MoneySettings, TaskDetail } from '@/lib/data';
@@ -80,16 +81,7 @@ export function TaskView({
       );
   else whereNow = '—';
 
-  const timeline: { label: string; at: string | null; note?: string }[] = [
-    { label: 'Posted', at: t.createdAt },
-    { label: a ? `${a.worker} hired` : 'Worker hired', at: a?.createdAt ?? null },
-    { label: `${t.poster} paid into escrow`, at: t.fundedAt },
-    { label: 'Work started', at: t.startedAt },
-    { label: 'Marked done by the worker', at: t.workDoneAt },
-    ...(t.status === 'WORK_DONE' && t.autoCompleteAt ? [{ label: 'Releases on its own if the poster stays silent', at: null, note: istDateTime(t.autoCompleteAt) }] : []),
-    { label: t.status === 'AUTO_COMPLETED' ? 'Approved automatically' : 'Approved, money released', at: t.completedAt },
-    { label: 'Worker can withdraw', at: t.clearedAt, note: !t.clearedAt && t.clearAt ? `from ${istDateTime(t.clearAt)}` : undefined },
-  ];
+  const timeline = buildTimeline(t, a ? { worker: a.worker, createdAt: a.createdAt } : null, istDateTime);
 
   return (
     <>
