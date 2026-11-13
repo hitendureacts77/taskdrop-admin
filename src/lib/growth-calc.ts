@@ -172,3 +172,19 @@ export function formatWait(seconds: number | null): string {
   if (seconds < 60) return `${Math.round(seconds)} sec`;
   return formatMinutes(seconds / 60);
 }
+
+/** Checks that describe something still unresolved, so they stay on the list however old they are. The rest are closed history and follow the date range. */
+export const OPEN_RECONCILE_CODES: readonly string[] = ['funded_without_paid_payment', 'paid_not_credited', 'payment_stuck_created', 'payout_waiting_long'];
+
+/** The date-range rows plus every still-open problem from any date, once each, newest first. */
+export function mergeOpenProblems<T extends { code: string; refType: string; refId: string; at: string | null }>(inWindow: readonly T[], anyDate: readonly T[]): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const r of [...inWindow, ...anyDate.filter((x) => OPEN_RECONCILE_CODES.includes(x.code))]) {
+    const key = `${r.code}|${r.refType}|${r.refId}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(r);
+  }
+  return out.sort((a, b) => (b.at ?? '').localeCompare(a.at ?? ''));
+}

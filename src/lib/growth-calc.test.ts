@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { activityTotal, formatMinutes, formatWait, funnelSteps, marketplaceShown, previousWindow, rate, retentionGrid, totalDaily, type DailyRow, type MarketplaceRow, type StaffPerf } from './growth-calc.ts';
+import { mergeOpenProblems, activityTotal, formatMinutes, formatWait, funnelSteps, marketplaceShown, previousWindow, rate, retentionGrid, totalDaily, type DailyRow, type MarketplaceRow, type StaffPerf } from './growth-calc.ts';
 
 const day = (o: Partial<DailyRow>): DailyRow => ({ day: '2026-10-01', newPeople: 0, jobsPosted: 0, jobsFinished: 0, cancellations: 0, disputesDecided: 0, fundedMinor: 0, topupMinor: 0, revenueMinor: 0, ...o });
 
@@ -81,4 +81,16 @@ test('formatWait reads in the unit a person would use', () => {
   assert.equal(formatWait(720), '12 min');
   assert.equal(formatWait(12600), '3.5 h');
   assert.equal(formatWait(3 * 86400), '3.0 days');
+});
+
+test('mergeOpenProblems keeps old open problems outside the window and does not repeat rows', () => {
+  const row = (code: string, refId: string, at: string) => ({ code, refType: 'payout', refId, at });
+  const inWindow = [row('payout_waiting_long', 'a', '2026-11-01T00:00:00Z'), row('finished_without_commission', 'x', '2026-11-05T00:00:00Z')];
+  const anyDate = [
+    row('payout_waiting_long', 'a', '2026-11-01T00:00:00Z'),
+    row('payout_waiting_long', 'old', '2026-10-04T00:00:00Z'),
+    row('finished_without_commission', 'older', '2026-09-01T00:00:00Z'),
+  ];
+  const merged = mergeOpenProblems(inWindow, anyDate);
+  assert.deepEqual(merged.map((r) => r.refId), ['x', 'a', 'old']);
 });
