@@ -4,6 +4,7 @@ import type { MoneyPosition, PayoutMethod, PayoutTotals, QueuedPayout, RazorpayX
 import { inr, istDateTime, timeAgo } from '@/lib/format';
 import { CHART_COLORS, payoutStage, payoutStatus, PAYOUT_STAGE, type PayoutStage, type Tone } from '@/lib/labels';
 import { destinationOf } from '@/lib/payout-dest';
+import { settledSummary } from '@/lib/settled-summary';
 import { MoneyLock } from '../MoneyLock';
 import { ClickRow } from '../Clickable';
 import { ConfirmAction, type FormAction } from '../ConfirmAction';
@@ -204,6 +205,7 @@ export function PayoutsView({
   const onTheWay = staged.filter((x) => !STAGE[x.stage].needsYou);
   const needsMinor = needsYou.reduce((a, x) => a + x.p.amount_minor, 0);
   const history = d.history.filter((h) => match(h.name));
+  const settled = settledSummary(history);
   const recentFailures = history.filter((h) => h.status === 'failed' && nowMs - Date.parse(h.updated_at) < 7 * 24 * 60 * MIN);
 
   const histCounts = {
@@ -347,7 +349,7 @@ export function PayoutsView({
       <Card
         id="history"
         title="Settled"
-        sub={`Last 30 days · paid in total ${inr(d.totals.totalMinor)} (${d.totals.totalCount}).`}
+        sub={`Last 30 days · paid ${inr(settled.paidMinor)} (${settled.paidCount}). All time: ${inr(d.totals.totalMinor)} (${d.totals.totalCount}).`}
         right={
           <Tabs
             label="Show"
