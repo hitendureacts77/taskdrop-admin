@@ -3,6 +3,7 @@ import type { MfaState } from '@/lib/mfa';
 import type { MoneyPosition, PayoutMethod, PayoutTotals, QueuedPayout, RazorpayXState, SettledPayout, WithdrawalDay } from '@/lib/data';
 import { inr, istDateTime, timeAgo } from '@/lib/format';
 import { CHART_COLORS, payoutStage, payoutStatus, PAYOUT_STAGE, type PayoutStage, type Tone } from '@/lib/labels';
+import { destinationOf } from '@/lib/payout-dest';
 import { MoneyLock } from '../MoneyLock';
 import { ClickRow } from '../Clickable';
 import { ConfirmAction, type FormAction } from '../ConfirmAction';
@@ -45,23 +46,7 @@ export function RoleTag({ roles }: { roles: string[] | undefined }) {
   return label ? <span className="role-pill">{label}</span> : null;
 }
 
-export type Dest =
-  | { how: 'UPI'; vpa: string }
-  | { how: 'Bank'; name: string | null; account: string; ifsc: string | null }
-  | { how: 'MISSING'; why: string };
-
-/** Where the money has to go, for a withdrawal a person pays by hand. */
-export function destinationOf(p: QueuedPayout): Dest {
-  if (p.kind === 'upi' && p.upi_id) return { how: 'UPI', vpa: p.upi_id };
-  if (p.kind === 'bank' && p.account_number) return { how: 'Bank', name: p.account_name, account: p.account_number, ifsc: p.ifsc };
-  if (p.snapshot && /@/.test(p.snapshot)) return { how: 'UPI', vpa: p.snapshot };
-  return {
-    how: 'MISSING',
-    why: p.snapshot
-      ? `Only a masked copy (${p.snapshot}) is on file, which you can’t pay into. Ask them to add their account again.`
-      : 'No payout account on file. Ask them to add a UPI id or bank account.',
-  };
-}
+export { destinationOf, payoutDestinations, type Dest } from '@/lib/payout-dest';
 
 /** A upi:// link opens a UPI app with the payee, amount and note filled in. */
 export function upiLink(vpa: string, name: string, minor: number, ref: string): string {
