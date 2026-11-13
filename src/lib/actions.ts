@@ -7,6 +7,7 @@ import { createClient } from './supabase/server';
 import { staffGate } from './staff';
 import { parseTierList } from './tiers';
 import { checkReference } from './utr';
+import { parseNumberInput } from './setting-input';
 import type { ActionResult } from '@/components/ConfirmAction';
 
 /**
@@ -383,8 +384,9 @@ export async function updateSetting(_prev: ActionResult, form: FormData): Promis
     if (!['on', 'off', 'true', 'false', 'yes', 'no'].includes(v)) return { ok: false, message: 'Type On or Off.' };
     value = v === 'on' || v === 'true' || v === 'yes';
   } else {
-    const n = Number(raw);
-    if (!Number.isFinite(n)) return { ok: false, message: 'Type a number.' };
+    const parsed = parseNumberInput(raw);
+    if (!parsed.ok) return { ok: false, message: parsed.message };
+    const n = parsed.n;
     if (rule.min !== undefined && n < rule.min) return { ok: false, message: `It can’t be below ${rule.min}.` };
     if (rule.max !== undefined && n > rule.max) return { ok: false, message: `It can’t be above ${rule.max}.` };
     if (rule.kind !== 'percent' && !Number.isInteger(n)) return { ok: false, message: 'Use a whole number.' };
