@@ -6,6 +6,7 @@ import { moneyMfaGate } from './mfa';
 import { createClient } from './supabase/server';
 import { staffGate } from './staff';
 import { parseTierList } from './tiers';
+import { checkReference } from './utr';
 import type { ActionResult } from '@/components/ConfirmAction';
 
 /**
@@ -49,6 +50,11 @@ export async function markPayout(_prev: ActionResult, form: FormData): Promise<A
   if (!isUuid(id)) return { ok: false, message: 'That payout id looks wrong. Refresh the page.' };
   if (status !== 'processing' && status !== 'paid' && status !== 'failed') return { ok: false, message: 'Unknown action.' };
   if (status === 'paid' && !typed) return { ok: false, message: 'Type the UPI or bank reference (UTR) so this transfer can be traced later.' };
+  if (status === 'paid') {
+    const rawChannel = String(form.get('channel') ?? '');
+    const checked = checkReference(rawChannel === 'upi' || rawChannel === 'bank' ? rawChannel : 'other', typed);
+    if (!checked.ok) return { ok: false, message: checked.message };
+  }
   if (status === 'failed' && !typed) return { ok: false, message: "Say why it didn't go through, so the worker can be told." };
 
   const supabase = await createClient();

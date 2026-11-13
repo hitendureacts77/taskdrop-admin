@@ -10,6 +10,7 @@ import { CopyButton } from '../CopyButton';
 import { Icon } from '../Icon';
 import { UpiQr } from '../UpiQr';
 import { Card, KV, Money, Notice, PageHeader, PersonLink, Pill } from '../ui';
+import { referenceRule } from '@/lib/utr';
 import { paidLine, payoutDestinations, type Dest } from '@/lib/payout-dest';
 import { RoleTag, sentence, stageHelp, upiLink } from './PayoutsView';
 
@@ -77,6 +78,8 @@ export function PayoutDetailView({
           label: channel === 'other' ? 'How you paid, and its reference' : `${channel === 'upi' ? 'UPI' : 'Bank'} reference (UTR)`,
           placeholder: channel === 'other' ? 'e.g. cash, receipt 14' : 'e.g. 624100983317',
           required: true,
+          pattern: referenceRule(channel).pattern,
+          title: referenceRule(channel).title,
           help: channel === 'other' ? undefined : `Shown in your ${channel === 'upi' ? 'UPI app' : 'bank statement'} after the transfer.`,
         }}
         confirmLabel={`Yes, I sent ${amount}`}
