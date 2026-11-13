@@ -5,8 +5,19 @@ import { csvCell, toCsv } from './csv.ts';
 test('csvCell defuses formula starters', () => {
   assert.equal(csvCell('=SUM(A1)'), "'=SUM(A1)");
   assert.equal(csvCell('+91 98'), "'+91 98");
-  assert.equal(csvCell('-5'), "'-5");
+  assert.equal(csvCell('-5+2'), "'-5+2");
+  assert.equal(csvCell('-cmd|calc'), "'-cmd|calc");
+  assert.equal(csvCell('-'), "'-");
   assert.equal(csvCell('@x'), "'@x");
+});
+
+test('csvCell lets plain negative numbers through so spreadsheet sums include them (the bug)', () => {
+  assert.equal(csvCell('-12.00'), '-12.00');
+  assert.equal(csvCell('-5'), '-5');
+  assert.equal(csvCell(-3.5), '-3.5');
+  assert.equal(csvCell('-1.'), "'-1.");
+  assert.equal(csvCell('--5'), "'--5");
+  assert.equal(csvCell('+5'), "'+5");
 });
 
 test('csvCell quotes commas, quotes and newlines', () => {

@@ -8,7 +8,8 @@
 export const csvCell = (v: unknown): string => {
   let s = String(v ?? '');
   // A spreadsheet runs a cell that starts with = + - @ as a formula; defuse it.
-  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+  // A plain negative number (-12.00) is not a formula and must stay a number, or sums skip it.
+  if (/^[=+\-@\t\r]/.test(s) && !/^-[0-9]+(\.[0-9]+)?$/.test(s)) s = `'${s}`;
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
