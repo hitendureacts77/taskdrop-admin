@@ -22,7 +22,7 @@ export async function DevicesToolsCard() {
               <span>
                 {PLATFORM_NAME[p.platform] ?? p.platform}
                 <span className="muted small block">
-                  {p.latest ? `${p.shareOnLatest === null ? '—' : pct(p.shareOnLatest)} on the latest version (${p.latest})` : 'No version reported'}
+                  {p.latest ? `${p.shareOnLatest === null ? '—' : pct(p.shareOnLatest)} on the newest version reported (${p.latest})` : 'No version reported'}
                 </span>
               </span>
               <span>{p.devices.toLocaleString('en-IN')} installs</span>

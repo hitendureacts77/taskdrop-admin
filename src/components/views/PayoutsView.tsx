@@ -3,7 +3,7 @@ import type { MfaState } from '@/lib/mfa';
 import type { MoneyPosition, PayoutMethod, PayoutTotals, QueuedPayout, RazorpayXState, SettledPayout, WithdrawalDay } from '@/lib/data';
 import { inr, istDateTime, timeAgo } from '@/lib/format';
 import { CHART_COLORS, payoutStage, payoutStatus, PAYOUT_STAGE, type PayoutStage, type Tone } from '@/lib/labels';
-import { destinationOf } from '@/lib/payout-dest';
+import { destinationOf, manualPayLabel } from '@/lib/payout-dest';
 import { settledSummary } from '@/lib/settled-summary';
 import { withdrawalMoney } from '@/lib/money-calc';
 import { MoneyLock } from '../MoneyLock';
@@ -94,7 +94,7 @@ const HIST_PAGE = 25;
 /** Where an open withdrawal stands, in two or three words for a table cell. */
 function stageLabel(p: QueuedPayout, stage: Stage, rxOn: boolean): { label: string; tone: Tone } {
   if (stage === 'manual' || (stage === 'not-sent' && !rxOn)) {
-    return p.status === 'processing' ? { label: 'You’re paying', tone: 'blue' } : { label: 'Waiting', tone: 'gold' };
+    return manualPayLabel(p.status, p.requested_at, Date.now());
   }
   return { label: STAGE[stage].label, tone: STAGE[stage].tone };
 }

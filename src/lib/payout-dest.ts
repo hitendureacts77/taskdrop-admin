@@ -62,3 +62,18 @@ export function paidLine(status: string, via: string | null | undefined, byHand:
   if (status === 'requested' || status === 'processing') return byHand ? 'Not paid yet · by hand' : 'Not paid yet · RazorpayX sends it';
   return 'Not paid';
 }
+
+const DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * The status of a withdrawal a person pays by hand. "I'm paying it now" is a lock
+ * with no expiry, so a lock that is more than a day old says how long it has been
+ * (from when the withdrawal was asked for) instead of claiming someone is paying right now.
+ */
+export function manualPayLabel(status: string, requestedAt: string, nowMs: number): { label: string; tone: 'blue' | 'gold' | 'red' } {
+  if (status !== 'processing') return { label: 'Waiting', tone: 'gold' };
+  const age = nowMs - (Date.parse(requestedAt) || nowMs);
+  if (age < DAY) return { label: 'You’re paying', tone: 'blue' };
+  const days = Math.floor(age / DAY);
+  return { label: `Locked ${days} ${days === 1 ? 'day' : 'days'}: pay or give back`, tone: 'red' };
+}

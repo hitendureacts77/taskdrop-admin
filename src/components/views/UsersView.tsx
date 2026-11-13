@@ -143,7 +143,7 @@ export function UsersView({ d }: { d: UsersData }) {
                     <td className="td">
                       <span className="pill-row">
                         {u.isWorker ? <Pill tone="blue">Worker</Pill> : null}
-                        {u.posterReviews > 0 || !u.isWorker ? <Pill tone="grey">Poster</Pill> : null}
+                        <Pill tone="grey">Poster</Pill>
                         {u.availableNow ? <Pill tone="green">Available now</Pill> : null}
                         {d.suspended[u.id] !== undefined ? <Pill tone="red" title={d.suspended[u.id]}>Suspended</Pill> : null}
                         {u.deletedAt ? <Pill tone="grey">Deleted</Pill> : null}

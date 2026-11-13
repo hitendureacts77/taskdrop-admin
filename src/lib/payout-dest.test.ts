@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { destinationOf, paidLine, payoutDestinations, savedUpiId, type DestSource } from './payout-dest.ts';
+import { destinationOf, manualPayLabel, paidLine, payoutDestinations, savedUpiId, type DestSource } from './payout-dest.ts';
 
 const base: DestSource = { snapshot: null, kind: null, upi_id: null, account_name: null, account_number: null, ifsc: null };
 
@@ -49,4 +49,12 @@ test('paidLine says Not paid yet for an open withdrawal, whatever its via column
   assert.equal(paidLine('paid', 'manual', true), 'By hand');
   assert.equal(paidLine('failed', 'razorpayx', false), 'Not paid');
   assert.equal(paidLine('cancelled', null, true), 'Not paid');
+});
+
+test('manualPayLabel stops claiming someone is paying once the lock is a day old', () => {
+  const now = Date.parse('2026-11-13T12:00:00Z');
+  assert.deepEqual(manualPayLabel('processing', '2026-11-13T06:00:00Z', now), { label: 'You’re paying', tone: 'blue' });
+  assert.deepEqual(manualPayLabel('processing', '2026-10-04T12:00:00Z', now), { label: 'Locked 40 days: pay or give back', tone: 'red' });
+  assert.deepEqual(manualPayLabel('processing', '2026-11-12T11:00:00Z', now), { label: 'Locked 1 day: pay or give back', tone: 'red' });
+  assert.deepEqual(manualPayLabel('requested', '2026-10-04T12:00:00Z', now), { label: 'Waiting', tone: 'gold' });
 });
