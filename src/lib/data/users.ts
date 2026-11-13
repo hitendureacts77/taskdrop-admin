@@ -4,6 +4,7 @@ import { createClient as createSessionClient } from '../supabase/server';
 import { startOfIstDay } from '../days';
 import { maskEmail, maskPhone } from '../contact-mask';
 import { serviceOrNull, cleanSearch, one } from './shared';
+import { stableOrder } from './paging';
 import { type SettledPayout, getSettledPayouts } from './payouts';
 import { namesFor } from './people';
 import { isUuid } from './tasks';
@@ -144,7 +145,7 @@ export async function getUsers(
   const s = cleanSearch(search);
   if (s) q = q.or(`display_name.ilike.%${s}%,username.ilike.%${s}%`);
   const from = page * pageSize;
-  const { data, error, count } = await q.order('created_at', { ascending: false }).range(from, from + pageSize - 1);
+  const { data, error, count } = await stableOrder(q, 'created_at').range(from, from + pageSize - 1);
   if (error) throw new Error(`Could not read people: ${error.message}`);
   const rows = (data ?? []) as unknown as ProfileRow[];
   const wallets = new Map<string, { b: number; c: number }>();

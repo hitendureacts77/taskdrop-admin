@@ -91,7 +91,7 @@ export type SettledPayout = {
 export async function getSettledPayouts(since: Date | null, limit = 100, userId?: string): Promise<SettledPayout[]> {
   const supabase = await createSessionClient();
   const run = (cols: string) => {
-    let query = supabase.from('payouts').select(cols).order('updated_at', { ascending: false }).limit(limit);
+    let query = supabase.from('payouts').select(cols).order('updated_at', { ascending: false }).order('id', { ascending: false }).limit(limit);
     query = userId ? query.eq('user_id', userId) : query.in('status', ['paid', 'failed', 'cancelled']);
     if (since) query = query.gte('updated_at', since.toISOString());
     return query;

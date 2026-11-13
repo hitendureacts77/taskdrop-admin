@@ -56,6 +56,7 @@ export async function getDisputes(): Promise<DisputeRow[]> {
     .select('id, title, poster_id, locked_minor, updated_at, funded_at, assignments(worker_id, escrow_minor, created_at)')
     .eq('status', 'DISPUTED')
     .order('updated_at', { ascending: true })
+    .order('id', { ascending: true })
     .limit(200);
   if (error) throw new Error(`Could not read disputes: ${error.message}`);
   type A = { worker_id: string; escrow_minor: number; created_at: string };

@@ -3,6 +3,7 @@ import { createClient as createSessionClient } from '../supabase/server';
 import { startOfIstDay } from '../days';
 import { serviceOrNull, cleanSearch } from './shared';
 import { namesFor } from './people';
+import { stableOrder } from './paging';
 import { type LedgerEntry } from './activity';
 
 // ------------------------------------------------------------------- tasks --
@@ -95,7 +96,7 @@ export async function getTasks(filter: TaskFilter, search: string | undefined, p
   const s = cleanSearch(search);
   if (s) q = q.ilike('title', `%${s}%`);
   const from = page * pageSize;
-  const { data, error, count } = await q.order('updated_at', { ascending: false }).range(from, from + pageSize - 1);
+  const { data, error, count } = await stableOrder(q, 'updated_at').range(from, from + pageSize - 1);
   if (error) throw new Error(`Could not read jobs: ${error.message}`);
   type A = { worker_id: string; created_at: string; escrow_minor: number; status: string };
   type Row = {
