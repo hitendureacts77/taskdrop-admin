@@ -13,7 +13,7 @@ const KIND: Record<string, string> = {
   digest: 'Daily digest',
 };
 
-export function AlertsView({ view, read, now: nowIso }: { view: 'unread' | 'all'; read: AlertsRead; now: string }) {
+export function AlertsView({ view, read, now: nowIso, canMark }: { view: 'unread' | 'all'; read: AlertsRead; now: string; canMark: boolean }) {
   const now = new Date(nowIso);
   return (
     <>
@@ -30,7 +30,7 @@ export function AlertsView({ view, read, now: nowIso }: { view: 'unread' | 'all'
       {!read.setup && !read.error ? (
         read.alerts.length ? (
           <Card title={`${read.alerts.length} alert${read.alerts.length === 1 ? '' : 's'}`} sub="Newest first, the latest 100." flush>
-            {read.unread > 0 ? (
+            {canMark && read.unread > 0 ? (
               <div style={{ padding: '12px 16px' }}>
                 <ConfirmAction
                   action={markAlertsRead}
@@ -54,7 +54,7 @@ export function AlertsView({ view, read, now: nowIso }: { view: 'unread' | 'all'
                       {a.readAt ? ' · read' : ''}
                     </span>
                   </span>
-                  {!a.readAt ? (
+                  {canMark && !a.readAt ? (
                     <ConfirmAction
                       action={markAlertsRead}
                       hidden={{ alertId: a.id }}

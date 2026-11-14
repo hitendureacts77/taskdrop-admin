@@ -259,7 +259,8 @@ export function SupportView({ rows, status, now: nowIso }: { rows: TicketRow[]; 
   );
 }
 
-export function TicketView({ t, reply, resolve }: { t: TicketDetail; reply: FormAction; resolve: FormAction }) {
+/** `reply` and `resolve` are left out for a role that may not answer help requests: read-only (B133). */
+export function TicketView({ t, reply, resolve }: { t: TicketDetail; reply?: FormAction; resolve?: FormAction }) {
   const st = TICKET_STATUS[t.status] ?? { label: t.status, tone: 'grey' as const };
   return (
     <>
@@ -286,6 +287,9 @@ export function TicketView({ t, reply, resolve }: { t: TicketDetail; reply: Form
         </ol>
         {t.messages.length === 0 ? <p className="muted">No messages yet.</p> : null}
       </Card>
+      {!reply || !resolve ? (
+        <p className="muted small">Your staff role can read help requests but not answer or resolve them.</p>
+      ) : (
       <div className="grid-2">
         <Card title={`Reply to ${t.user}`} sub="They get a notification in the app.">
           <ReplyBox action={reply} ticketId={t.id} />
@@ -306,6 +310,7 @@ export function TicketView({ t, reply, resolve }: { t: TicketDetail; reply: Form
           )}
         </Card>
       </div>
+      )}
     </>
   );
 }

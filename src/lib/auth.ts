@@ -1,7 +1,8 @@
 import { cache } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { isEmailAllowed, parseAllowlist, type Allowlist } from './allowlist';
-import { asStaffRole, type StaffRole } from './staff-roles';
+import { securityEvent } from './security-event';
+import { staffRoleFromRead, type StaffRole } from './staff-roles';
 import { createClient } from './supabase/server';
 
 export type AdminUser = {
@@ -37,7 +38,8 @@ export const normalisePhone = digits10;
 export type AdminCheck =
   | { status: 'ok'; user: AdminUser }
   | { status: 'unauthenticated' }
-  | { status: 'forbidden' };
+  /** reason 'unavailable': the role reads failed, so the panel refuses rather than guess (B120). */
+  | { status: 'forbidden'; reason?: 'unavailable' };
 
 /**
  * Whether the current request's cookies belong to a signed-in admin.
@@ -62,16 +64,25 @@ export const checkAdmin = cache(async function checkAdmin(): Promise<AdminCheck>
   // Both reads only need the user id, so they go out together: this runs in
   // front of every page, and the second used to wait for the first. The staff
   // row is not looked at unless the admin role is there.
-  const [{ data: role }, { data: staff }] = await Promise.all([
+  const [{ data: role, error: roleError }, staffRead] = await Promise.all([
     supabase.from('user_roles').select('role').eq('user_id', user.id).eq('role', 'admin').maybeSingle(),
-    // No admin_staff row (or no migration 089 yet) means a full admin.
+    // No admin_staff row means a full admin; a failed read does not (B120).
     (supabase as unknown as SupabaseClient).from('admin_staff').select('staff_role, notify').eq('user_id', user.id).maybeSingle(),
   ]);
 
+  if (roleError) {
+    securityEvent('admin_role_read_failed', { user: user.id });
+    return { status: 'forbidden', reason: 'unavailable' };
+  }
   if (!role) return { status: 'forbidden' };
   // A database admin outside the allowlist is still turned away here.
   if (!isAllowedIdentity(user.email ?? null)) return { status: 'forbidden' };
-  const row = staff as { staff_role?: string; notify?: boolean } | null;
-  const staffRole = asStaffRole(row?.staff_role);
+  // Fail closed: a staff-role read that errors refuses, it never falls back to a full admin.
+  const staffRole = staffRoleFromRead(staffRead);
+  if (!staffRole) {
+    securityEvent('staff_role_read_failed', { user: user.id });
+    return { status: 'forbidden', reason: 'unavailable' };
+  }
+  const row = staffRead.data as { notify?: boolean } | null;
   return { status: 'ok', user: { id: user.id, email: user.email ?? null, staffRole, notify: row?.notify !== false } };
 });

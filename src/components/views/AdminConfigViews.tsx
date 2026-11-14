@@ -319,7 +319,8 @@ const SWITCH_INFO: Record<SwitchKey, SwitchInfo> = {
   },
 };
 
-export function SwitchesView({ switches, payoutMethod, update }: { switches: Record<SwitchKey, Switch>; payoutMethod: PayoutMethod; update: FormAction }) {
+/** `update` is left out for a role that may not change switches: they show read-only (B133). */
+export function SwitchesView({ switches, payoutMethod, update }: { switches: Record<SwitchKey, Switch>; payoutMethod: PayoutMethod; update?: FormAction }) {
   const devOn = switches.dev_otp_for_all.on;
   return (
     <>
@@ -329,7 +330,11 @@ export function SwitchesView({ switches, payoutMethod, update }: { switches: Rec
           Anyone can sign in to any phone number’s account. Switch it off before real people use TaskDrop.
         </Notice>
       ) : null}
-      <Card title="App switches" sub="On/off settings that change the app for everyone, the moment you confirm." flush>
+      <Card
+        title="App switches"
+        sub={update ? 'On/off settings that change the app for everyone, the moment you confirm.' : 'On/off settings that change the app for everyone. Only a full Admin can change them.'}
+        flush
+      >
         <ul className="settings">
           {(Object.keys(SWITCH_INFO) as SwitchKey[]).map((key) => {
             const s = switches[key];
@@ -346,6 +351,7 @@ export function SwitchesView({ switches, payoutMethod, update }: { switches: Rec
                 <div className="setting-value">
                   <Pill tone={s.on ? (info.danger === 'on' ? 'red' : 'green') : info.danger === 'off' ? 'red' : 'grey'}>{s.on ? 'On' : 'Off'}</Pill>
                 </div>
+                {update ? (
                 <ConfirmAction
                   action={update}
                   hidden={{ key, on: String(next) }}
@@ -357,6 +363,7 @@ export function SwitchesView({ switches, payoutMethod, update }: { switches: Rec
                   field={key === 'dev_otp_for_all' && next ? { name: 'confirm', label: 'Type ON to confirm', required: true, placeholder: 'ON' } : undefined}
                   confirmLabel={`Turn ${next ? 'on' : 'off'}`}
                 />
+                ) : null}
               </li>
             );
           })}

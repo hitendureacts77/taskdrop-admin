@@ -29,7 +29,7 @@ import { staffCanSee, type StaffView } from '../staff-roles';
 export async function requireAdmin(): Promise<AdminUser> {
   const check = await checkAdmin();
   if (check.status === 'unauthenticated') redirect('/login');
-  if (check.status === 'forbidden') redirect('/not-authorized');
+  if (check.status === 'forbidden') redirect(check.reason === 'unavailable' ? '/not-authorized?why=unavailable' : '/not-authorized');
   return check.user;
 }
 

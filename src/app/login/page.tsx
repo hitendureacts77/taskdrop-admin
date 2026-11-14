@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { loginErrorText } from '@/lib/login-errors';
 import { createClient } from '@/lib/supabase/browser';
 
 export default function LoginPage() {
@@ -26,7 +27,8 @@ const field = {
 function LoginForm() {
   const params = useSearchParams();
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(params.get('error'));
+  // Only fixed sentences: a link can carry any text in ?error= (B130).
+  const [error, setError] = useState<string | null>(loginErrorText(params.get('error')));
 
   // Username sign-in: the admin's @username and the password set for it in the
   // app (Settings -> Security). The session is set server-side as cookies.
