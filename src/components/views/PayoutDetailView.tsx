@@ -52,7 +52,7 @@ export function PayoutDetailView({
   const switched = Boolean(choices?.current && useCurrent);
   const dest: Dest | null = choices ? (switched && choices.current ? choices.current : choices.primary) : null;
   const other: Dest | null = choices?.current ? (switched ? choices.primary : choices.current) : null;
-  const destText = (x: Dest) => (x.how === 'UPI' ? `UPI id ${x.vpa}` : x.how === 'Bank' ? `bank account ${x.account}` : 'no account');
+  const destText = (x: Dest) => (x.how === 'UPI' ? `UPI id ${x.vpa}` : x.how === 'Bank' ? `bank account ${x.account}` : 'an account no longer on file');
   const st = payoutStatus(p.status, first);
   const label = p.status === 'paid' ? (p.via === 'razorpayx' ? 'Paid by RazorpayX' : 'Paid by hand') : stage && !byHand ? PAYOUT_STAGE[stage].label : st.label;
   const hidden = { id: p.id, name: d.name, amount };
@@ -120,10 +120,10 @@ export function PayoutDetailView({
 
       {open && q && byHand ? (
         <Card title={`Pay ${first}`} sub="Two steps: send the money from your own UPI app or bank, then record the bank reference here.">
-          {other && dest && dest.how !== 'MISSING' ? (
+          {other && dest ? (
             <Notice tone="gold" title={`${first}’s payout account changed since asking`}>
               {first} asked for this withdrawal to go to <strong>{destText(switched ? other : dest)}</strong>, but the account on file now is{' '}
-              <strong>{destText(switched ? dest : other)}</strong>. You are paying <strong>{destText(dest)}</strong>.{' '}
+              <strong>{destText(switched ? dest : other)}</strong>.{dest.how !== 'MISSING' ? <> You are paying <strong>{destText(dest)}</strong>.</> : null}{' '}
               <Link href={switched ? `/payouts/${p.id}` : `/payouts/${p.id}?use=current`}>
                 {switched ? 'Pay the account saved on the withdrawal instead' : 'Pay the account on file now instead'}
               </Link>

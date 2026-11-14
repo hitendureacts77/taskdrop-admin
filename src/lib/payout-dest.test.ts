@@ -25,9 +25,19 @@ test('no warning when the saved and current UPI ids are the same (any case)', ()
   assert.equal((payoutDestinations(p).primary as { vpa: string }).vpa, 'Ravi@OkAxis');
 });
 
-test('a bank label falls back to the account on file, with nothing to compare', () => {
-  const p: DestSource = { ...base, snapshot: 'Bank · Ravi · ••••1234', kind: 'bank', account_name: 'Ravi', account_number: '1234567890', ifsc: 'HDFC0001' };
+test('a bank label pays the account on file when its last 4 digits match', () => {
+  const p: DestSource = { ...base, snapshot: 'Bank · Ravi · ••••7890', kind: 'bank', account_name: 'Ravi', account_number: '1234567890', ifsc: 'HDFC0001' };
   assert.deepEqual(payoutDestinations(p), { primary: { how: 'Bank', name: 'Ravi', account: '1234567890', ifsc: 'HDFC0001' }, current: null });
+});
+
+test('a bank label whose account was replaced is not paid silently; the new account is only offered', () => {
+  const p: DestSource = { ...base, snapshot: 'Bank · Ravi · ••••1234', kind: 'bank', account_name: 'Ravi', account_number: '5555500009', ifsc: 'HDFC0001' };
+  const d = payoutDestinations(p);
+  assert.equal(d.primary.how, 'MISSING');
+  assert.equal(d.current?.how, 'Bank');
+  const toUpi = payoutDestinations({ ...base, snapshot: 'Bank · Ravi · ••••1234', kind: 'upi', upi_id: 'new@okaxis' });
+  assert.equal(toUpi.primary.how, 'MISSING');
+  assert.deepEqual(toUpi.current, { how: 'UPI', vpa: 'new@okaxis' });
 });
 
 test('missing account says why', () => {

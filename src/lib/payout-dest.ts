@@ -44,9 +44,24 @@ export function currentDestination(p: DestSource): Dest {
 
 const same = (a: Dest, b: Dest) => (a.how === 'UPI' && b.how === 'UPI' ? a.vpa.toLowerCase() === b.vpa.toLowerCase() : a.how === 'Bank' && b.how === 'Bank' ? a.account === b.account : false);
 
+/** The last 4 digits inside a saved bank label ("Bank · Ravi · ••••1234"), or null. */
+export function savedBankLast4(snapshot: string | null | undefined): string | null {
+  const m = /^\s*Bank\s*·.*[•*]{2,}\s*([0-9]{4})\s*$/i.exec(snapshot ?? '');
+  return m ? (m[1] as string) : null;
+}
+
 /** `primary` is what to pay. `current` is set only when the person's account on file now is a different one. */
 export function payoutDestinations(p: DestSource): { primary: Dest; current: Dest | null } {
   const current = currentDestination(p);
+  const last4 = savedBankLast4(p.snapshot);
+  if (last4) {
+    // Only a masked bank label is saved: pay the account on file only when it is the same account.
+    if (current.how === 'MISSING' || (current.how === 'Bank' && current.account.endsWith(last4))) return { primary: current, current: null };
+    return {
+      primary: { how: 'MISSING', why: `This withdrawal was asked for the bank account ending ${last4}, which is no longer on file. Check with them before paying the account on file now.` },
+      current,
+    };
+  }
   const saved = savedUpiId(p.snapshot);
   if (!saved) return { primary: current, current: null };
   const primary: Dest = { how: 'UPI', vpa: saved };
