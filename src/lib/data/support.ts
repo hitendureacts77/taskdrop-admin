@@ -2,6 +2,7 @@ import 'server-only';
 import { createClient as createSessionClient } from '../supabase/server';
 import { namesFor } from './people';
 import { isUuid } from './tasks';
+import { stableOrder } from './paging';
 
 // ----------------------------------------------------------------- support --
 
@@ -12,10 +13,9 @@ export async function getTickets(status: 'waiting' | 'answered' | 'resolved' | '
   let q = supabase
     .from('support_tickets')
     .select('id, subject, category, status, user_id, created_at, updated_at')
-    .order('updated_at', { ascending: status === 'waiting' })
     .limit(200);
   if (status !== 'all') q = q.eq('status', status);
-  const { data, error } = await q;
+  const { data, error } = await stableOrder(q, 'updated_at', status === 'waiting');
   if (error) throw new Error(`Could not read help requests: ${error.message}`);
   const rows = (data ?? []) as { id: string; subject: string; category: string; status: string; user_id: string; created_at: string; updated_at: string }[];
   const names = await namesFor(rows.map((r) => r.user_id));

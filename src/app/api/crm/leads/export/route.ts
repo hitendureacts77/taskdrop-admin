@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { checkAdmin } from '@/lib/auth';
 import { filterLeads, leadKindLabel, leadStageLabel, parseLeadFilter } from '@/lib/crm-calc';
-import { csvResponse, toCsv } from '@/lib/csv';
+import { csvDay, csvResponse, toCsv } from '@/lib/csv';
 import { getLeads } from '@/lib/leads';
 import { TOO_FAST, withinRate } from '@/lib/rate-limit';
 import { createClient } from '@/lib/supabase/server';
@@ -33,7 +33,7 @@ export async function GET(req: Request) {
   );
   if (auditError) return NextResponse.json({ error: 'Could not record this export, so it was not produced' }, { status: 500 });
 
-  const head = ['Name', 'Kind', 'Stage', 'Contact', 'Source', 'Looked after by', 'Note', 'Added', 'Stage since', 'Added by', 'In the app', 'Lead id'];
-  const lines = rows.map((l) => [l.name, leadKindLabel(l.kind), leadStageLabel(l.stage), l.contact ?? '', l.source ?? '', l.owner ?? '', l.note ?? '', l.createdAt.slice(0, 10), l.stageChangedAt.slice(0, 10), l.createdBy ?? '', l.userId ?? '', l.id]);
+  const head = ['Name', 'Kind', 'Stage', 'Contact', 'Source', 'Looked after by', 'Note', 'Added (India)', 'Stage since (India)', 'Added by', 'In the app', 'Lead id'];
+  const lines = rows.map((l) => [l.name, leadKindLabel(l.kind), leadStageLabel(l.stage), l.contact ?? '', l.source ?? '', l.owner ?? '', l.note ?? '', csvDay(l.createdAt), csvDay(l.stageChangedAt), l.createdBy ?? '', l.userId ?? '', l.id]);
   return csvResponse(toCsv(head, lines), 'taskdrop-leads');
 }

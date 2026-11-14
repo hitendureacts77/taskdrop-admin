@@ -3,6 +3,9 @@ import type { MfaState } from '@/lib/mfa';
 import type { MoneyPosition, PayoutMethod, PayoutTotals, QueuedPayout, RazorpayXState, SettledPayout, WithdrawalDay } from '@/lib/data';
 import { inr, istDateTime, timeAgo } from '@/lib/format';
 import { CHART_COLORS, payoutStage, payoutStatus, PAYOUT_STAGE, type PayoutStage, type Tone } from '@/lib/labels';
+import { destinationOf, manualPayLabel } from '@/lib/payout-dest';
+import { settledSummary } from '@/lib/settled-summary';
+import { withdrawalMoney } from '@/lib/money-calc';
 import { MoneyLock } from '../MoneyLock';
 import { ClickRow } from '../Clickable';
 import { ConfirmAction, type FormAction } from '../ConfirmAction';
@@ -45,23 +48,7 @@ export function RoleTag({ roles }: { roles: string[] | undefined }) {
   return label ? <span className="role-pill">{label}</span> : null;
 }
 
-export type Dest =
-  | { how: 'UPI'; vpa: string }
-  | { how: 'Bank'; name: string | null; account: string; ifsc: string | null }
-  | { how: 'MISSING'; why: string };
-
-/** Where the money has to go, for a withdrawal a person pays by hand. */
-export function destinationOf(p: QueuedPayout): Dest {
-  if (p.kind === 'upi' && p.upi_id) return { how: 'UPI', vpa: p.upi_id };
-  if (p.kind === 'bank' && p.account_number) return { how: 'Bank', name: p.account_name, account: p.account_number, ifsc: p.ifsc };
-  if (p.snapshot && /@/.test(p.snapshot)) return { how: 'UPI', vpa: p.snapshot };
-  return {
-    how: 'MISSING',
-    why: p.snapshot
-      ? `Only a masked copy (${p.snapshot}) is on file, which you can’t pay into. Ask them to add their account again.`
-      : 'No payout account on file. Ask them to add a UPI id or bank account.',
-  };
-}
+export { destinationOf, payoutDestinations, type Dest } from '@/lib/payout-dest';
 
 /** A upi:// link opens a UPI app with the payee, amount and note filled in. */
 export function upiLink(vpa: string, name: string, minor: number, ref: string): string {
@@ -107,7 +94,7 @@ const HIST_PAGE = 25;
 /** Where an open withdrawal stands, in two or three words for a table cell. */
 function stageLabel(p: QueuedPayout, stage: Stage, rxOn: boolean): { label: string; tone: Tone } {
   if (stage === 'manual' || (stage === 'not-sent' && !rxOn)) {
-    return p.status === 'processing' ? { label: 'You’re paying', tone: 'blue' } : { label: 'Waiting', tone: 'gold' };
+    return manualPayLabel(p.status, p.requested_at, Date.now());
   }
   return { label: STAGE[stage].label, tone: STAGE[stage].tone };
 }
@@ -219,6 +206,7 @@ export function PayoutsView({
   const onTheWay = staged.filter((x) => !STAGE[x.stage].needsYou);
   const needsMinor = needsYou.reduce((a, x) => a + x.p.amount_minor, 0);
   const history = d.history.filter((h) => match(h.name));
+  const settled = settledSummary(history);
   const recentFailures = history.filter((h) => h.status === 'failed' && nowMs - Date.parse(h.updated_at) < 7 * 24 * 60 * MIN);
 
   const histCounts = {
@@ -242,7 +230,9 @@ export function PayoutsView({
 
   const pos = d.position;
   const bal = d.rx.balanceMinor;
-  const ready = pos?.readyToWithdrawMinor ?? d.queue.reduce((a, p) => a + p.amount_minor, 0);
+  const wm = pos ? withdrawalMoney(pos) : null;
+  // What the account must be able to send right now: earnings people can ask for plus withdrawals already asked for (clearing money is not withdrawable yet).
+  const ready = wm?.coverMinor ?? d.queue.reduce((a, p) => a + p.amount_minor, 0);
   const shortBy = bal != null ? Math.max(ready - bal, 0) : 0;
   const ownMinor = bal != null && pos ? bal - pos.heldForPeopleMinor : null;
   const periodMinor = d.daily.reduce((a, x) => a + x.minor, 0);
@@ -274,7 +264,7 @@ export function PayoutsView({
         <StatLink href="#queue" icon="clock" label="Waiting for you" value={needsYou.length} sub={needsYou.length ? inr(needsMinor) : 'All paid'} />
         <StatLink href="#on-the-way" icon="send" label="On the way" value={onTheWay.length} sub={onTheWay.length ? inr(onTheWay.reduce((a, x) => a + x.p.amount_minor, 0)) : 'Nothing in flight'} />
         <StatLink href="#history" icon="check" label="Paid today" value={inr(d.totals.todayMinor)} sub={`${d.totals.todayCount} payout${d.totals.todayCount === 1 ? '' : 's'}`} />
-        <StatLink href="/users?filter=money" icon="wallet" label="Ready to withdraw" value={inr(ready)} sub="Earnings people can still ask for" />
+        <StatLink href="/users?filter=money" icon="wallet" label="Ready to withdraw" value={wm ? inr(wm.askMinor) : '—'} sub="Earnings people can still ask for" />
       </div>
 
       <Card
@@ -362,7 +352,7 @@ export function PayoutsView({
       <Card
         id="history"
         title="Settled"
-        sub={`Last 30 days · paid in total ${inr(d.totals.totalMinor)} (${d.totals.totalCount}).`}
+        sub={`Last 30 days · paid ${inr(settled.paidMinor)} (${settled.paidCount}). All time: ${inr(d.totals.totalMinor)} (${d.totals.totalCount}).`}
         right={
           <Tabs
             label="Show"
@@ -540,7 +530,9 @@ export function PayoutsView({
           <KV
             rows={[
               { label: 'In RazorpayX', value: bal != null ? <Money minor={bal} /> : <span className="muted">{d.rx.configured ? 'Unavailable' : 'Not connected'}</span> },
-              { label: 'Ready to withdraw', value: <Money minor={ready} />, hint: 'Earnings plus withdrawals on the way' },
+              { label: 'Ready to withdraw', value: wm ? <Money minor={wm.askMinor} /> : <span className="muted">—</span>, hint: 'Cleared earnings people can still ask for' },
+              { label: 'Still clearing', value: wm ? <Money minor={wm.clearingMinor} /> : <span className="muted">—</span>, hint: 'Not withdrawable yet' },
+              { label: 'On the way', value: wm ? <Money minor={wm.onTheWayMinor} /> : <span className="muted">—</span>, hint: 'Already asked for, not settled yet' },
               { label: 'Held for people', value: pos ? <Money minor={pos.heldForPeopleMinor} /> : <span className="muted">—</span> },
               { label: 'TaskDrop’s own', value: ownMinor != null ? <Money minor={ownMinor} /> : <span className="muted">—</span> },
             ]}

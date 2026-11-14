@@ -232,7 +232,7 @@ export function ReconcileView({ days, rows, from, to, runs, refusal }: { days: n
       <PageHeader
         crumbs={[{ href: '/money', label: 'Money' }, { label: 'Money check' }]}
         title="Money check"
-        sub={`Things in ${istDate(from)} to ${istDate(to)} that don’t add up inside TaskDrop’s own records. Our books are checked every night; payments from the last 3 days are also compared with Razorpay’s payment links.`}
+        sub={`Things in ${istDate(from)} to ${istDate(to)} that don’t add up inside TaskDrop’s own records, plus anything still open from before then. Our books are checked every night; payments from the last 3 days are also compared with Razorpay’s payment links.`}
       />
       <NightlyChecks runs={runs} refusal={refusal} />
       <Tabs label="Range" items={[7, 30, 90].map((d) => ({ href: `/money/reconcile?days=${d}`, label: `Last ${d} days`, active: d === days }))} />

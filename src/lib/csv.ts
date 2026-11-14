@@ -4,11 +4,19 @@
  * record the export with admin_log_event before it builds any rows; see
  * api/crm/export/route.ts.
  */
+import { istDayKey } from './days.ts';
+
+/** An instant as its Indian calendar date (2026-11-05), the same day the screens show; empty when there is no valid date. */
+export function csvDay(at: string | null | undefined): string {
+  if (!at || Number.isNaN(new Date(at).getTime())) return '';
+  return istDayKey(at);
+}
 
 export const csvCell = (v: unknown): string => {
   let s = String(v ?? '');
   // A spreadsheet runs a cell that starts with = + - @ as a formula; defuse it.
-  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+  // A plain negative number (-12.00) is not a formula and must stay a number, or sums skip it.
+  if (/^[=+\-@\t\r]/.test(s) && !/^-[0-9]+(\.[0-9]+)?$/.test(s)) s = `'${s}`;
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
@@ -21,7 +29,7 @@ export function toCsv(head: readonly unknown[], rows: readonly (readonly unknown
 
 /** A download response; the BOM makes Excel read the rupee sign and names as UTF-8. */
 export function csvResponse(csv: string, baseName: string): Response {
-  const day = new Date().toISOString().slice(0, 10);
+  const day = csvDay(new Date().toISOString());
   return new Response('﻿' + csv, {
     headers: {
       'Content-Type': 'text/csv; charset=utf-8',

@@ -31,7 +31,7 @@ export function ConfirmAction({
   title: string;
   /** What happens, to whose money, and whether it can be undone. */
   consequence: ReactNode;
-  field?: { name: string; label: string; placeholder?: string; required?: boolean; help?: string; defaultValue?: string; inputMode?: 'text' | 'decimal' | 'numeric' };
+  field?: { name: string; label: string; placeholder?: string; required?: boolean; help?: string; defaultValue?: string; inputMode?: 'text' | 'decimal' | 'numeric'; /** Browser check; the server repeats it. */ pattern?: string; title?: string };
   confirmLabel: string;
   /** Show the first button as an on/off switch in this state; `trigger` becomes its label for screen readers. */
   asSwitch?: { on: boolean };
@@ -99,6 +99,8 @@ export function ConfirmAction({
             name={field.name}
             placeholder={field.placeholder}
             required={field.required}
+            pattern={field.pattern}
+            title={field.title}
             value={value}
             onChange={(e: ChangeEvent<HTMLInputElement>) => setValue(e.target.value)}
             inputMode={field.inputMode}

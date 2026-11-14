@@ -10,7 +10,9 @@ import { CopyButton } from '../CopyButton';
 import { Icon } from '../Icon';
 import { UpiQr } from '../UpiQr';
 import { Card, KV, Money, Notice, PageHeader, PersonLink, Pill } from '../ui';
-import { destinationOf, RoleTag, sentence, stageHelp, upiLink } from './PayoutsView';
+import { referenceRule } from '@/lib/utr';
+import { paidLine, payoutDestinations, type Dest } from '@/lib/payout-dest';
+import { RoleTag, sentence, stageHelp, upiLink } from './PayoutsView';
 
 export function PayoutDetailView({
   d,
@@ -22,8 +24,11 @@ export function PayoutDetailView({
   checkAll,
   giveBack,
   canPay = true,
+  useCurrent = false,
 }: {
   canPay?: boolean;
+  /** The admin chose the account on file now instead of the one saved on the withdrawal. */
+  useCurrent?: boolean;
   d: PayoutDetail;
   now: string;
   rx: RazorpayXState;
@@ -43,7 +48,11 @@ export function PayoutDetailView({
   const stage = q ? payoutStage(q, now.getTime(), rxOn) : null;
   // A person pays it: it was taken over by hand, or RazorpayX is off and it never reached RazorpayX.
   const byHand = stage === 'manual' || (stage === 'not-sent' && !rxOn);
-  const dest = q ? destinationOf(q) : null;
+  const choices = q ? payoutDestinations(q) : null;
+  const switched = Boolean(choices?.current && useCurrent);
+  const dest: Dest | null = choices ? (switched && choices.current ? choices.current : choices.primary) : null;
+  const other: Dest | null = choices?.current ? (switched ? choices.primary : choices.current) : null;
+  const destText = (x: Dest) => (x.how === 'UPI' ? `UPI id ${x.vpa}` : x.how === 'Bank' ? `bank account ${x.account}` : 'an account no longer on file');
   const st = payoutStatus(p.status, first);
   const label = p.status === 'paid' ? (p.via === 'razorpayx' ? 'Paid by RazorpayX' : 'Paid by hand') : stage && !byHand ? PAYOUT_STAGE[stage].label : st.label;
   const hidden = { id: p.id, name: d.name, amount };
@@ -69,6 +78,8 @@ export function PayoutDetailView({
           label: channel === 'other' ? 'How you paid, and its reference' : `${channel === 'upi' ? 'UPI' : 'Bank'} reference (UTR)`,
           placeholder: channel === 'other' ? 'e.g. cash, receipt 14' : 'e.g. 624100983317',
           required: true,
+          pattern: referenceRule(channel).pattern,
+          title: referenceRule(channel).title,
           help: channel === 'other' ? undefined : `Shown in your ${channel === 'upi' ? 'UPI app' : 'bank statement'} after the transfer.`,
         }}
         confirmLabel={`Yes, I sent ${amount}`}
@@ -109,6 +120,16 @@ export function PayoutDetailView({
 
       {open && q && byHand ? (
         <Card title={`Pay ${first}`} sub="Two steps: send the money from your own UPI app or bank, then record the bank reference here.">
+          {other && dest ? (
+            <Notice tone="gold" title={`${first}’s payout account changed since asking`}>
+              {first} asked for this withdrawal to go to <strong>{destText(switched ? other : dest)}</strong>, but the account on file now is{' '}
+              <strong>{destText(switched ? dest : other)}</strong>.{dest.how !== 'MISSING' ? <> You are paying <strong>{destText(dest)}</strong>.</> : null}{' '}
+              <Link href={switched ? `/payouts/${p.id}` : `/payouts/${p.id}?use=current`}>
+                {switched ? 'Pay the account saved on the withdrawal instead' : 'Pay the account on file now instead'}
+              </Link>
+              . Check with {first} if you are not sure.
+            </Notice>
+          ) : null}
           <div className="pay-steps">
             <div className="pay-step">
               <div className="pay-step-head">
@@ -288,7 +309,7 @@ export function PayoutDetailView({
               { label: 'Asked for', value: istDateTime(p.created_at) },
               { label: 'Last change', value: istDateTime(p.updated_at) },
               { label: 'Sent to', value: p.destination ?? <span className="muted">No account recorded</span> },
-              { label: 'Paid', value: p.via === 'razorpayx' ? 'By RazorpayX' : 'By hand' },
+              { label: 'Paid', value: paidLine(p.status, p.via, byHand) },
               ...(p.reference ? [{ label: 'Bank reference', value: p.reference }] : []),
               ...(p.failure_note ? [{ label: 'Reason', value: p.failure_note }] : []),
               ...(p.provider_payout_id ? [{ label: 'RazorpayX payout', value: <code>{p.provider_payout_id}</code> }] : []),

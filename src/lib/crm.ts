@@ -2,7 +2,7 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient as createSessionClient } from './supabase/server';
 import { createClient as createServiceClient } from './supabase/service';
-import { toCsv } from './csv';
+import { csvDay, toCsv } from './csv';
 import { exportContactCells } from './contact-mask';
 import type { StaffRole } from './staff-roles';
 import { isUuid, namesFor } from './data';
@@ -424,7 +424,7 @@ export async function exportCsv(ids: string[], opts: { role: StaffRole; hideMone
     service = null;
   }
   const money = !opts.hideMoney;
-  const head = ['Name', 'Does', 'Place', 'Joined', 'Last seen', ...(money ? ['Wallet ₹', 'Clearing ₹'] : []), 'Tags', 'Suspended', 'Owner', ...(service ? ['Email', 'Phone'] : []), 'Person id'];
+  const head = ['Name', 'Does', 'Place', 'Joined (India)', 'Last seen (India)', ...(money ? ['Wallet ₹', 'Clearing ₹'] : []), 'Tags', 'Suspended', 'Owner', ...(service ? ['Email', 'Phone'] : []), 'Person id'];
   const lines: unknown[][] = [];
   for (const r of rows) {
     let email = '';
@@ -434,7 +434,7 @@ export async function exportCsv(ids: string[], opts: { role: StaffRole; hideMone
       email = data?.user?.email ?? '';
       phone = data?.user?.phone ?? '';
     }
-    lines.push([r.name, r.isWorker ? 'Worker' : 'Poster', r.place ?? '', r.joinedAt.slice(0, 10), r.lastSeenAt?.slice(0, 10) ?? '', ...(money ? [(r.walletMinor / 100).toFixed(2), (r.clearingMinor / 100).toFixed(2)] : []), r.tags.map((t) => t.name).join('; '), r.suspended ? 'Yes' : 'No', r.owner?.name ?? '', ...(service ? exportContactCells(opts.role, email, phone) : []), r.id]);
+    lines.push([r.name, r.isWorker ? 'Worker' : 'Poster', r.place ?? '', csvDay(r.joinedAt), csvDay(r.lastSeenAt), ...(money ? [(r.walletMinor / 100).toFixed(2), (r.clearingMinor / 100).toFixed(2)] : []), r.tags.map((t) => t.name).join('; '), r.suspended ? 'Yes' : 'No', r.owner?.name ?? '', ...(service ? exportContactCells(opts.role, email, phone) : []), r.id]);
   }
   return toCsv(head, lines);
 }

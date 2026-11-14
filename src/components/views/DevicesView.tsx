@@ -48,7 +48,7 @@ export function DevicesView({ devices, minByPlatform, now: nowIso }: { devices: 
                   <span className="muted small">
                     {p.latest ? (
                       <>
-                        {p.shareOnLatest === null ? '—' : pct(p.shareOnLatest)} on the latest version ({p.latest})
+                        {p.shareOnLatest === null ? '—' : pct(p.shareOnLatest)} on the newest version reported ({p.latest})
                       </>
                     ) : (
                       'No version reported'

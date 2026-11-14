@@ -54,9 +54,6 @@ export function serviceOrNull() {
 
 export const hasServiceKey = () => Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-/** Strip characters that would break a PostgREST filter string. */
-export function cleanSearch(q: string | undefined): string {
-  return (q ?? '').replace(/[,()*%\\:"']/g, ' ').trim().slice(0, 80);
-}
+export { cleanSearch, likeTerm, titleMatches } from './search';
 
 export const one = <T,>(v: T | T[] | null | undefined): T | null => (Array.isArray(v) ? v[0] ?? null : v ?? null);

@@ -2,6 +2,7 @@ import 'server-only';
 import { createClient as createSessionClient } from '../supabase/server';
 import { namesFor } from './people';
 import { isUuid } from './tasks';
+import { disputeSince } from '../event-time';
 
 // ---------------------------------------------------------------- disputes --
 
@@ -56,6 +57,7 @@ export async function getDisputes(): Promise<DisputeRow[]> {
     .select('id, title, poster_id, locked_minor, updated_at, funded_at, assignments(worker_id, escrow_minor, created_at)')
     .eq('status', 'DISPUTED')
     .order('updated_at', { ascending: true })
+    .order('id', { ascending: true })
     .limit(200);
   if (error) throw new Error(`Could not read disputes: ${error.message}`);
   type A = { worker_id: string; escrow_minor: number; created_at: string };
@@ -67,7 +69,7 @@ export async function getDisputes(): Promise<DisputeRow[]> {
     namesFor([...rows.map((r) => r.poster_id), ...rows.map((r) => latest(r)?.worker_id ?? '')]),
     getDisputeReasons(rows.map((r) => r.id)),
   ]);
-  return rows.map((r) => {
+  const mapped = rows.map((r) => {
     const a = latest(r);
     return {
       reason: reasons.get(r.id)?.reason ?? null,
@@ -81,7 +83,9 @@ export async function getDisputes(): Promise<DisputeRow[]> {
       escrowMinor: Number(a?.escrow_minor ?? 0),
       lockedMinor: Number(r.locked_minor ?? 0),
       funded: Boolean(r.funded_at),
-      since: r.updated_at,
+      since: disputeSince(reasons.get(r.id)?.at, r.updated_at),
     };
   });
+  // Longest-waiting first, by when the dispute opened.
+  return mapped.sort((x, y) => x.since.localeCompare(y.since));
 }
