@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { checkAdmin } from '@/lib/auth';
 import { endPanelSession } from '@/lib/sign-out';
 import { createClient } from '@/lib/supabase/server';
 
@@ -25,6 +26,9 @@ const button = {
 
 export default async function NotAuthorizedPage({ searchParams }: { searchParams: Promise<{ why?: string }> }) {
   const unavailable = (await searchParams).why === 'unavailable';
+  // A real admin who lands here (an old link, the back button) is sent to the panel instead of being told,
+  // wrongly, that their account is not an admin account (B168, round 6).
+  if (!unavailable && (await checkAdmin()).status === 'ok') redirect('/');
   const supabase = await createClient();
   const {
     data: { user },
