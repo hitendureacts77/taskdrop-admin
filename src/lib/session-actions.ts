@@ -52,7 +52,7 @@ export async function endAllStaffSessions(_prev: ActionResult, form: FormData): 
   );
   if (error) {
     if (/does not exist|schema cache/i.test(error.message)) return { ok: false, message: 'This needs a database update that has not been applied yet.' };
-    return { ok: false, message: error.message.replace(/^(error:s*)/i, '') };
+    return { ok: false, message: error.message.replace(/^(error:\s*)/i, '') };
   }
   revalidatePath('/settings/team');
   const n = Number(data ?? 0);

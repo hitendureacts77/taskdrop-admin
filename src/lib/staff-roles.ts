@@ -23,8 +23,27 @@ export const AREA_LABEL: Record<StaffArea, string> = {
   admin: 'Admin: settings, switches, the team, deleting accounts',
 };
 
+/**
+ * The role a stored value names. Nothing stored (no admin_staff row) means a full admin, as the
+ * database's private.staff_can also reads it; a value this panel does not know is treated as the
+ * narrowest role, Viewer, never as a full admin (B120).
+ */
 export function asStaffRole(v: unknown): StaffRole {
-  return v === 'finance' || v === 'support' || v === 'sales' || v === 'viewer' ? v : 'admin';
+  if (v === null || v === undefined || v === 'admin') return 'admin';
+  return v === 'finance' || v === 'support' || v === 'sales' || v === 'viewer' ? v : 'viewer';
+}
+
+/**
+ * The signed-in person's staff role from the admin_staff read, failing closed (B120):
+ *   - a read error gives null, which the caller turns into a refusal;
+ *   - no row at all is a full admin (the only way to get 'admin' without a row saying so);
+ *   - a row whose role is missing or unknown is a Viewer.
+ */
+export function staffRoleFromRead(read: { data: unknown; error: unknown }): StaffRole | null {
+  if (read.error) return null;
+  if (read.data === null || read.data === undefined) return 'admin';
+  const role = (read.data as { staff_role?: unknown }).staff_role;
+  return role === null || role === undefined ? 'viewer' : asStaffRole(role);
 }
 
 export function staffCan(role: StaffRole, area: StaffArea): boolean {
@@ -45,6 +64,19 @@ export type StaffView = 'money' | 'settings';
 
 export function staffCanSee(role: StaffRole, _view: StaffView): boolean {
   return role !== 'sales';
+}
+
+/** The sidebar counts with company money zeroed for a role that may not see it (B129). */
+export function navCountsFor<T extends { payouts: number; disputes: number; refunds: number }>(role: StaffRole, nav: T): T {
+  return staffCanSee(role, 'money') ? nav : { ...nav, payouts: 0, disputes: 0, refunds: 0 };
+}
+
+/**
+ * Whether a role may mark team alerts as read. The read time is one value shared by the whole
+ * team, so a view-only role may not clear the list for everyone (B124).
+ */
+export function staffCanMarkAlerts(role: StaffRole): boolean {
+  return role !== 'viewer';
 }
 
 /** Live events that show company money (withdrawals, payouts, wallet changes, disputes). */

@@ -1,6 +1,7 @@
 import 'server-only';
 import { cache } from 'react';
 import { createClient as createSessionClient } from '../supabase/server';
+import { navCountsFor, staffCanSee, type StaffRole } from '../staff-roles';
 import { getRefundsOwed, type RefundOwed } from './money';
 
 // -------------------------------------------------------------- nav counts --
@@ -12,6 +13,16 @@ export type NavCounts = { payouts: number; disputes: number; refunds: number; su
  * Read once per request: the layout and the page both ask for it.
  */
 export const getNavCounts = cache(() => readNavCounts(getRefundsOwed()));
+
+/**
+ * The sidebar counts as a staff role may see them (B129): a role that may not see money gets its
+ * withdrawal, dispute and refund counts as 0, and the refund list (a service-key read) is not even
+ * read for it. A money role shares getNavCounts()'s per-request read with the page.
+ */
+export const getNavCountsFor = cache(async (role: StaffRole): Promise<NavCounts> => {
+  if (staffCanSee(role, 'money')) return getNavCounts();
+  return navCountsFor(role, await readNavCounts(Promise.resolve(null)));
+});
 
 /** For callers that already hold the refund list's read (the live snapshot), so it is not read twice. */
 export const getNavCountsWith = readNavCounts;

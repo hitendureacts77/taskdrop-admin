@@ -1,4 +1,3 @@
-import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Sidebar } from '@/components/Sidebar';
@@ -7,21 +6,14 @@ import { IdleGuard } from '@/components/IdleGuard';
 import { AlertsToggle } from '@/components/AlertsToggle';
 import { LiveIndicator } from '@/components/LiveIndicator';
 import { LiveProvider } from '@/components/LiveProvider';
-import { getNavCounts, requireAdmin } from '@/lib/data';
+import { getNavCountsFor, requireAdmin } from '@/lib/data';
 import { mfaState } from '@/lib/mfa';
+import { endPanelSession } from '@/lib/sign-out';
 import { roleLabel, staffCanSee } from '@/lib/staff-roles';
-import { createClient } from '@/lib/supabase/server';
 
 async function signOutAction() {
   'use server';
-  const supabase = await createClient();
-  // Revokes the refresh token and clears the login cookies (via the server client's setAll).
-  await supabase.auth.signOut().catch(() => undefined);
-  // And the cookies go even if Supabase could not be reached (they are HttpOnly, so only the server can).
-  const jar = await cookies();
-  for (const { name } of jar.getAll()) {
-    if (name.startsWith('sb-') || name === 'td_admin_active') jar.delete(name);
-  }
+  await endPanelSession();
   redirect('/login');
 }
 
@@ -32,7 +24,8 @@ async function signOutAction() {
  */
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const user = await requireAdmin();
-  const [counts, mfa] = await Promise.all([getNavCounts(), mfaState()]);
+  // Money counts are zeroed, and the refund list not even read, for a role that may not see money (B129).
+  const [counts, mfa] = await Promise.all([getNavCountsFor(user.staffRole), mfaState()]);
   const seesMoney = staffCanSee(user.staffRole, 'money');
   const seesSettings = staffCanSee(user.staffRole, 'settings');
   const today = new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'short', day: 'numeric', month: 'short' });

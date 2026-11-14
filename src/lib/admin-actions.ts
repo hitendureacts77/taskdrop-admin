@@ -26,7 +26,7 @@ function friendly(message: string): string {
   if (/cannot remove your own/i.test(message)) return 'You can’t remove your own admin access. Ask another admin to do it.';
   if (/own staff role/i.test(message)) return 'You can’t change your own role. Ask another full admin.';
   if (/last full admin/i.test(message)) return 'This is the last full Admin. Make someone else a full Admin first.';
-  if (/staff role/i.test(message)) return message.replace(/^(error:s*)/i, '');
+  if (/staff role/i.test(message)) return message.replace(/^(error:\s*)/i, '');
   if (/admin_staff|admin_set_staff/i.test(message)) return 'Staff roles need migration 089 in the database first.';
   return `The database said: ${message}`;
 }

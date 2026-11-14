@@ -3,7 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { getNavCountsWith, getRefundsOwed } from './data';
 import { getNeedsYou } from './needs-you-data';
 import type { LiveCounters, LiveEvent, LiveSnapshot } from './live-types';
-import { liveEventIsMoney, staffCanSee, type StaffRole } from './staff-roles';
+import { liveEventIsMoney, navCountsFor, staffCanSee, type StaffRole } from './staff-roles';
 import { createClient as createSessionClient } from './supabase/server';
 
 /**
@@ -53,7 +53,7 @@ export async function getLiveSnapshot(role: StaffRole = 'admin'): Promise<LiveSn
   return {
     counters: counters ? { ...counters, disputes_open: 0 } : counters,
     events: events ? events.filter((e) => !liveEventIsMoney(e.kind, e.summary)) : events,
-    nav: nav ? { ...nav, payouts: 0, disputes: 0, refunds: 0 } : nav,
+    nav: nav ? navCountsFor(role, nav) : nav,
     needs,
   };
 }
