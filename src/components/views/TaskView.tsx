@@ -52,6 +52,7 @@ export function TaskView({
   const commission = bookedCommission || (t.lockedMinor !== null && expectedNet !== null ? t.lockedMinor - expectedNet : 0);
   const workerNet = t.lockedMinor !== null ? t.lockedMinor - commission : null;
   const finished = t.status === 'COMPLETED' || t.status === 'AUTO_COMPLETED';
+  const cancelled = t.status === 'CANCELLED';
   const holding = Boolean(t.fundedAt && a && HOLDING.has(a.status));
 
   let whereNow: ReactNode;
@@ -170,8 +171,9 @@ export function TaskView({
                 ...(!t.fundedAt && a ? [{ label: 'Paid by the poster', value: <span className="muted">Not yet</span>, hint: 'Nothing is held for this job' }] : []),
                 ...(fee !== null && t.fundedAt ? [{ label: 'Service fee paid by the poster', value: <Money minor={fee} />, hint: `${pct(settings.posterFeePct)} on top of the price` }] : []),
                 ...(escrow !== null && t.fundedAt ? [{ label: 'Poster paid in total', value: <Money minor={escrow} />, strong: true }] : []),
-                ...(workerNet !== null && a && t.fundedAt ? [{ label: `${a.worker} gets`, value: <Money minor={workerNet} />, hint: `${pct(1 - settings.commissionPct)} of the price` }] : []),
-                ...(t.lockedMinor !== null && t.fundedAt
+                // A cancelled job pays nobody: everything went back to the poster (see "Where the money is now"), so no "gets" or "will earn" lines (B163).
+                ...(workerNet !== null && a && t.fundedAt && !cancelled ? [{ label: `${a.worker} gets`, value: <Money minor={workerNet} />, hint: `${pct(1 - settings.commissionPct)} of the price` }] : []),
+                ...(t.lockedMinor !== null && t.fundedAt && !cancelled
                   ? [
                       {
                         label: finished ? 'TaskDrop earned' : 'TaskDrop will earn',
