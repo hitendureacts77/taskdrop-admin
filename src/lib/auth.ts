@@ -74,9 +74,15 @@ export const checkAdmin = cache(async function checkAdmin(): Promise<AdminCheck>
     securityEvent('admin_role_read_failed', { user: user.id });
     return { status: 'forbidden', reason: 'unavailable' };
   }
-  if (!role) return { status: 'forbidden' };
+  if (!role) {
+    securityEvent('admin_forbidden', { reason: 'not_admin', user: user.id });
+    return { status: 'forbidden' };
+  }
   // A database admin outside the allowlist is still turned away here.
-  if (!isAllowedIdentity(user.email ?? null)) return { status: 'forbidden' };
+  if (!isAllowedIdentity(user.email ?? null)) {
+    securityEvent('admin_forbidden', { reason: 'not_allowlisted', user: user.id });
+    return { status: 'forbidden' };
+  }
   // Fail closed: a staff-role read that errors refuses, it never falls back to a full admin.
   const staffRole = staffRoleFromRead(staffRead);
   if (!staffRole) {

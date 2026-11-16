@@ -25,7 +25,8 @@ const REMOVED: Record<NonNullable<Notice['removedWhat']>, string> = {
   avatar: 'Profile photo',
 };
 
-export function CopyrightView({ ready, rows, now }: { ready: boolean; rows: Notice[]; now: string }) {
+/** `canAct` is false for a role that may only look (B133): no form and no buttons. */
+export function CopyrightView({ ready, rows, now, canAct }: { ready: boolean; rows: Notice[]; now: string; canAct: boolean }) {
   const at = new Date(now);
   // Today in India, as YYYY-MM-DD: restore dates are Indian calendar days.
   const today = at.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
@@ -49,9 +50,15 @@ export function CopyrightView({ ready, rows, now }: { ready: boolean; rows: Noti
         <>
           <div className="grid-main-side">
             <div className="stack">
-              <Card title="Log a notice" sub="Copy it in from the agent’s inbox as you received it.">
-                <LogNoticeForm />
-              </Card>
+              {canAct ? (
+                <Card title="Log a notice" sub="Copy it in from the agent’s inbox as you received it.">
+                  <LogNoticeForm />
+                </Card>
+              ) : (
+                <Card title="View only">
+                  <p className="muted small">Your staff role can read these notices but not log or act on them. Ask a full admin.</p>
+                </Card>
+              )}
             </div>
             <div className="stack">
               <HowItWorks
@@ -66,16 +73,16 @@ export function CopyrightView({ ready, rows, now }: { ready: boolean; rows: Noti
             </div>
           </div>
 
-          <NoticeTable title="Waiting for a decision" rows={waiting} at={at} today={today} empty="No notices are waiting." />
-          <NoticeTable title="Taken down" rows={down} at={at} today={today} empty="Nothing is down at the moment." />
-          <NoticeTable title="Closed" rows={closed} at={at} today={today} empty="Nothing closed yet." />
+          <NoticeTable title="Waiting for a decision" rows={waiting} at={at} today={today} canAct={canAct} empty="No notices are waiting." />
+          <NoticeTable title="Taken down" rows={down} at={at} today={today} canAct={canAct} empty="Nothing is down at the moment." />
+          <NoticeTable title="Closed" rows={closed} at={at} today={today} canAct={canAct} empty="Nothing closed yet." />
         </>
       )}
     </>
   );
 }
 
-function NoticeTable({ title, rows, at, today, empty }: { title: string; rows: Notice[]; at: Date; today: string; empty: string }) {
+function NoticeTable({ title, rows, at, today, empty, canAct }: { title: string; rows: Notice[]; at: Date; today: string; empty: string; canAct: boolean }) {
   return (
     <Card title={title} flush={rows.length > 0}>
       {rows.length ? (
@@ -126,7 +133,7 @@ function NoticeTable({ title, rows, at, today, empty }: { title: string; rows: N
                     {n.note ? <span className="muted block">{clip(n.note)}</span> : null}
                   </td>
                   <td className="td">
-                    <Actions n={n} today={today} />
+                    {canAct ? <Actions n={n} today={today} /> : <span className="muted small">View only</span>}
                   </td>
                 </tr>
               ))}

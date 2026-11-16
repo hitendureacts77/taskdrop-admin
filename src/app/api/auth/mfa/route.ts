@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { checkAdmin } from '@/lib/auth';
 import { runMfa, type MfaApi } from '@/lib/mfa-route';
 import { TOO_FAST, withinRate } from '@/lib/rate-limit';
+import { securityEvent } from '@/lib/security-event';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -32,5 +33,9 @@ export async function POST(req: Request) {
 
   const supabase = await createClient();
   const out = await runMfa(body, supabase.auth.mfa as unknown as MfaApi);
+  // A refused code is reported by reason only, never the code itself (B127).
+  if ((body as { action?: unknown } | null)?.action === 'verify' && out.status !== 200) {
+    securityEvent('admin_mfa_code_failed', { reason: 'wrong_code', status: out.status, staff: check.user.id, role: check.user.staffRole });
+  }
   return json(out.body, out.status);
 }

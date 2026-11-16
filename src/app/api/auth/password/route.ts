@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { checkAdmin } from '@/lib/auth';
 import { clientAddress } from '@/lib/rate-key';
 import { TOO_FAST, withinRate } from '@/lib/rate-limit';
+import { securityEvent } from '@/lib/security-event';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -31,10 +32,16 @@ const WRONG = 'That username and password do not match';
 
 const fail = (message: string, status: number) => NextResponse.json({ ok: false, message }, { status });
 
+/** A refused sign-in, reported to Sentry by reason code only: never the username or password (B127). */
+const refused = (reason: string, message: string, status: number) => {
+  securityEvent('admin_password_signin_failed', { reason, status });
+  return fail(message, status);
+};
+
 export async function POST(req: Request) {
   // Ten tries a minute from one network address. The app's password-auth function limits per username
   // too, but from there every admin sign-in comes from this server's address (task 2.13 part A).
-  if (!(await withinRate(clientAddress(req.headers), 'admin-signin', 10))) return fail(TOO_FAST, 429);
+  if (!(await withinRate(clientAddress(req.headers), 'admin-signin', 10))) return refused('rate_limited', TOO_FAST, 429);
 
   let body: { username?: string; password?: string };
   try {
@@ -46,7 +53,7 @@ export async function POST(req: Request) {
   const username = String(body.username ?? '').trim().replace(/^@/, '').toLowerCase();
   const password = String(body.password ?? '');
   if (!/^[a-z0-9_]{3,20}$/.test(username) || password.length < 1 || password.length > 200) {
-    return fail(WRONG, 400);
+    return refused('bad_input', WRONG, 400);
   }
 
   const res = await fetch(FN, {
@@ -61,21 +68,21 @@ export async function POST(req: Request) {
     error?: string;
   };
 
-  if (res.status === 429) return fail(out.error ?? 'Too many attempts. Try again later.', 429);
+  if (res.status === 429) return refused('locked', out.error ?? 'Too many attempts. Try again later.', 429);
   if (res.status === 503) return fail(out.error ?? 'Sign-in is busy. Try again in a minute.', 503);
-  if (!res.ok || !out.access_token || !out.refresh_token) return fail(WRONG, 401);
+  if (!res.ok || !out.access_token || !out.refresh_token) return refused('wrong_password', WRONG, 401);
 
   const supabase = await createClient();
   const { error } = await supabase.auth.setSession({
     access_token: out.access_token,
     refresh_token: out.refresh_token,
   });
-  if (error) return fail(/banned/i.test(error.message) ? 'This account is suspended.' : WRONG, 401);
+  if (error) return refused(/banned/i.test(error.message) ? 'suspended' : 'session_error', /banned/i.test(error.message) ? 'This account is suspended.' : WRONG, 401);
 
   const check = await checkAdmin();
   if (check.status !== 'ok') {
     await supabase.auth.signOut();
-    return fail(WRONG, 401);
+    return refused(check.status === 'forbidden' ? 'not_admin' : 'no_session', WRONG, 401);
   }
   return NextResponse.json({ ok: true });
 }

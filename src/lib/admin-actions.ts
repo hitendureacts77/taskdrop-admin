@@ -5,7 +5,8 @@ import { isAllowedIdentity } from './auth';
 import { classifyWho } from './find-person';
 import { SWITCH_KEYS, type SwitchKey } from './admin-config';
 import { isUuid, requireAdmin } from './data';
-import { moneyMfaGate } from './mfa';
+import { mfaState, moneyMfaGate } from './mfa';
+import { mfaSwitchCheck } from './mfa-switch';
 import { staffGate } from './staff';
 import { STAFF_ROLES, roleLabel, type StaffRole } from './staff-roles';
 import { createClient } from './supabase/server';
@@ -200,6 +201,11 @@ export async function setSwitch(_prev: ActionResult, form: FormData): Promise<Ac
   const on = str(form, 'on') === 'true';
   if (key === 'dev_otp_for_all' && on && str(form, 'confirm').toUpperCase() !== 'ON') {
     return { ok: false, message: 'Type ON to confirm. This lets anyone sign in to any phone number.' };
+  }
+  if (key === 'admin_require_mfa' && on) {
+    // Never let one click lock this admin (and maybe everyone) out of every money action (B112).
+    const { refuse } = mfaSwitchCheck({ turningOn: true, meEnrolled: (await mfaState()).enrolled, withMfa: null, total: 0 });
+    if (refuse) return { ok: false, message: refuse };
   }
 
   const supabase = await createClient();

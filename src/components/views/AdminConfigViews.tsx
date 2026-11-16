@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import type { AuditRow, Health, Integrations, Switch, SwitchKey, TeamMember } from '@/lib/admin-config';
 import { AUDIT_TABLES, EVENT_WORDS } from '@/lib/admin-config';
+import type { AuditScope } from '@/lib/audit-scope';
 import { allowlistActive, allowlistCount, type Allowlist } from '@/lib/allowlist';
 import type { PayoutMethod } from '@/lib/data';
 import { inr, istDateTime, phone as prettyPhone, timeAgo } from '@/lib/format';
@@ -320,14 +321,31 @@ const SWITCH_INFO: Record<SwitchKey, SwitchInfo> = {
 };
 
 /** `update` is left out for a role that may not change switches: they show read-only (B133). */
-export function SwitchesView({ switches, payoutMethod, update }: { switches: Record<SwitchKey, Switch>; payoutMethod: PayoutMethod; update?: FormAction }) {
+export function SwitchesView({
+  switches,
+  payoutMethod,
+  update,
+  mfaGuard,
+}: {
+  switches: Record<SwitchKey, Switch>;
+  payoutMethod: PayoutMethod;
+  update?: FormAction;
+  /** What turning the money code on would do now (B112): refuse when this admin has no authenticator, warn when others have none. */
+  mfaGuard?: { refuse: string | null; warn: string | null };
+}) {
   const devOn = switches.dev_otp_for_all.on;
+  const mfaOff = !switches.admin_require_mfa.on;
   return (
     <>
       <ConfigHeader active="switches" />
       {devOn ? (
         <Notice tone="red" icon="alert" title="Developer sign-in is ON.">
           Anyone can sign in to any phone number’s account. Switch it off before real people use TaskDrop.
+        </Notice>
+      ) : null}
+      {mfaOff && mfaGuard?.warn ? (
+        <Notice tone="red" icon="alert" title="Do not turn on “Authenticator code for money actions” yet.">
+          {mfaGuard.warn} {mfaGuard.refuse ? 'You have none yourself, so the panel will not let you turn it on.' : null}
         </Notice>
       ) : null}
       <Card
@@ -351,7 +369,11 @@ export function SwitchesView({ switches, payoutMethod, update }: { switches: Rec
                 <div className="setting-value">
                   <Pill tone={s.on ? (info.danger === 'on' ? 'red' : 'green') : info.danger === 'off' ? 'red' : 'grey'}>{s.on ? 'On' : 'Off'}</Pill>
                 </div>
-                {update ? (
+                {update && key === 'admin_require_mfa' && next && mfaGuard?.refuse ? (
+                  <Link href="/security" className="btn btn-small" title={mfaGuard.refuse}>
+                    Set up your authenticator first
+                  </Link>
+                ) : update ? (
                 <ConfirmAction
                   action={update}
                   hidden={{ key, on: String(next) }}
@@ -359,7 +381,7 @@ export function SwitchesView({ switches, payoutMethod, update }: { switches: Rec
                   trigger={`${info.label}: turn ${next ? 'on' : 'off'}`}
                   tone={risky ? 'danger' : 'primary'}
                   title={`Turn ${next ? 'on' : 'off'} “${info.label}”?`}
-                  consequence={next ? info.onText : info.offText}
+                  consequence={next ? (key === 'admin_require_mfa' && mfaGuard?.warn ? `${info.onText} ${mfaGuard.warn}` : info.onText) : info.offText}
                   field={key === 'dev_otp_for_all' && next ? { name: 'confirm', label: 'Type ON to confirm', required: true, placeholder: 'ON' } : undefined}
                   confirmLabel={`Turn ${next ? 'on' : 'off'}`}
                 />
@@ -593,15 +615,26 @@ function describe(r: AuditRow): string {
 function targetHref(r: AuditRow): string | null {
   if (!r.targetId) return null;
   if (r.table === 'payouts') return `/payouts/${r.targetId}`;
-  if (r.table === 'user_roles' || r.table === 'user_suspensions') {
-    const uid = ((r.after ?? r.before) as { user_id?: string } | null)?.user_id;
-    return uid ? `/users/${uid}` : null;
-  }
-  return null;
+  return r.personId ? `/users/${r.personId}` : null;
 }
 
-export function AuditView({ rows, total, table, page, pageSize }: { rows: AuditRow[]; total: number; table: string | null; page: number; pageSize: number }) {
-  const base = (t: string | null, p = 0) => `/settings/audit?${new URLSearchParams({ ...(t ? { table: t } : {}), ...(p ? { page: String(p) } : {}) })}`;
+export function AuditView({
+  rows,
+  total,
+  table,
+  page,
+  pageSize,
+  scope = 'default',
+}: {
+  rows: AuditRow[];
+  total: number;
+  table: string | null;
+  page: number;
+  pageSize: number;
+  scope?: AuditScope;
+}) {
+  const base = (t: string | null, p = 0, s: AuditScope = scope) =>
+    `/settings/audit?${new URLSearchParams({ ...(t ? { table: t } : {}), ...(s !== 'default' ? { who: s } : {}), ...(p ? { page: String(p) } : {}) })}`;
   return (
     <>
       <ConfigHeader active="audit" />
@@ -615,6 +648,15 @@ export function AuditView({ rows, total, table, page, pageSize }: { rows: AuditR
             small
             label="Filter by"
             items={[{ href: base(null), label: 'Everything', active: !table }, ...Object.entries(AUDIT_TABLES).map(([k, label]) => ({ href: base(k), label, active: table === k }))]}
+          />
+          <Tabs
+            small
+            label="Lines"
+            items={[
+              { href: base(table, 0, 'default'), label: 'Without heartbeats', active: scope === 'default' },
+              { href: base(table, 0, 'staff'), label: 'Staff only', active: scope === 'staff' },
+              { href: base(table, 0, 'all'), label: 'Every line', active: scope === 'all' },
+            ]}
           />
         </div>
         {rows.length ? (
@@ -643,6 +685,11 @@ export function AuditView({ rows, total, table, page, pageSize }: { rows: AuditR
                       </td>
                       <td className="td small">
                         {href ? <Link href={href}>{describe(r)}</Link> : describe(r)}
+                        {r.personId && r.table !== 'payouts' ? (
+                          <span className="muted block">
+                            About <Link href={`/users/${r.personId}`}>{r.personName}</Link>
+                          </span>
+                        ) : null}
                         {r.detail ? <span className="muted block">{r.detail}</span> : null}
                       </td>
                       <td className="td small">

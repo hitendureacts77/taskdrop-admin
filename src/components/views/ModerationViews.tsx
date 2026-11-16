@@ -14,7 +14,8 @@ function targetHref(r: ReportRow): string | null {
   return null;
 }
 
-export function ReportsQueueView({ view, reports, now }: { view: 'open' | 'done'; reports: Read<ReportRow[]>; now: string }) {
+/** `canAct` is false for a role that may only look (B133): reports show with no buttons. */
+export function ReportsQueueView({ view, reports, now, canAct }: { view: 'open' | 'done'; reports: Read<ReportRow[]>; now: string; canAct: boolean }) {
   const at = new Date(now);
   return (
     <>
@@ -49,7 +50,7 @@ export function ReportsQueueView({ view, reports, now }: { view: 'open' | 'done'
                     <div>
                       <p className="muted small">The reported message{r.message.hidden ? ' (hidden from the chat)' : ''}:</p>
                       <blockquote className="prose">{r.message.body}</blockquote>
-                      {r.message.hidden ? (
+                      {!canAct ? null : r.message.hidden ? (
                         <ConfirmAction
                           action={unhideMessage}
                           hidden={{ messageId: r.targetId }}
@@ -79,7 +80,7 @@ export function ReportsQueueView({ view, reports, now }: { view: 'open' | 'done'
                         The reported review ({r.review.rating} of 5 stars){r.review.hidden ? ' (removed, not counted in their rating)' : ''}:
                       </p>
                       <blockquote className="prose">{r.review.comment || '(no comment, stars only)'}</blockquote>
-                      {r.review.hidden ? (
+                      {!canAct ? null : r.review.hidden ? (
                         <ConfirmAction
                           action={unhideReview}
                           hidden={{ reviewId: r.targetId }}
@@ -104,6 +105,7 @@ export function ReportsQueueView({ view, reports, now }: { view: 'open' | 'done'
                     </div>
                   ) : null}
                   {r.status === 'open' ? (
+                    canAct ? (
                     <div className="pill-row">
                       {r.targetType === 'user' ? (
                         <ConfirmAction
@@ -136,6 +138,9 @@ export function ReportsQueueView({ view, reports, now }: { view: 'open' | 'done'
                         confirmLabel="Dismiss"
                       />
                     </div>
+                    ) : (
+                      <p className="muted small">View only: your staff role can read reports but not act on them.</p>
+                    )
                   ) : (
                     <p className="muted small">
                       {r.handledBy ? `Handled by ${r.handledBy}. ` : ''}

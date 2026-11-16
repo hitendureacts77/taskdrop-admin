@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { isUuid, requireAdmin } from './data';
 import { staffGate } from './staff';
+import { actionLimit } from './action-guard';
 import { createClient } from './supabase/server';
 import type { ActionResult } from '@/components/ConfirmAction';
 
@@ -48,6 +49,8 @@ export async function resolveReport(_prev: ActionResult, form: FormData): Promis
 export async function warnUser(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   const denied = await guard();
   if (denied) return { ok: false, message: denied };
+  const slow = await actionLimit((await requireAdmin()).id, 'warn');
+  if (slow) return { ok: false, message: slow };
   const userId = str(form, 'userId');
   const reportId = str(form, 'reportId');
   const reason = str(form, 'reason');

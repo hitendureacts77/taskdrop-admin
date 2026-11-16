@@ -7,6 +7,8 @@ import { createClient as createSessionClient } from './supabase/server';
 import { createClient as createServiceClient } from './supabase/service';
 import { emailFor, phoneFor } from './contact-mask';
 import { asStaffRole, type StaffRole } from './staff-roles';
+import { auditPersonId } from './audit-target';
+import { notHeartbeatOr, type AuditScope } from './audit-scope';
 
 /**
  * Reads for the Admin & configuration screens (team, switches, integrations,
@@ -284,6 +286,9 @@ export type AuditRow = {
   before: unknown;
   after: unknown;
   detail: string | null;
+  /** The person this row is about, when it is about one (B108). */
+  personId: string | null;
+  personName: string | null;
 };
 
 /** The tables whose changes the database records (private.audit_change triggers), with a plain name each. */
@@ -318,13 +323,18 @@ export const EVENT_WORDS: Record<string, string> = {
   pause_promotion: 'Paused a promotion',
   'crm.assign_owner': 'Assigned a customer to staff',
   'crm.task_add': 'Added a follow-up',
+  'crm.tag_add': 'Tagged a person',
+  'crm.tag_remove': 'Took a tag off a person',
 };
 
-export async function getAuditLog(table: string | null, page: number, pageSize = 40): Promise<{ rows: AuditRow[]; total: number }> {
+export async function getAuditLog(table: string | null, page: number, pageSize = 40, scope: AuditScope = 'default'): Promise<{ rows: AuditRow[]; total: number }> {
   const supabase = await createSessionClient();
   const db = supabase as unknown as SupabaseClient;
   let q = db.from('admin_audit_log').select('id, at, actor, actor_kind, action, target_table, target_id, before, after, detail', { count: 'exact' });
   if (table) q = q.eq('target_table', table);
+  // B117: heartbeats are hidden by default, never deleted; "Staff only" shows lines staff wrote.
+  if (scope === 'default') q = q.or(notHeartbeatOr());
+  else if (scope === 'staff') q = q.not('actor', 'is', null);
   const from = page * pageSize;
   const { data, error, count } = await q.order('at', { ascending: false }).order('id', { ascending: false }).range(from, from + pageSize - 1);
   if (error) throw new Error(`Could not read the audit log: ${error.message}`);
@@ -340,7 +350,8 @@ export async function getAuditLog(table: string | null, page: number, pageSize =
     after: unknown;
     detail: string | null;
   }[];
-  const actorIds = [...new Set(raw.map((r) => r.actor).filter((x): x is string => Boolean(x)))];
+  const personOf = (r: (typeof raw)[number]) => auditPersonId({ table: r.target_table, targetId: r.target_id, before: r.before, after: r.after });
+  const actorIds = [...new Set([...raw.map((r) => r.actor), ...raw.map(personOf)].filter((x): x is string => Boolean(x)))];
   const names = new Map<string, string>();
   if (actorIds.length) {
     const { data: profs } = await supabase.from('profiles').select('id, display_name').in('id', actorIds);
@@ -349,6 +360,11 @@ export async function getAuditLog(table: string | null, page: number, pageSize =
   return {
     total: count ?? raw.length,
     rows: raw.map((r) => ({
+      personId: personOf(r),
+      personName: (() => {
+        const p = personOf(r);
+        return p ? names.get(p) ?? 'A person' : null;
+      })(),
       id: r.id,
       at: r.at,
       actor: r.actor,
