@@ -32,7 +32,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: SP }
   const hist = histParam === 'paid' || histParam === 'failed' || histParam === 'cancelled' ? histParam : 'all';
   const histPage = Math.max(0, Math.floor(Number(one(sp.hp)) || 0));
 
-  const [mfa, queue, totals, history, position, rx, method, daily, dayRows] = await Promise.all([
+  const [mfa, queue, totals, history, pos, rx, method, daily, dayRows] = await Promise.all([
     mfaState(),
     getPayoutQueue(),
     getPayoutTotals(),
@@ -49,7 +49,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: SP }
   const ordered = [...queue].sort((a, b) => a.requested_at.localeCompare(b.requested_at));
   return (
     <PayoutsView
-      d={{ now: new Date().toISOString(), queue: ordered, totals, history, position, rx, method, daily, days, roles, day, dayLabel, dayRows, q, hist, histPage }}
+      d={{ now: new Date().toISOString(), queue: ordered, totals, history, position: pos.position, positionError: pos.error, rx, method, daily, days, roles, day, dayLabel, dayRows, q, hist, histPage }}
       mfa={mfa}
       canPay={staffCan(me.staffRole, 'money')}
       checkAll={checkWithRazorpayX}

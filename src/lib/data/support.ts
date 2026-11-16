@@ -31,6 +31,15 @@ export async function getTickets(status: 'waiting' | 'answered' | 'resolved' | '
   }));
 }
 
+/** How many help requests sit under a tab; the list shows at most 200 (B132). */
+export async function countTickets(status: 'waiting' | 'answered' | 'resolved' | 'all'): Promise<number | null> {
+  const supabase = await createSessionClient();
+  let q = supabase.from('support_tickets').select('id', { count: 'exact', head: true });
+  if (status !== 'all') q = q.eq('status', status);
+  const { count, error } = await q;
+  return error ? null : count;
+}
+
 export type TicketDetail = TicketRow & { page: string | null; messages: { id: string; body: string; fromStaff: boolean; author: string; createdAt: string }[] };
 
 export async function getTicket(id: string): Promise<TicketDetail | null> {

@@ -19,8 +19,9 @@ export type PayoutsData = {
   queue: QueuedPayout[];
   totals: PayoutTotals;
   history: SettledPayout[];
-  /** Null until migration 066 is applied. */
+  /** Null when it could not be read; positionError says why (B137). */
   position: MoneyPosition | null;
+  positionError?: string | null;
   rx: RazorpayXState;
   /** How new withdrawals are paid: set by the switch on this page. */
   method: PayoutMethod;
@@ -527,6 +528,7 @@ export function PayoutsView({
         </Card>
 
         <Card title="Money position" sub="Whose money is in the account.">
+          {d.positionError ? <Notice tone="red">{d.positionError}</Notice> : null}
           <KV
             rows={[
               { label: 'In RazorpayX', value: bal != null ? <Money minor={bal} /> : <span className="muted">{d.rx.configured ? 'Unavailable' : 'Not connected'}</span> },

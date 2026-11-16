@@ -2,6 +2,7 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { AppControlRow, DeviceRow, PlatformKey } from './controls-meta';
 import { createClient } from './supabase/server';
+import { tryReadAll } from './data/paging';
 
 /**
  * Reads for the per-platform app controls and the devices panel (migration 092
@@ -30,7 +31,10 @@ export type DevicesRead = { rows: DeviceRow[]; setup: boolean; error: string | n
 /** The most recently seen installs, up to 5,000; plenty while TaskDrop has a few hundred testers. */
 export async function getDeviceRows(): Promise<DevicesRead> {
   const supabase = (await createClient()) as unknown as SupabaseClient;
-  const { data, error } = await supabase.from('app_devices').select('platform, app_version, last_seen_at').order('last_seen_at', { ascending: false }).limit(5000);
+  // Paged: one request stops silently at 1,000 installs, which skews the version shares (B132).
+  const { data, error } = await tryReadAll<{ platform: string; app_version: string | null; last_seen_at: string }>((from, to) =>
+    supabase.from('app_devices').select('platform, app_version, last_seen_at').order('last_seen_at', { ascending: false }).order('id', { ascending: false }).range(from, to),
+  );
   if (error) {
     const setup = NOT_THERE.test(`${error.code ?? ''} ${error.message}`);
     return { rows: [], setup, error: setup ? null : error.message };

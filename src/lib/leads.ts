@@ -5,6 +5,7 @@ import { namesFor } from './data';
 import type { StaffRole } from './staff-roles';
 import type { Read } from './growth';
 import { createClient } from './supabase/server';
+import { tryReadAll } from './data/paging';
 
 /**
  * Reads for Leads: people and businesses who are not in the app yet
@@ -49,11 +50,15 @@ const NOT_THERE = /does not exist|could not find the table|schema cache|PGRST20[
 /** Newest first. A few thousand leads is far beyond what this list is for. */
 export async function getLeads(role: StaffRole): Promise<Read<Lead[]>> {
   const supabase = (await createClient()) as unknown as SupabaseClient;
-  const { data, error } = await supabase
-    .from('crm_leads')
-    .select('id, name, contact, kind, source, stage, note, owner_id, user_id, created_by, created_at, stage_changed_at')
-    .order('created_at', { ascending: false })
-    .limit(2000);
+  // Paged: one request stops silently at 1,000 leads (B132).
+  const { data, error } = await tryReadAll<Row>((from, to) =>
+    supabase
+      .from('crm_leads')
+      .select('id, name, contact, kind, source, stage, note, owner_id, user_id, created_by, created_at, stage_changed_at')
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+      .range(from, to),
+  );
   if (error) {
     const setup = NOT_THERE.test(`${error.code ?? ''} ${error.message}`);
     return { data: [], setup, error: setup ? null : error.message };

@@ -2,9 +2,10 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient as createSessionClient } from '../supabase/server';
 import { startOfIstDay } from '../days';
-import { maskEmail, maskPhone } from '../contact-mask';
+import { maskEmail, maskPhone, signInContacts } from '../contact-mask';
 import { serviceOrNull, likeTerm, one } from './shared';
-import { stableOrder } from './paging';
+import { chunk, stableOrder } from './paging';
+import { mapLimit } from '../concurrency';
 import { type SettledPayout, getSettledPayouts } from './payouts';
 import { namesFor } from './people';
 import { isUuid } from './tasks';
@@ -86,6 +87,11 @@ function toUserRow(p: ProfileRow, wallet: { b: number; c: number } | undefined, 
   };
 }
 
+/** A long id list goes to the database in pieces this size, so no .in() address grows past what the server takes (B132). */
+const IN_CHUNK = 150;
+type WalletRow = { user_id: string; balance_minor: number; clearing_minor: number };
+const newestFirst = (a: ProfileRow, b: ProfileRow) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id);
+
 /**
  * `restrict` narrows the list to these people (a tag, or the suspended): the
  * caller works the ids out, so this file stays free of the CRM tables.
@@ -107,21 +113,39 @@ export async function getUsers(
     // so the list works however many wallets hold money.
     const from = page * pageSize;
     if (restrict && !restrict.length) return { rows: [], total: 0 };
-    let wq = supabase
-      .from('wallets')
-      .select('user_id, balance_minor, clearing_minor', { count: 'exact' })
-      .or('balance_minor.gt.0,clearing_minor.gt.0');
-    if (restrict) wq = wq.in('user_id', restrict);
-    const { data: w, error: wErr, count } = await wq
-      .order('balance_minor', { ascending: false })
-      .order('user_id', { ascending: true })
-      .range(from, from + pageSize - 1);
-    if (wErr) throw new Error(`Could not read wallets: ${wErr.message}`);
-    const wallets = (w ?? []) as { user_id: string; balance_minor: number; clearing_minor: number }[];
+    let wallets: WalletRow[];
+    let count: number | null;
+    if (restrict && restrict.length > IN_CHUNK) {
+      // A long list (a tag, the suspended): read each piece, then sort and page here, the same order as below.
+      const parts = await mapLimit(chunk(restrict, IN_CHUNK), 6, async (ids) => {
+        const { data, error } = await supabase.from('wallets').select('user_id, balance_minor, clearing_minor').or('balance_minor.gt.0,clearing_minor.gt.0').in('user_id', ids);
+        if (error) throw new Error(`Could not read wallets: ${error.message}`);
+        return (data ?? []) as WalletRow[];
+      });
+      const all = parts.flat().sort((a, b) => Number(b.balance_minor) - Number(a.balance_minor) || a.user_id.localeCompare(b.user_id));
+      count = all.length;
+      wallets = all.slice(from, from + pageSize);
+    } else {
+      let wq = supabase
+        .from('wallets')
+        .select('user_id, balance_minor, clearing_minor', { count: 'exact' })
+        .or('balance_minor.gt.0,clearing_minor.gt.0');
+      if (restrict) wq = wq.in('user_id', restrict);
+      const { data: w, error: wErr, count: c } = await wq
+        .order('balance_minor', { ascending: false })
+        .order('user_id', { ascending: true })
+        .range(from, from + pageSize - 1);
+      if (wErr) throw new Error(`Could not read wallets: ${wErr.message}`);
+      wallets = (w ?? []) as WalletRow[];
+      count = c;
+    }
     if (!wallets.length) return { rows: [], total: count ?? 0 };
-    const { data: profs, error: pErr } = await supabase.from('profiles').select(PROFILE_COLS).in('id', wallets.map((x) => x.user_id));
-    if (pErr) throw new Error(`Could not read people: ${pErr.message}`);
-    const byId = new Map(((profs ?? []) as unknown as ProfileRow[]).map((p) => [p.id, p]));
+    const byId = new Map<string, ProfileRow>();
+    for (const ids of chunk(wallets.map((x) => x.user_id), IN_CHUNK)) {
+      const { data: profs, error: pErr } = await supabase.from('profiles').select(PROFILE_COLS).in('id', ids);
+      if (pErr) throw new Error(`Could not read people: ${pErr.message}`);
+      for (const p of (profs ?? []) as unknown as ProfileRow[]) byId.set(p.id, p);
+    }
     const now = Date.now();
     return {
       total: count ?? wallets.length,
@@ -134,25 +158,47 @@ export async function getUsers(
   if (restrict) restrictTo = restrictTo ? restrictTo.filter((id) => restrict.includes(id)) : restrict;
   if (restrictTo && !restrictTo.length) return { rows: [], total: 0 };
 
-  let q = supabase.from('profiles').select(PROFILE_COLS, { count: 'exact' });
-  if (restrictTo) q = q.in('id', restrictTo);
-  if (filter === 'new_today') q = q.gte('created_at', startOfIstDay().toISOString());
-  if (filter === 'available') q = q.gt('live_until', new Date().toISOString());
-  // Same window as the app's "Active now" (apps/mobile/src/lib/presence.ts).
-  if (filter === 'online') q = q.gt('last_seen_at', new Date(Date.now() - 3 * 60_000).toISOString()).is('deleted_at', null);
-  if (filter === 'workers') q = q.not('worker_onboarded_at', 'is', null);
-  if (filter === 'deleted') q = q.not('deleted_at', 'is', null);
   const s = likeTerm(search);
-  if (s) q = q.or(`display_name.ilike.%${s}%,username.ilike.%${s}%`);
+  const build = (ids: string[] | null) => {
+    let q = supabase.from('profiles').select(PROFILE_COLS, { count: 'exact' });
+    if (ids) q = q.in('id', ids);
+    if (filter === 'new_today') q = q.gte('created_at', startOfIstDay().toISOString());
+    if (filter === 'available') q = q.gt('live_until', new Date().toISOString());
+    // Same window as the app's "Active now" (apps/mobile/src/lib/presence.ts).
+    if (filter === 'online') q = q.gt('last_seen_at', new Date(Date.now() - 3 * 60_000).toISOString()).is('deleted_at', null);
+    if (filter === 'workers') q = q.not('worker_onboarded_at', 'is', null);
+    if (filter === 'deleted') q = q.not('deleted_at', 'is', null);
+    // Deleted accounts show (and export) only under the Deleted filter (B107).
+    if (filter !== 'deleted') q = q.is('deleted_at', null);
+    if (s) q = q.or(`display_name.ilike.%${s}%,username.ilike.%${s}%`);
+    return q;
+  };
   const from = page * pageSize;
-  const { data, error, count } = await stableOrder(q, 'created_at').range(from, from + pageSize - 1);
-  if (error) throw new Error(`Could not read people: ${error.message}`);
-  const rows = (data ?? []) as unknown as ProfileRow[];
+  let rows: ProfileRow[];
+  let count: number | null;
+  if (restrictTo && restrictTo.length > IN_CHUNK) {
+    // A long list (a tag, the suspended): filter each piece, then sort and page here in the same order as stableOrder.
+    const parts = await mapLimit(chunk(restrictTo, IN_CHUNK), 6, async (ids) => {
+      const { data, error } = await build(ids);
+      if (error) throw new Error(`Could not read people: ${error.message}`);
+      return (data ?? []) as unknown as ProfileRow[];
+    });
+    const all = parts.flat().sort(newestFirst);
+    count = all.length;
+    rows = all.slice(from, from + pageSize);
+  } else {
+    const { data, error, count: c } = await stableOrder(build(restrictTo), 'created_at').range(from, from + pageSize - 1);
+    if (error) throw new Error(`Could not read people: ${error.message}`);
+    rows = (data ?? []) as unknown as ProfileRow[];
+    count = c;
+  }
   const wallets = new Map<string, { b: number; c: number }>();
   if (rows.length) {
-    const { data: w } = await supabase.from('wallets').select('user_id, balance_minor, clearing_minor').in('user_id', rows.map((r) => r.id));
-    for (const x of (w ?? []) as { user_id: string; balance_minor: number; clearing_minor: number }[]) {
-      wallets.set(x.user_id, { b: Number(x.balance_minor), c: Number(x.clearing_minor) });
+    // In pieces: the export asks for 500 people a page, too many ids for one address (B132).
+    for (const ids of chunk(rows.map((r) => r.id), IN_CHUNK)) {
+      const { data: w, error: wErr } = await supabase.from('wallets').select('user_id, balance_minor, clearing_minor').in('user_id', ids);
+      if (wErr) throw new Error(`Could not read wallets: ${wErr.message}`);
+      for (const x of (w ?? []) as WalletRow[]) wallets.set(x.user_id, { b: Number(x.balance_minor), c: Number(x.clearing_minor) });
     }
   }
   const now = Date.now();
@@ -208,8 +254,8 @@ export async function getUser(id: string, contacts: 'full' | 'masked'): Promise<
     p.deleted_at ? null : rpc('admin_account_deletion_check', { p_user: id }),
   ]);
 
-  const fullEmail = auth?.data?.user?.email ?? null;
-  const fullPhone = auth?.data?.user?.phone ?? null;
+  // Phone sign-ups carry their number inside a placeholder sign-in address; show it as the phone, never as the email.
+  const { email: fullEmail, phone: fullPhone } = signInContacts(auth?.data?.user?.email, auth?.data?.user?.phone);
   const email = contacts === 'full' ? fullEmail : maskEmail(fullEmail);
   const phone = contacts === 'full' ? fullPhone : maskPhone(fullPhone);
 

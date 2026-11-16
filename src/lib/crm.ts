@@ -3,12 +3,14 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient as createSessionClient } from './supabase/server';
 import { createClient as createServiceClient } from './supabase/service';
 import { csvDay, toCsv } from './csv';
-import { exportContactCells } from './contact-mask';
+import { exportContactCells, signInContacts } from './contact-mask';
 import type { StaffRole } from './staff-roles';
 import { isUuid, namesFor } from './data';
 import { applyOwnerFilter, getOwnerMap, type OwnerRef } from './crm-owners';
 import type { OwnerFilter } from './crm-calc';
 import { getStaffList } from './growth';
+import { readAll } from './data/paging';
+import { mapLimit } from './concurrency';
 
 /**
  * Reads for the CRM screens: notes, tags, suspensions, segments and messages.
@@ -118,11 +120,11 @@ export async function getTags(): Promise<TagWithCount[]> {
   const supabase = await db();
   const [tags, links] = await Promise.all([
     supabase.from('crm_tags').select('id, name, color').order('name'),
-    supabase.from('crm_user_tags').select('tag_id').limit(20000),
+    readAll<{ tag_id: string }>((from, to) => supabase.from('crm_user_tags').select('tag_id').order('tag_id').order('user_id').range(from, to), 'Could not count tags'),
   ]);
   if (tags.error) throw new Error(`Could not read tags: ${tags.error.message}`);
   const counts = new Map<string, number>();
-  for (const l of (links.data ?? []) as { tag_id: string }[]) counts.set(l.tag_id, (counts.get(l.tag_id) ?? 0) + 1);
+  for (const l of links) counts.set(l.tag_id, (counts.get(l.tag_id) ?? 0) + 1);
   return ((tags.data ?? []) as Tag[]).map((t) => ({ ...t, people: counts.get(t.id) ?? 0 }));
 }
 
@@ -130,7 +132,8 @@ export async function getTagsFor(ids: string[]): Promise<Map<string, Tag[]>> {
   const out = new Map<string, Tag[]>();
   if (!ids.length) return out;
   const supabase = await db();
-  const { data } = await supabase.from('crm_user_tags').select('user_id, crm_tags(id, name, color)').in('user_id', ids);
+  const { data, error } = await supabase.from('crm_user_tags').select('user_id, crm_tags(id, name, color)').in('user_id', ids);
+  if (error) throw new Error(`Could not read tags: ${error.message}`);
   for (const r of (data ?? []) as unknown as { user_id: string; crm_tags: Tag | Tag[] | null }[]) {
     const t = Array.isArray(r.crm_tags) ? r.crm_tags[0] : r.crm_tags;
     if (!t) continue;
@@ -144,7 +147,8 @@ export async function getSuspendedAmong(ids: string[]): Promise<Map<string, { re
   const out = new Map<string, { reason: string; at: string }>();
   if (!ids.length) return out;
   const supabase = await db();
-  const { data } = await supabase.from('user_suspensions').select('user_id, reason, suspended_at').in('user_id', ids).is('lifted_at', null);
+  const { data, error } = await supabase.from('user_suspensions').select('user_id, reason, suspended_at').in('user_id', ids).is('lifted_at', null);
+  if (error) throw new Error(`Could not read suspensions: ${error.message}`);
   for (const r of (data ?? []) as { user_id: string; reason: string; suspended_at: string }[]) out.set(r.user_id, { reason: r.reason, at: r.suspended_at });
   return out;
 }
@@ -153,14 +157,14 @@ export async function getSuspendedAmong(ids: string[]): Promise<Map<string, { re
 export async function idsWithTag(tagId: string): Promise<string[]> {
   if (!isUuid(tagId)) return [];
   const supabase = await db();
-  const { data } = await supabase.from('crm_user_tags').select('user_id').eq('tag_id', tagId).limit(20000);
-  return ((data ?? []) as { user_id: string }[]).map((r) => r.user_id);
+  const rows = await readAll<{ user_id: string }>((from, to) => supabase.from('crm_user_tags').select('user_id').eq('tag_id', tagId).order('user_id').range(from, to), 'Could not read who has that tag');
+  return rows.map((r) => r.user_id);
 }
 
 export async function idsSuspended(): Promise<string[]> {
   const supabase = await db();
-  const { data } = await supabase.from('user_suspensions').select('user_id').is('lifted_at', null).limit(20000);
-  return ((data ?? []) as { user_id: string }[]).map((r) => r.user_id);
+  const rows = await readAll<{ user_id: string }>((from, to) => supabase.from('user_suspensions').select('user_id').is('lifted_at', null).order('id').range(from, to), 'Could not read who is suspended');
+  return [...new Set(rows.map((r) => r.user_id))];
 }
 
 // ------------------------------------------------------------- one person --
@@ -272,9 +276,9 @@ export type MemberRow = {
 
 async function matchingIds(c: Criteria): Promise<string[]> {
   const supabase = await db();
-  const { data, error } = await supabase.rpc('crm_segment_users', { p_criteria: c });
-  if (error) throw new Error(`Could not work out who matches: ${error.message}`);
-  return ((data ?? []) as { user_id: string }[]).map((r) => r.user_id);
+  // Paged: one request would stop silently at 1,000 people, so the "send to N" count would not match what is sent (B122).
+  const rows = await readAll<{ user_id: string }>((from, to) => supabase.rpc('crm_segment_users', { p_criteria: c }).order('user_id').range(from, to), 'Could not work out who matches');
+  return rows.map((r) => r.user_id);
 }
 
 export async function countMatching(c: Criteria): Promise<number> {
@@ -291,6 +295,9 @@ async function memberRows(ids: string[]): Promise<MemberRow[]> {
     getSuspendedAmong(ids),
     getOwnerMap(ids),
   ]);
+  // A failed read must not quietly drop people from a list or an export (B125).
+  if (profiles.error) throw new Error(`Could not read people: ${profiles.error.message}`);
+  if (wallets.error) throw new Error(`Could not read wallets: ${wallets.error.message}`);
   const w = new Map(((wallets.data ?? []) as { user_id: string; balance_minor: number; clearing_minor: number }[]).map((x) => [x.user_id, x]));
   const rows = ((profiles.data ?? []) as { id: string; display_name: string; loc_label: string | null; created_at: string; last_seen_at: string | null; worker_onboarded_at: string | null }[]).map((p) => ({
     id: p.id,
@@ -416,7 +423,7 @@ export async function getAudiences(extra?: Criteria): Promise<Audience[]> {
  */
 export async function exportCsv(ids: string[], opts: { role: StaffRole; hideMoney?: boolean }): Promise<string> {
   const rows: MemberRow[] = [];
-  for (let i = 0; i < ids.length; i += 200) rows.push(...(await memberRows(ids.slice(i, i + 200))));
+  for (let i = 0; i < ids.length; i += 150) rows.push(...(await memberRows(ids.slice(i, i + 150))));
   let service: ReturnType<typeof createServiceClient> | null = null;
   try {
     service = createServiceClient();
@@ -425,15 +432,21 @@ export async function exportCsv(ids: string[], opts: { role: StaffRole; hideMone
   }
   const money = !opts.hideMoney;
   const head = ['Name', 'Does', 'Place', 'Joined (India)', 'Last seen (India)', ...(money ? ['Wallet ₹', 'Clearing ₹'] : []), 'Tags', 'Suspended', 'Owner', ...(service ? ['Email', 'Phone'] : []), 'Person id'];
+  // Contacts come from Supabase Auth one person per call, so they are read 10 at a time instead of in turn (B125). An
+  // Auth read error stops the export rather than leaving blank cells; only "no such sign-in" (404) is an empty contact.
+  const auth = service;
+  const contacts = auth
+    ? await mapLimit(rows, 10, async (r) => {
+        const { data, error } = await auth.auth.admin.getUserById(r.id);
+        if (error && error.status !== 404) throw new Error(`Could not read sign-in details for the export: ${error.message}`);
+        // Phone sign-ups carry their number in a placeholder sign-in address: export it as the phone, never as the email.
+        return signInContacts(data?.user?.email, data?.user?.phone);
+      })
+    : [];
   const lines: unknown[][] = [];
-  for (const r of rows) {
-    let email = '';
-    let phone = '';
-    if (service) {
-      const { data } = await service.auth.admin.getUserById(r.id);
-      email = data?.user?.email ?? '';
-      phone = data?.user?.phone ?? '';
-    }
+  for (const [i, r] of rows.entries()) {
+    const email = contacts[i]?.email ?? '';
+    const phone = contacts[i]?.phone ?? '';
     lines.push([r.name, r.isWorker ? 'Worker' : 'Poster', r.place ?? '', csvDay(r.joinedAt), csvDay(r.lastSeenAt), ...(money ? [(r.walletMinor / 100).toFixed(2), (r.clearingMinor / 100).toFixed(2)] : []), r.tags.map((t) => t.name).join('; '), r.suspended ? 'Yes' : 'No', r.owner?.name ?? '', ...(service ? exportContactCells(opts.role, email, phone) : []), r.id]);
   }
   return toCsv(head, lines);

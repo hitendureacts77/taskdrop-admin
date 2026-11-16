@@ -87,3 +87,30 @@ test('the server paths take the role, so a hand-made request cannot skip the mas
   assert.ok(src('./admin-config.ts').includes('emailFor(role, a?.email)'));
   assert.ok(src('./copyright.ts').includes('emailFor(role, r.complainant_email)'));
 });
+
+// B107: phone sign-ups sit on a placeholder sign-in address built from the number. That address is not an email to show,
+// and the number inside it is the phone, so it must be masked like any phone.
+import { signInContacts } from './contact-mask.ts';
+
+test('a phone sign-up placeholder address becomes the phone, never the email', () => {
+  assert.deepEqual(signInContacts('p9845012345@phone.taskdrop.app', null), { email: null, phone: '9845012345' });
+  assert.deepEqual(signInContacts('P9845012345@Phone.TaskDrop.app', ''), { email: null, phone: '9845012345' });
+  // A phone already on the account wins; the placeholder still never shows as an email.
+  assert.deepEqual(signInContacts('p9845012345@phone.taskdrop.app', '919845012345'), { email: null, phone: '919845012345' });
+  assert.deepEqual(signInContacts('asha@gmail.com', null), { email: 'asha@gmail.com', phone: null });
+  assert.deepEqual(signInContacts(null, undefined), { email: null, phone: null });
+  // A malformed placeholder is dropped, not shown.
+  assert.deepEqual(signInContacts('px@phone.taskdrop.app', null), { email: null, phone: null });
+  for (const r of ROLES) {
+    const c = signInContacts('p9845012345@phone.taskdrop.app', null);
+    const [email, phone] = exportContactCells(r, c.email, c.phone);
+    assert.equal(email, '', r);
+    assert.equal(phone, staffSeesContacts(r) ? '9845012345' : '+91 ••••• •2345', r);
+  }
+});
+
+test('the person page and the People export split the placeholder before masking, and Everyone leaves out deleted accounts', () => {
+  assert.ok(src('./crm.ts').includes('signInContacts('));
+  assert.ok(src('./data/users.ts').includes('signInContacts('));
+  assert.ok(src('./data/users.ts').includes("if (filter !== 'deleted') q = q.is('deleted_at', null)"));
+});
