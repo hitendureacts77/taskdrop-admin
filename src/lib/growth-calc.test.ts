@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mergeOpenProblems, activityTotal, formatMinutes, formatWait, funnelSteps, marketplaceShown, previousWindow, rate, retentionGrid, totalDaily, type DailyRow, type MarketplaceRow, type StaffPerf } from './growth-calc.ts';
+import { mergeOpenProblems, lockedLateWithdrawals, reconcileSubject, moneyHealthLine, activityTotal, formatMinutes, formatWait, funnelSteps, marketplaceShown, previousWindow, rate, retentionGrid, totalDaily, type DailyRow, type MarketplaceRow, type StaffPerf } from './growth-calc.ts';
 
 const day = (o: Partial<DailyRow>): DailyRow => ({ day: '2026-10-01', newPeople: 0, jobsPosted: 0, jobsFinished: 0, cancellations: 0, disputesDecided: 0, fundedMinor: 0, topupMinor: 0, revenueMinor: 0, ...o });
 
@@ -93,4 +93,60 @@ test('mergeOpenProblems keeps old open problems outside the window and does not 
   ];
   const merged = mergeOpenProblems(inWindow, anyDate);
   assert.deepEqual(merged.map((r) => r.refId), ['x', 'a', 'old']);
+});
+
+// A1-3: the Money check names the job, the person and the amount.
+test('reconcileSubject names the job, the people and the amount for a job row', () => {
+  const ctx = {
+    tasks: new Map([['t1', { title: 'Bookshelf assembled', poster: 'Asha', worker: 'Ravi', amountMinor: 120000 }]]),
+    payouts: new Map<string, { person: string }>(),
+    payments: new Map<string, { person: string; taskId: string | null }>(),
+  };
+  const s = reconcileSubject({ refType: 'task', refId: 't1', amountMinor: null }, ctx);
+  assert.equal(s.subject, 'Job “Bookshelf assembled” · poster Asha · worker Ravi');
+  assert.equal(s.href, '/tasks/t1');
+  assert.equal(s.amountMinor, 120000);
+});
+
+test('reconcileSubject keeps the amount the check already has, and names a withdrawal and a payment', () => {
+  const ctx = {
+    tasks: new Map([['t2', { title: 'Paint a wall', poster: 'Meera', worker: null, amountMinor: 50000 }]]),
+    payouts: new Map([['p1', { person: 'Ravi' }]]),
+    payments: new Map([['pay1', { person: 'Meera', taskId: 't2' }], ['pay2', { person: 'Kiran', taskId: null }]]),
+  };
+  assert.equal(reconcileSubject({ refType: 'task', refId: 't2', amountMinor: 7000 }, ctx).amountMinor, 7000);
+  const w = reconcileSubject({ refType: 'payout', refId: 'p1', amountMinor: 30000 }, ctx);
+  assert.equal(w.subject, 'Withdrawal by Ravi');
+  assert.equal(w.href, '/payouts/p1');
+  const p = reconcileSubject({ refType: 'payment', refId: 'pay1', amountMinor: 1000 }, ctx);
+  assert.equal(p.subject, 'Payment by Meera for “Paint a wall”');
+  assert.equal(p.href, '/tasks/t2');
+  assert.equal(reconcileSubject({ refType: 'payment', refId: 'pay2', amountMinor: 1000 }, ctx).subject, 'Payment by Kiran');
+});
+
+test('reconcileSubject says plainly when the record could not be found', () => {
+  const ctx = { tasks: new Map(), payouts: new Map(), payments: new Map() };
+  assert.equal(reconcileSubject({ refType: 'task', refId: 'x', amountMinor: null }, ctx).subject, 'Job (no longer readable)');
+});
+
+test('lockedLateWithdrawals adds the withdrawal somebody claimed and never paid', () => {
+  const now = Date.parse('2026-11-16T10:00:00Z');
+  const queue = [
+    { id: 'a', status: 'processing', amount_minor: 30000, requested_at: '2026-10-04T10:00:00Z', display_name: 'workerPro' },
+    { id: 'b', status: 'processing', amount_minor: 100, requested_at: '2026-11-15T10:00:00Z', display_name: 'New' },
+    { id: 'c', status: 'requested', amount_minor: 500, requested_at: '2026-10-01T10:00:00Z', display_name: 'Already listed' },
+    { id: 'd', status: 'processing', amount_minor: 900, requested_at: '2026-10-02T10:00:00Z', display_name: 'Listed twice' },
+  ];
+  const rows = lockedLateWithdrawals(queue, now, new Set(['payout_waiting_long|payout|d']));
+  assert.deepEqual(rows.map((r) => r.refId), ['a']);
+  assert.equal(rows[0]!.code, 'payout_waiting_long');
+  assert.equal(rows[0]!.amountMinor, 30000);
+  assert.match(rows[0]!.detail, /claimed/i);
+});
+
+test('moneyHealthLine never says all is well while the Money check has open problems', () => {
+  assert.equal(moneyHealthLine(0), null);
+  assert.equal(moneyHealthLine(null), null);
+  assert.match(moneyHealthLine(1)!, /1 open problem in the Money check/);
+  assert.match(moneyHealthLine(90)!, /90 open problems in the Money check/);
 });

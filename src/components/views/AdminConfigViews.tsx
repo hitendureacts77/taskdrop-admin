@@ -5,6 +5,7 @@ import { AUDIT_TABLES, EVENT_WORDS } from '@/lib/admin-config';
 import type { AuditScope } from '@/lib/audit-scope';
 import { allowlistActive, allowlistCount, type Allowlist } from '@/lib/allowlist';
 import type { PayoutMethod } from '@/lib/data';
+import { moneyHealthLine } from '@/lib/growth-calc';
 import { inr, istDateTime, phone as prettyPhone, timeAgo } from '@/lib/format';
 import { AREA_LABEL, STAFF_ROLES, roleLabel, staffCan, type StaffArea, type StaffRole } from '@/lib/staff-roles';
 import { ConfirmAction, type FormAction } from '../ConfirmAction';
@@ -502,6 +503,7 @@ export function IntegrationsView({ i }: { i: Integrations }) {
 export function HealthView({ h }: { h: Health }) {
   const failing = h.checks.filter((c) => !c.ok);
   const waiting = h.queues.payouts + h.queues.disputes + h.queues.refunds + h.queues.support;
+  const moneyLine = moneyHealthLine(h.moneyOpen);
   return (
     <>
       <ConfigHeader
@@ -515,6 +517,10 @@ export function HealthView({ h }: { h: Health }) {
       {failing.length ? (
         <Notice tone="red" icon="alert" title={`${failing.length} check${failing.length === 1 ? '' : 's'} failing.`}>
           {failing.map((c) => c.name).join(', ')}. Details below.
+        </Notice>
+      ) : moneyLine ? (
+        <Notice tone="gold" icon="alert" title="The checks below pass, but the Money check needs a look.">
+          <Link href="/money/reconcile">{moneyLine}</Link>. Checked {istDateTime(h.checkedAt)}.
         </Notice>
       ) : (
         <Notice tone="green" title="Everything is working.">

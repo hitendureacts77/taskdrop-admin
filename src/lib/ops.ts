@@ -1,6 +1,7 @@
 import 'server-only';
 import type { DeviceVersionRow } from './devices-calc';
 import { asRunKind, isRunStale, isStaffRefusal, latestPerKind, parseRunDetail, safeSentryUrl, type ReconRun, type RunKind } from './ops-calc';
+import { countMoneyProblems } from './growth';
 import { createClient } from './supabase/server';
 
 /**
@@ -62,14 +63,17 @@ export type SystemHealth = {
   runsNote: 'setup' | 'refused' | 'error' | null;
   ping: { ok: boolean; ms: number | null; detail: string };
   sentryUrl: string | null;
+  /** How many problems the Money check lists, or null when it could not be read (A1-3). */
+  moneyOpen: number | null;
 };
 
 /** Never throws; every part has its own hard timeout. */
 export async function getSystemHealth(): Promise<SystemHealth> {
   const now = new Date();
-  const [runsRead, ping] = await Promise.all([
+  const [runsRead, ping, moneyOpen] = await Promise.all([
     withTimeout(getReconciliationRuns(8), 4000).catch(() => null),
     pingAppConfig(),
+    withTimeout(countMoneyProblems(), 4000).catch(() => null),
   ]);
   const runs: SystemHealth['runs'] = { internal: null, razorpay: null };
   let runsNote: SystemHealth['runsNote'] = null;
@@ -85,7 +89,7 @@ export async function getSystemHealth(): Promise<SystemHealth> {
     }
   }
   const stale = runsNote === null && (['internal', 'razorpay'] as const).some((k) => isRunStale(runs[k]?.ranAt, now));
-  return { now: now.toISOString(), runs, stale, runsNote, ping, sentryUrl: safeSentryUrl(process.env.SENTRY_PROJECT_URL) };
+  return { now: now.toISOString(), runs, stale, runsNote, ping, sentryUrl: safeSentryUrl(process.env.SENTRY_PROJECT_URL), moneyOpen };
 }
 
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {

@@ -6,6 +6,7 @@ import { getNavCounts, getRazorpayXState, getPayoutMethod, hasServiceKey, type N
 import { createClient as createSessionClient } from './supabase/server';
 import { createClient as createServiceClient } from './supabase/service';
 import { emailFor, phoneFor } from './contact-mask';
+import { countMoneyProblems } from './growth';
 import { asStaffRole, type StaffRole } from './staff-roles';
 import { auditPersonId } from './audit-target';
 import { notHeartbeatOr, type AuditScope } from './audit-scope';
@@ -193,6 +194,8 @@ export type Health = {
   checkedAt: string;
   checks: Check[];
   queues: NavCounts;
+  /** How many problems the Money check lists, or null when it could not be read (A1-3). */
+  moneyOpen: number | null;
   latest: { label: string; at: string | null; href: string }[];
   runtime: { env: string; commit: string | null; region: string | null; node: string };
 };
@@ -245,8 +248,9 @@ export async function getHealth(): Promise<Health> {
     const { data } = await db.from(table).select(col).order(col, { ascending: false }).limit(1);
     return ((data ?? []) as unknown as Record<string, string>[])[0]?.[col] ?? null;
   };
-  const [queues, ledger, job, person, ticket] = await Promise.all([
+  const [queues, moneyOpen, ledger, job, person, ticket] = await Promise.all([
     getNavCounts(),
+    countMoneyProblems().catch(() => null),
     latestOf('platform_ledger', 'created_at').catch(() => null),
     latestOf('tasks', 'created_at').catch(() => null),
     latestOf('profiles', 'created_at').catch(() => null),
@@ -257,6 +261,7 @@ export async function getHealth(): Promise<Health> {
     checkedAt: new Date().toISOString(),
     checks,
     queues,
+    moneyOpen,
     latest: [
       { label: 'Money moved', at: ledger, href: '/money/entries' },
       { label: 'Job posted', at: job, href: '/tasks' },
