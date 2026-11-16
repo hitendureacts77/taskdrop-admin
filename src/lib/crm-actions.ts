@@ -6,6 +6,7 @@ import { createClient } from './supabase/server';
 import { createClient as createServiceClient } from './supabase/service';
 import { parseCriteria, type Criteria } from './crm';
 import { staffGate } from './staff';
+import { actionLimit, broadcastDuplicate } from './action-guard';
 import type { ActionResult } from '@/components/ConfirmAction';
 
 /**
@@ -136,9 +137,11 @@ export async function deleteTag(_prev: ActionResult, form: FormData): Promise<Ac
 // ------------------------------------------------------------ suspension --
 
 export async function suspendUser(_prev: ActionResult, form: FormData): Promise<ActionResult> {
-  await requireAdmin();
+  const me = await requireAdmin();
   const denied = await staffGate('people');
   if (denied) return { ok: false, message: denied };
+  const slow = await actionLimit(me.id, 'suspend');
+  if (slow) return { ok: false, message: slow };
   const userId = str(form, 'userId');
   const name = str(form, 'name').slice(0, 80) || 'They';
   const reason = str(form, 'reason');
@@ -153,9 +156,11 @@ export async function suspendUser(_prev: ActionResult, form: FormData): Promise<
 }
 
 export async function unsuspendUser(_prev: ActionResult, form: FormData): Promise<ActionResult> {
-  await requireAdmin();
+  const me = await requireAdmin();
   const denied = await staffGate('people');
   if (denied) return { ok: false, message: denied };
+  const slow = await actionLimit(me.id, 'suspend');
+  if (slow) return { ok: false, message: slow };
   const userId = str(form, 'userId');
   const name = str(form, 'name').slice(0, 80) || 'They';
   const note = str(form, 'note');
@@ -177,9 +182,11 @@ export async function unsuspendUser(_prev: ActionResult, form: FormData): Promis
  * the service role -- only paths inside that person's own folder.
  */
 export async function deleteAccount(_prev: ActionResult, form: FormData): Promise<ActionResult> {
-  await requireAdmin();
+  const me = await requireAdmin();
   const denied = await staffGate('admin');
   if (denied) return { ok: false, message: denied };
+  const slow = await actionLimit(me.id, 'delete-account');
+  if (slow) return { ok: false, message: slow };
   const userId = str(form, 'userId');
   const name = str(form, 'name').slice(0, 80) || 'Their';
   const reason = str(form, 'reason');
@@ -256,7 +263,7 @@ export async function deleteSegment(_prev: ActionResult, form: FormData): Promis
  * from its key, never taken from the browser as a list of people.
  */
 export async function sendBroadcast(_prev: ActionResult, form: FormData): Promise<ActionResult> {
-  await requireAdmin();
+  const me = await requireAdmin();
   const denied = await staffGate('people');
   if (denied) return { ok: false, message: denied };
   const title = str(form, 'title');
@@ -299,6 +306,13 @@ export async function sendBroadcast(_prev: ActionResult, form: FormData): Promis
   } else {
     return { ok: false, message: 'Choose who this goes to.' };
   }
+
+  // Limit first (it counts every try), then refuse a repeat of the same text to the same people (B123).
+  const slow = await actionLimit(me.id, 'broadcast');
+  if (slow) return { ok: false, message: slow };
+  const target = { toUser: (args.p_user as string | undefined) ?? null, criteria: args.p_criteria ?? null };
+  const repeat = await broadcastDuplicate(me.id, target, title, body);
+  if (repeat) return { ok: false, message: repeat };
 
   const r = await call('crm_send_broadcast', args);
   if (r.error) return { ok: false, message: r.error };
