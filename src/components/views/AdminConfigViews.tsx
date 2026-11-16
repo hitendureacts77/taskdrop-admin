@@ -320,14 +320,31 @@ const SWITCH_INFO: Record<SwitchKey, SwitchInfo> = {
 };
 
 /** `update` is left out for a role that may not change switches: they show read-only (B133). */
-export function SwitchesView({ switches, payoutMethod, update }: { switches: Record<SwitchKey, Switch>; payoutMethod: PayoutMethod; update?: FormAction }) {
+export function SwitchesView({
+  switches,
+  payoutMethod,
+  update,
+  mfaGuard,
+}: {
+  switches: Record<SwitchKey, Switch>;
+  payoutMethod: PayoutMethod;
+  update?: FormAction;
+  /** What turning the money code on would do now (B112): refuse when this admin has no authenticator, warn when others have none. */
+  mfaGuard?: { refuse: string | null; warn: string | null };
+}) {
   const devOn = switches.dev_otp_for_all.on;
+  const mfaOff = !switches.admin_require_mfa.on;
   return (
     <>
       <ConfigHeader active="switches" />
       {devOn ? (
         <Notice tone="red" icon="alert" title="Developer sign-in is ON.">
           Anyone can sign in to any phone number’s account. Switch it off before real people use TaskDrop.
+        </Notice>
+      ) : null}
+      {mfaOff && mfaGuard?.warn ? (
+        <Notice tone="red" icon="alert" title="Do not turn on “Authenticator code for money actions” yet.">
+          {mfaGuard.warn} {mfaGuard.refuse ? 'You have none yourself, so the panel will not let you turn it on.' : null}
         </Notice>
       ) : null}
       <Card
@@ -351,7 +368,11 @@ export function SwitchesView({ switches, payoutMethod, update }: { switches: Rec
                 <div className="setting-value">
                   <Pill tone={s.on ? (info.danger === 'on' ? 'red' : 'green') : info.danger === 'off' ? 'red' : 'grey'}>{s.on ? 'On' : 'Off'}</Pill>
                 </div>
-                {update ? (
+                {update && key === 'admin_require_mfa' && next && mfaGuard?.refuse ? (
+                  <Link href="/security" className="btn btn-small" title={mfaGuard.refuse}>
+                    Set up your authenticator first
+                  </Link>
+                ) : update ? (
                 <ConfirmAction
                   action={update}
                   hidden={{ key, on: String(next) }}
@@ -359,7 +380,7 @@ export function SwitchesView({ switches, payoutMethod, update }: { switches: Rec
                   trigger={`${info.label}: turn ${next ? 'on' : 'off'}`}
                   tone={risky ? 'danger' : 'primary'}
                   title={`Turn ${next ? 'on' : 'off'} “${info.label}”?`}
-                  consequence={next ? info.onText : info.offText}
+                  consequence={next ? (key === 'admin_require_mfa' && mfaGuard?.warn ? `${info.onText} ${mfaGuard.warn}` : info.onText) : info.offText}
                   field={key === 'dev_otp_for_all' && next ? { name: 'confirm', label: 'Type ON to confirm', required: true, placeholder: 'ON' } : undefined}
                   confirmLabel={`Turn ${next ? 'on' : 'off'}`}
                 />
