@@ -11,7 +11,14 @@ import {
   parseOwnerFilter,
   parseRuleInput,
   summarizeRuleTasks,
+  withoutDeleted,
 } from './crm-calc.ts';
+
+test('withoutDeleted drops deleted accounts and keeps the order (A1-1)', () => {
+  assert.deepEqual(withoutDeleted(['a', 'b', 'c', 'd'], new Set(['b', 'd'])), ['a', 'c']);
+  assert.deepEqual(withoutDeleted(['a', 'b'], new Set()), ['a', 'b']);
+  assert.deepEqual(withoutDeleted([], new Set(['a'])), []);
+});
 
 const ME = '11111111-1111-4111-8111-111111111111';
 const OTHER = '22222222-2222-4222-8222-222222222222';

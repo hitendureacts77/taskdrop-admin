@@ -3,6 +3,8 @@ import { requireAdmin } from '@/lib/data';
 import { asBoardTab, getBoardCounts, getBoardPosts } from '@/lib/feedback';
 import { staffCan } from '@/lib/staff-roles';
 
+export const metadata = { title: 'Feedback board' };
+
 export default async function FeedbackPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const me = await requireAdmin();
   const tab = asBoardTab((await searchParams).tab);

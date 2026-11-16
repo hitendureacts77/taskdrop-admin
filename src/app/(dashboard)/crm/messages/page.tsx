@@ -2,6 +2,8 @@ import { MessagesView } from '@/components/views/CrmViews';
 import { criteriaToQuery, getAudiences, getBroadcasts, hasFilters, parseCriteria } from '@/lib/crm';
 import { requireAdmin } from '@/lib/data';
 
+export const metadata = { title: 'Messages' };
+
 type SP = Promise<Record<string, string | string[] | undefined>>;
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 

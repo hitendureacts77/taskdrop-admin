@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { destinationOf, manualPayLabel, paidLine, payoutDestinations, savedUpiId, type DestSource } from './payout-dest.ts';
+import { destinationOf, manualPayLabel, paidLine, payoutDestinations, savedUpiId, type DestSource, destinationKind } from './payout-dest.ts';
 
 const base: DestSource = { snapshot: null, kind: null, upi_id: null, account_name: null, account_number: null, ifsc: null };
 
@@ -67,4 +67,12 @@ test('manualPayLabel stops claiming someone is paying once the lock is a day old
   assert.deepEqual(manualPayLabel('processing', '2026-10-04T12:00:00Z', now), { label: 'Locked 40 days: pay or give back', tone: 'red' });
   assert.deepEqual(manualPayLabel('processing', '2026-11-12T11:00:00Z', now), { label: 'Locked 1 day: pay or give back', tone: 'red' });
   assert.deepEqual(manualPayLabel('requested', '2026-10-04T12:00:00Z', now), { label: 'Waiting', tone: 'gold' });
+});
+
+test('destinationKind says UPI or Bank without the id or the account (A1-7)', () => {
+  assert.equal(destinationKind('UPI · ravi.e2e@okaxis'), 'UPI');
+  assert.equal(destinationKind('8074413313@ybl'), 'UPI');
+  assert.equal(destinationKind('Bank · Ravi · ••••1234'), 'Bank');
+  assert.equal(destinationKind('50100234567890'), null);
+  assert.equal(destinationKind(null), null);
 });

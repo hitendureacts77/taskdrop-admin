@@ -5,6 +5,8 @@ import { endAllStaffSessions } from '@/lib/session-actions';
 import { adminAllowlist } from '@/lib/auth';
 import { hasServiceKey, requireSeeing } from '@/lib/data';
 
+export const metadata = { title: 'Team and roles' };
+
 export default async function TeamPage() {
   const me = await requireSeeing('settings');
   const team = await getTeam(me.staffRole);

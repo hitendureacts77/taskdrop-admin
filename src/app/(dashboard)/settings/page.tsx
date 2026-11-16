@@ -3,6 +3,8 @@ import { updateSetting } from '@/lib/actions';
 import { staffCan } from '@/lib/staff-roles';
 import { getAllSettings, requireSeeing } from '@/lib/data';
 
+export const metadata = { title: 'Money and timing' };
+
 export default async function SettingsPage() {
   const me = await requireSeeing('settings');
   const rows = await getAllSettings();

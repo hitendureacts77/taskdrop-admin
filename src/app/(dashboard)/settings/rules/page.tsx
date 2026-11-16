@@ -3,6 +3,8 @@ import { requireSeeing } from '@/lib/data';
 import { getRules } from '@/lib/rules';
 import { staffCan } from '@/lib/staff-roles';
 
+export const metadata = { title: 'Rules' };
+
 export default async function RulesPage() {
   const me = await requireSeeing('settings');
   const rules = await getRules();

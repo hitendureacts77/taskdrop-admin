@@ -3,6 +3,8 @@ import { stopPromotion } from '@/lib/actions';
 import { getPromotions, requireSeeing } from '@/lib/data';
 import { staffCan } from '@/lib/staff-roles';
 
+export const metadata = { title: 'Promotions' };
+
 export default async function PromotionsPage() {
   const me = await requireSeeing('money');
   const rows = await getPromotions(100);

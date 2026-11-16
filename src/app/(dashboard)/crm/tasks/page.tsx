@@ -2,6 +2,8 @@ import { FollowUpsView } from '@/components/views/CrmGrowthViews';
 import { requireAdmin } from '@/lib/data';
 import { getFollowUps, getPipeline, getStaffList } from '@/lib/growth';
 
+export const metadata = { title: 'Follow-ups and pipeline' };
+
 export default async function FollowUpsPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
   const me = await requireAdmin();
   const v = (await searchParams).view;

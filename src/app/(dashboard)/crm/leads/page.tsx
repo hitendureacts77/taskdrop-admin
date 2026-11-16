@@ -5,6 +5,8 @@ import { getStaffList } from '@/lib/growth';
 import { getLeads } from '@/lib/leads';
 import { staffCan } from '@/lib/staff-roles';
 
+export const metadata = { title: 'Leads' };
+
 type SP = Promise<Record<string, string | string[] | undefined>>;
 
 export default async function LeadsPage({ searchParams }: { searchParams: SP }) {

@@ -4,6 +4,8 @@ import { ConfigHeader } from '@/components/views/AdminConfigViews';
 import { requireAdmin } from '@/lib/data';
 import { mfaState } from '@/lib/mfa';
 
+export const metadata = { title: 'My security' };
+
 export default async function SecurityPage() {
   await requireAdmin();
   const state = await mfaState();

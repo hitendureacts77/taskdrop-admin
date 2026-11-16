@@ -3,6 +3,8 @@ import { requireAdmin } from '@/lib/data';
 import { getReports } from '@/lib/growth';
 import { staffCan } from '@/lib/staff-roles';
 
+export const metadata = { title: 'Reports queue' };
+
 export default async function ReportsQueuePage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
   const me = await requireAdmin();
   const view = (await searchParams).view === 'done' ? 'done' : 'open';

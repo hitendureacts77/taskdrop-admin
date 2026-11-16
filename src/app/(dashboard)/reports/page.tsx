@@ -5,6 +5,8 @@ import { getEarnedSince, getPlatformStats, requireSeeing } from '@/lib/data';
 import { getBusinessDaily, getFunnel, getMarketplaceNumbers, getPromotionRoi, getRetention } from '@/lib/growth';
 import { previousWindow } from '@/lib/growth-calc';
 
+export const metadata = { title: 'Business reports' };
+
 type SP = Promise<Record<string, string | string[] | undefined>>;
 
 export default async function ReportsPage({ searchParams }: { searchParams: SP }) {
