@@ -2,7 +2,7 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient as createSessionClient } from '../supabase/server';
 import { startOfIstDay } from '../days';
-import { maskEmail, maskPhone } from '../contact-mask';
+import { maskEmail, maskPhone, signInContacts } from '../contact-mask';
 import { serviceOrNull, likeTerm, one } from './shared';
 import { stableOrder } from './paging';
 import { type SettledPayout, getSettledPayouts } from './payouts';
@@ -142,6 +142,8 @@ export async function getUsers(
   if (filter === 'online') q = q.gt('last_seen_at', new Date(Date.now() - 3 * 60_000).toISOString()).is('deleted_at', null);
   if (filter === 'workers') q = q.not('worker_onboarded_at', 'is', null);
   if (filter === 'deleted') q = q.not('deleted_at', 'is', null);
+  // Deleted accounts show (and export) only under the Deleted filter (B107).
+  if (filter !== 'deleted') q = q.is('deleted_at', null);
   const s = likeTerm(search);
   if (s) q = q.or(`display_name.ilike.%${s}%,username.ilike.%${s}%`);
   const from = page * pageSize;
@@ -208,8 +210,8 @@ export async function getUser(id: string, contacts: 'full' | 'masked'): Promise<
     p.deleted_at ? null : rpc('admin_account_deletion_check', { p_user: id }),
   ]);
 
-  const fullEmail = auth?.data?.user?.email ?? null;
-  const fullPhone = auth?.data?.user?.phone ?? null;
+  // Phone sign-ups carry their number inside a placeholder sign-in address; show it as the phone, never as the email.
+  const { email: fullEmail, phone: fullPhone } = signInContacts(auth?.data?.user?.email, auth?.data?.user?.phone);
   const email = contacts === 'full' ? fullEmail : maskEmail(fullEmail);
   const phone = contacts === 'full' ? fullPhone : maskPhone(fullPhone);
 

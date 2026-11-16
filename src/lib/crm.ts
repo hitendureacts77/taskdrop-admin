@@ -3,7 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient as createSessionClient } from './supabase/server';
 import { createClient as createServiceClient } from './supabase/service';
 import { csvDay, toCsv } from './csv';
-import { exportContactCells } from './contact-mask';
+import { exportContactCells, signInContacts } from './contact-mask';
 import type { StaffRole } from './staff-roles';
 import { isUuid, namesFor } from './data';
 import { applyOwnerFilter, getOwnerMap, type OwnerRef } from './crm-owners';
@@ -431,8 +431,10 @@ export async function exportCsv(ids: string[], opts: { role: StaffRole; hideMone
     let phone = '';
     if (service) {
       const { data } = await service.auth.admin.getUserById(r.id);
-      email = data?.user?.email ?? '';
-      phone = data?.user?.phone ?? '';
+      // Phone sign-ups carry their number in a placeholder sign-in address: export it as the phone, never as the email.
+      const c = signInContacts(data?.user?.email, data?.user?.phone);
+      email = c.email ?? '';
+      phone = c.phone ?? '';
     }
     lines.push([r.name, r.isWorker ? 'Worker' : 'Poster', r.place ?? '', csvDay(r.joinedAt), csvDay(r.lastSeenAt), ...(money ? [(r.walletMinor / 100).toFixed(2), (r.clearingMinor / 100).toFixed(2)] : []), r.tags.map((t) => t.name).join('; '), r.suspended ? 'Yes' : 'No', r.owner?.name ?? '', ...(service ? exportContactCells(opts.role, email, phone) : []), r.id]);
   }
