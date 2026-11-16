@@ -20,7 +20,8 @@ const TABS: { tab: BoardTab; label: string }[] = [
   { tab: 'hidden', label: 'Hidden' },
 ];
 
-export function FeedbackView({ tab, posts, counts, now }: { tab: BoardTab; posts: Read<BoardPost[]>; counts: Read<Record<BoardTab, number>>; now: string }) {
+/** `canAct` is false for a role that may only look (B133): the board shows with no buttons. */
+export function FeedbackView({ tab, posts, counts, now, canAct }: { tab: BoardTab; posts: Read<BoardPost[]>; counts: Read<Record<BoardTab, number>>; now: string; canAct: boolean }) {
   const at = new Date(now);
   return (
     <>
@@ -67,7 +68,7 @@ export function FeedbackView({ tab, posts, counts, now }: { tab: BoardTab; posts
                             {c.hidden ? <Pill tone="red">Hidden</Pill> : null}
                           </p>
                           <p className="prose">{c.body}</p>
-                          {c.hidden ? (
+                          {canAct ? (c.hidden ? (
                             <ConfirmAction
                               action={showIdeaComment}
                               hidden={{ commentId: c.id }}
@@ -87,13 +88,14 @@ export function FeedbackView({ tab, posts, counts, now }: { tab: BoardTab; posts
                               consequence="It disappears from the board for everyone. It is kept, so you can show it again."
                               confirmLabel="Yes, hide it"
                             />
-                          )}
+                          )) : null}
                         </div>
                       ))}
                     </div>
                   </details>
                 ) : null}
 
+                {canAct ? (
                 <div className="pill-row">
                   <ConfirmAction
                     action={setIdeaStatus}
@@ -138,6 +140,9 @@ export function FeedbackView({ tab, posts, counts, now }: { tab: BoardTab; posts
                     />
                   )}
                 </div>
+                ) : (
+                  <p className="muted small">View only: your staff role can read the board but not change it.</p>
+                )}
               </Card>
             ))}
           </div>
