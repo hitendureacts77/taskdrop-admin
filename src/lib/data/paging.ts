@@ -29,6 +29,16 @@ export async function readAll<T>(fetchPage: (from: number, to: number) => Promis
   }
 }
 
+/** PostgREST answers a page that starts after the last row with "range not satisfiable" (416). A typed page number can do that (A1-4). */
+export function isPastLastPage(error: { code?: string; message?: string } | null | undefined): boolean {
+  return Boolean(error) && (error!.code === 'PGRST103' || /range not satisfiable/i.test(error!.message ?? ''));
+}
+
+/** The 0-based number of the last page of a list (0 when the list is empty). */
+export function lastPageIndex(total: number, pageSize: number): number {
+  return Math.max(0, Math.ceil(total / pageSize) - 1);
+}
+
 /** Split a list into pieces of `size`, so a long id list never goes into one .in() address (B132). */
 export function chunk<T>(items: readonly T[], size: number): T[][] {
   const out: T[][] = [];

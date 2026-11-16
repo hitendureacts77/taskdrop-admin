@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { stableOrder } from './paging.ts';
+import { isPastLastPage, lastPageIndex, stableOrder } from './paging.ts';
 
 type Row = { id: string; ts: string };
 
@@ -120,4 +120,27 @@ test('feedback counts, leads, device shares, People filters and the help/dispute
   assert.ok(read('./disputes.ts').includes('export async function countDisputes'));
   const views = read('../../components/views/QueuesViews.tsx');
   assert.ok((views.match(/shownOf\(/g) ?? []).length >= 2, 'both lists say when they show only the first 200');
+});
+
+// A1-4: a page number past the last page must not crash the list.
+test('isPastLastPage recognises PostgREST’s "range not satisfiable" and nothing else', () => {
+  assert.equal(isPastLastPage({ code: 'PGRST103', message: 'Requested range not satisfiable' }), true);
+  assert.equal(isPastLastPage({ message: 'Requested range not satisfiable' }), true);
+  assert.equal(isPastLastPage({ code: '42501', message: 'permission denied' }), false);
+  assert.equal(isPastLastPage(null), false);
+});
+
+test('lastPageIndex is the 0-based last page, and 0 for an empty list', () => {
+  assert.equal(lastPageIndex(0, 30), 0);
+  assert.equal(lastPageIndex(30, 30), 0);
+  assert.equal(lastPageIndex(31, 30), 1);
+  assert.equal(lastPageIndex(758, 30), 25);
+});
+
+test('the Jobs and People lists send a past-the-end page back to the last page', () => {
+  const read = (p: string) => readFileSync(new URL(p, import.meta.url), 'utf8');
+  assert.ok(read('./tasks.ts').includes('isPastLastPage(error)'));
+  assert.ok(read('./users.ts').includes('isPastLastPage(error)'));
+  assert.ok(read('../../app/(dashboard)/tasks/page.tsx').includes('redirect('));
+  assert.ok(read('../../app/(dashboard)/users/page.tsx').includes('redirect('));
 });

@@ -4,7 +4,7 @@ import { createClient as createSessionClient } from '../supabase/server';
 import { startOfIstDay } from '../days';
 import { maskEmail, maskPhone, signInContacts } from '../contact-mask';
 import { serviceOrNull, likeTerm, one } from './shared';
-import { chunk, stableOrder } from './paging';
+import { chunk, isPastLastPage, stableOrder } from './paging';
 import { mapLimit } from '../concurrency';
 import { type SettledPayout, getSettledPayouts } from './payouts';
 import { namesFor } from './people';
@@ -135,6 +135,7 @@ export async function getUsers(
         .order('balance_minor', { ascending: false })
         .order('user_id', { ascending: true })
         .range(from, from + pageSize - 1);
+      if (isPastLastPage(wErr)) return { rows: [], total: c ?? 0 };
       if (wErr) throw new Error(`Could not read wallets: ${wErr.message}`);
       wallets = (w ?? []) as WalletRow[];
       count = c;
@@ -187,7 +188,13 @@ export async function getUsers(
     count = all.length;
     rows = all.slice(from, from + pageSize);
   } else {
-    const { data, error, count: c } = await stableOrder(build(restrictTo), 'created_at').range(from, from + pageSize - 1);
+    const ordered = stableOrder(build(restrictTo), 'created_at');
+    const { data, error, count: c } = await ordered.range(from, from + pageSize - 1);
+    if (isPastLastPage(error)) {
+      // A page after the last one: no rows, but the real total so the page can send the reader back (A1-4).
+      const { count: total } = await ordered.range(0, 0);
+      return { rows: [], total: total ?? 0 };
+    }
     if (error) throw new Error(`Could not read people: ${error.message}`);
     rows = (data ?? []) as unknown as ProfileRow[];
     count = c;

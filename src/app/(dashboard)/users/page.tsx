@@ -1,5 +1,7 @@
+import { redirect } from 'next/navigation';
 import { UsersView } from '@/components/views/UsersView';
 import { getSuspendedAmong, getTags, getTagsFor, idsSuspended, idsWithTag } from '@/lib/crm';
+import { lastPageIndex } from '@/lib/data/paging';
 import { getUsers, parseUserFilter, requireAdmin } from '@/lib/data';
 import { staffCanSee } from '@/lib/staff-roles';
 import { isUuid } from '@/lib/data';
@@ -26,6 +28,14 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
   if (tagged) restrict = restrict ? restrict.filter((id) => tagged.includes(id)) : tagged;
 
   const { rows: fetched, total } = await getUsers(filter, q, page, pageSize, restrict);
+  // A page after the last one (a typed address, or a list that shrank): go to the last real page.
+  if (!fetched.length && total > 0 && page > lastPageIndex(total, pageSize)) {
+    const back = new URLSearchParams();
+    for (const [k, v] of Object.entries(sp)) if (k !== 'page' && typeof first(v) === 'string') back.set(k, first(v)!);
+    const last = lastPageIndex(total, pageSize);
+    if (last > 0) back.set('page', String(last));
+    redirect(`/users${back.size ? `?${back}` : ''}`);
+  }
   const rows = hideMoney ? fetched.map((r) => ({ ...r, walletMinor: 0, clearingMinor: 0 })) : fetched;
   const ids = rows.map((r) => r.id);
   const [tagsByUser, suspended] = await Promise.all([getTagsFor(ids), getSuspendedAmong(ids)]);
