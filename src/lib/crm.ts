@@ -7,7 +7,7 @@ import { exportContactCells, signInContacts } from './contact-mask';
 import type { StaffRole } from './staff-roles';
 import { isUuid, namesFor } from './data';
 import { applyOwnerFilter, getOwnerMap, type OwnerRef } from './crm-owners';
-import type { OwnerFilter } from './crm-calc';
+import { withoutDeleted, type OwnerFilter } from './crm-calc';
 import { getStaffList } from './growth';
 import { readAll } from './data/paging';
 import { mapLimit } from './concurrency';
@@ -118,13 +118,14 @@ export type TagWithCount = Tag & { people: number };
 
 export async function getTags(): Promise<TagWithCount[]> {
   const supabase = await db();
-  const [tags, links] = await Promise.all([
+  const [tags, links, deleted] = await Promise.all([
     supabase.from('crm_tags').select('id, name, color').order('name'),
-    readAll<{ tag_id: string }>((from, to) => supabase.from('crm_user_tags').select('tag_id').order('tag_id').order('user_id').range(from, to), 'Could not count tags'),
+    readAll<{ tag_id: string; user_id: string }>((from, to) => supabase.from('crm_user_tags').select('tag_id, user_id').order('tag_id').order('user_id').range(from, to), 'Could not count tags'),
+    deletedIds(),
   ]);
   if (tags.error) throw new Error(`Could not read tags: ${tags.error.message}`);
   const counts = new Map<string, number>();
-  for (const l of links) counts.set(l.tag_id, (counts.get(l.tag_id) ?? 0) + 1);
+  for (const l of links) if (!deleted.has(l.user_id)) counts.set(l.tag_id, (counts.get(l.tag_id) ?? 0) + 1);
   return ((tags.data ?? []) as Tag[]).map((t) => ({ ...t, people: counts.get(t.id) ?? 0 }));
 }
 
@@ -274,11 +275,18 @@ export type MemberRow = {
   owner: OwnerRef | null;
 };
 
+/** Deleted accounts (a small set). The People list leaves them out, so audiences and counts must too (A1-1). */
+async function deletedIds(): Promise<Set<string>> {
+  const supabase = await db();
+  const rows = await readAll<{ id: string }>((from, to) => supabase.from('profiles').select('id').not('deleted_at', 'is', null).order('id').range(from, to), 'Could not read deleted accounts');
+  return new Set(rows.map((r) => r.id));
+}
+
 async function matchingIds(c: Criteria): Promise<string[]> {
   const supabase = await db();
   // Paged: one request would stop silently at 1,000 people, so the "send to N" count would not match what is sent (B122).
   const rows = await readAll<{ user_id: string }>((from, to) => supabase.rpc('crm_segment_users', { p_criteria: c }).order('user_id').range(from, to), 'Could not work out who matches');
-  return rows.map((r) => r.user_id);
+  return withoutDeleted(rows.map((r) => r.user_id), await deletedIds());
 }
 
 export async function countMatching(c: Criteria): Promise<number> {
@@ -373,7 +381,7 @@ export type CrmOverview = {
 export async function getCrmOverview(): Promise<CrmOverview> {
   const supabase = await db();
   const [people, susp, tags, followUps, notes, notesCount, broadcasts, bcount] = await Promise.all([
-    supabase.from('profiles').select('id', { count: 'exact', head: true }),
+    supabase.from('profiles').select('id', { count: 'exact', head: true }).is('deleted_at', null),
     supabase.from('user_suspensions').select('user_id, reason, suspended_at').is('lifted_at', null).order('suspended_at', { ascending: false }).limit(20),
     getTags(),
     getFollowUps(30),
