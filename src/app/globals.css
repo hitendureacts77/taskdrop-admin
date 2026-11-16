@@ -1939,6 +1939,20 @@ tbody tr:hover .td {
   font-weight: 800;
   white-space: nowrap;
 }
+.setting-value-wrap {
+  min-width: 0;
+  max-width: 100%;
+  font-size: 15px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+@media (max-width: 640px) {
+  .setting-value-wrap {
+    grid-column: 1 / -1;
+    text-align: left;
+  }
+}
 .setting .confirm {
   grid-column: 1 / -1;
 }

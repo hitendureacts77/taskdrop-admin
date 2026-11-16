@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ClickCard, ClickRow } from '../Clickable';
 import type { PlatformStats, PromotionRow, SettingRow, TaskRow, UserRow } from '@/lib/data';
 import { inr, istDate, istDateTime, pct } from '@/lib/format';
+import { readableSetting } from '@/lib/setting-input';
 import { PROMOTION_STATUS, taskStatus } from '@/lib/labels';
 import { ConfirmAction, type FormAction } from '../ConfirmAction';
 import { ConfigHeader } from './AdminConfigViews';
@@ -274,7 +275,7 @@ export function SettingsView({ rows, update }: { rows: SettingRow[]; update?: Fo
                 <div className="setting-text">
                   <code>{r.key}</code>
                 </div>
-                <div className="setting-value">{typeof r.value === 'string' ? r.value : JSON.stringify(r.value)}</div>
+                <div className="setting-value setting-value-wrap">{readableSetting(r.value, istDateTime)}</div>
               </li>
             ))}
           </ul>
