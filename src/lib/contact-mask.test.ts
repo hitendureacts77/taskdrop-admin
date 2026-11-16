@@ -112,7 +112,7 @@ test('a phone sign-up placeholder address becomes the phone, never the email', (
 test('CRM audiences, tag counts, the hub and the reports leave out deleted accounts (A1-1)', () => {
   const crm = src('./crm.ts');
   assert.ok(crm.includes('withoutDeleted(rows.map((r) => r.user_id), await deletedIds())'), 'audiences filter deleted people');
-  assert.ok(/from('profiles').select('id', { count: 'exact', head: true }).is('deleted_at', null)/.test(crm), 'the hub counts only live people');
+  assert.ok(crm.includes("supabase.from('profiles').select('id', { count: 'exact', head: true }).is('deleted_at', null)"), 'the hub counts only live people');
   assert.ok(crm.includes('!deleted.has(l.user_id)'), 'tag counts skip deleted people');
   assert.ok(src('./data/totals.ts').includes(".is('deleted_at', null)"), 'platform totals count only live people');
 });
