@@ -1,6 +1,7 @@
 import * as Sentry from '@sentry/nextjs';
 import { SENTRY_DSN, SENTRY_ENVIRONMENT } from './lib/sentry-dsn';
 import { scrubEvent } from './lib/scrub';
+import { scrubSpan } from './lib/sentry-span';
 
 // Browser side. Staff see other people's names, phone numbers and money here,
 // so no session replay, no feedback widget, and no user identity is sent.
@@ -11,7 +12,8 @@ Sentry.init({
   tracesSampleRate: 0.1,
   // Last net: hides keys, phone numbers and emails in anything sent (src/lib/scrub.ts).
   beforeSend: (event) => scrubEvent(event),
-  beforeSendTransaction: (event) => scrubEvent(event),
+  // Sentry 11 streams spans by default and then skips the transaction hook; this one runs (B127).
+  beforeSendSpan: (span) => scrubSpan(span),
   beforeBreadcrumb: (crumb) => scrubEvent(crumb),
 });
 
