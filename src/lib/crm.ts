@@ -423,7 +423,7 @@ export async function getAudiences(extra?: Criteria): Promise<Audience[]> {
  */
 export async function exportCsv(ids: string[], opts: { role: StaffRole; hideMoney?: boolean }): Promise<string> {
   const rows: MemberRow[] = [];
-  for (let i = 0; i < ids.length; i += 200) rows.push(...(await memberRows(ids.slice(i, i + 200))));
+  for (let i = 0; i < ids.length; i += 150) rows.push(...(await memberRows(ids.slice(i, i + 150))));
   let service: ReturnType<typeof createServiceClient> | null = null;
   try {
     service = createServiceClient();

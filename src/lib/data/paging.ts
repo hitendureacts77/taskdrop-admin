@@ -22,9 +22,32 @@ export async function readAll<T>(fetchPage: (from: number, to: number) => Promis
   const out: T[] = [];
   for (;;) {
     const { data, error } = await fetchPage(out.length, out.length + pageSize - 1);
-    if (error) throw new Error(`${what}: ${error.message}`);
+    if (error) throw new Error(`${what}: ${error.message}`, { cause: error });
     if (!data?.length) return out;
     out.push(...data);
     if (out.length > maxRows) throw new Error(`${what}: more than ${maxRows.toLocaleString('en-IN')} rows; narrow it down.`);
+  }
+}
+
+/** Split a list into pieces of `size`, so a long id list never goes into one .in() address (B132). */
+export function chunk<T>(items: readonly T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
+/** The line a capped list shows when there are more rows than it lists, or null when it shows them all (B132). */
+export function shownOf(shown: number, total: number | null): string | null {
+  if (total == null || total <= shown) return null;
+  return `Showing the first ${shown.toLocaleString('en-IN')} of ${total.toLocaleString('en-IN')}.`;
+}
+
+/** readAll for reads that report a failure instead of throwing: the original PostgREST error (with its code) comes back. */
+export async function tryReadAll<T>(fetchPage: (from: number, to: number) => PromiseLike<Page<T>>): Promise<{ data: T[]; error: { message: string; code?: string } | null }> {
+  try {
+    return { data: await readAll(fetchPage), error: null };
+  } catch (e) {
+    const cause = (e as Error).cause as { message: string; code?: string } | undefined;
+    return { data: [], error: cause ?? { message: (e as Error).message } };
   }
 }

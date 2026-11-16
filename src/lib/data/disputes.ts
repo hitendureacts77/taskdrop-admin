@@ -50,6 +50,13 @@ export async function getDisputeReasons(taskIds: string[]): Promise<Map<string, 
   return out;
 }
 
+/** How many jobs are in dispute; the list shows at most 200 (B132). */
+export async function countDisputes(): Promise<number | null> {
+  const supabase = await createSessionClient();
+  const { count, error } = await supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('status', 'DISPUTED');
+  return error ? null : count;
+}
+
 export async function getDisputes(): Promise<DisputeRow[]> {
   const supabase = await createSessionClient();
   const { data, error } = await supabase

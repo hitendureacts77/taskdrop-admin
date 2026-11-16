@@ -92,3 +92,32 @@ test('CRM audiences, tag counts and the People filters page through every row', 
   assert.ok(!/crm_segment_users', \{ p_criteria: c \}\);/.test(crm), 'matchingIds must not read the RPC in one request');
   assert.ok(!crm.includes('.limit(20000)'), 'tag and suspension lists must be paged, not capped');
 });
+
+// B132: other silent caps.
+import { chunk, shownOf } from './paging.ts';
+
+test('chunk splits a long id list so no single .in() address grows past what the server takes', () => {
+  assert.deepEqual(chunk([1, 2, 3, 4, 5], 2), [[1, 2], [3, 4], [5]]);
+  assert.deepEqual(chunk([], 3), []);
+  assert.equal(chunk(Array.from({ length: 1000 }, (_, i) => i), 150).length, 7);
+});
+
+test('a capped list says how many it is not showing', () => {
+  assert.equal(shownOf(200, 200), null);
+  assert.equal(shownOf(12, 12), null);
+  assert.equal(shownOf(200, null), null);
+  assert.equal(shownOf(200, 1234), 'Showing the first 200 of 1,234.');
+});
+
+test('feedback counts, leads, device shares, People filters and the help/dispute lists are not silently capped', () => {
+  const read = (p: string) => readFileSync(new URL(p, import.meta.url), 'utf8');
+  assert.ok(/tryReadAll[<(]/.test(read('../feedback.ts')), 'feedback counts page through every idea');
+  assert.ok(/tryReadAll[<(]/.test(read('../leads.ts')), 'leads page through every lead');
+  assert.ok(/tryReadAll[<(]/.test(read('../controls.ts')), 'device shares count every install');
+  const users = read('./users.ts');
+  assert.ok(users.includes('chunk(') && users.includes('IN_CHUNK'), 'People filters split long id lists');
+  assert.ok(read('./support.ts').includes('export async function countTickets'));
+  assert.ok(read('./disputes.ts').includes('export async function countDisputes'));
+  const views = read('../../components/views/QueuesViews.tsx');
+  assert.ok((views.match(/shownOf\(/g) ?? []).length >= 2, 'both lists say when they show only the first 200');
+});
