@@ -154,7 +154,7 @@ function TagList({ tags }: { tags: TagWithCount[] }) {
             trigger="Delete"
             tone="quiet"
             title={`Delete the “${t.name}” tag?`}
-            consequence={<>It is taken off {t.people.toLocaleString('en-IN')} {t.people === 1 ? 'person' : 'people'}. Nothing else changes. Segments that use it will match nobody.</>}
+            consequence={<>{t.people === 0 ? 'Nobody has this tag, so no one is affected. The tag is removed from the list for good.' : <>It is taken off {t.people.toLocaleString('en-IN')} {t.people === 1 ? 'person' : 'people'}.</>} Nothing else changes. Segments that use it will match nobody.</>}
             confirmLabel="Yes, delete the tag"
           />
         </li>

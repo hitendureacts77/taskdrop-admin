@@ -228,9 +228,9 @@ export function KV({ rows }: { rows: { label: ReactNode; value: ReactNode; hint?
 }
 
 /** A small number that opens the list behind it. */
-export function StatLink({ href, icon, label, value, sub }: { href: string; icon: string; label: string; value: ReactNode; sub?: ReactNode }) {
+export function StatLink({ href, icon, label, value, sub, hint }: { href: string; icon: string; label: string; value: ReactNode; sub?: ReactNode; /** A longer plain-words explanation, shown as a tooltip. */ hint?: string }) {
   return (
-    <Link href={href} className="stat">
+    <Link href={href} className="stat" title={hint}>
       <span className="stat-icon" aria-hidden="true">
         <Icon name={icon} size={18} />
       </span>

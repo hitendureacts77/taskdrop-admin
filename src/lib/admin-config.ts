@@ -294,6 +294,9 @@ export type AuditRow = {
   /** The person this row is about, when it is about one (B108). */
   personId: string | null;
   personName: string | null;
+  /** The job this row is about, when it is about one (a dispute decision names its job). */
+  taskId: string | null;
+  taskTitle: string | null;
 };
 
 /** The tables whose changes the database records (private.audit_change triggers), with a plain name each. */
@@ -362,9 +365,29 @@ export async function getAuditLog(table: string | null, page: number, pageSize =
     const { data: profs } = await supabase.from('profiles').select('id, display_name').in('id', actorIds);
     for (const p of (profs ?? []) as { id: string; display_name: string }[]) names.set(p.id, p.display_name);
   }
+  // A dispute decision is about a job: name it, the way a suspension names its person.
+  const taskOf = (r: (typeof raw)[number]): string | null => {
+    if (r.target_table !== 'dispute_decisions') return null;
+    for (const side of [r.after, r.before]) {
+      const v = side && typeof side === 'object' ? (side as Record<string, unknown>).task_id : undefined;
+      if (typeof v === 'string' && v) return v;
+    }
+    return null;
+  };
+  const taskIds = [...new Set(raw.map(taskOf).filter((x): x is string => Boolean(x)))];
+  const titles = new Map<string, string>();
+  if (taskIds.length) {
+    const { data: ts } = await supabase.from('tasks').select('id, title').in('id', taskIds);
+    for (const t of (ts ?? []) as { id: string; title: string }[]) titles.set(t.id, t.title);
+  }
   return {
     total: count ?? raw.length,
     rows: raw.map((r) => ({
+      taskId: taskOf(r),
+      taskTitle: (() => {
+        const t = taskOf(r);
+        return t ? titles.get(t)?.trim() || null : null;
+      })(),
       personId: personOf(r),
       personName: (() => {
         const p = personOf(r);

@@ -139,7 +139,7 @@ export async function getReports(status: 'open' | 'done'): Promise<Read<ReportRo
           reporter: names.get(str(x.reporter_id)) ?? 'Someone',
           targetType: type,
           targetId: target,
-          targetLabel: type === 'user' ? names.get(target) ?? 'A person' : type === 'task' ? titles.get(target) ?? 'A job' : type === 'review' ? 'A review' : 'A message',
+          targetLabel: type === 'user' ? names.get(target) ?? 'A person' : type === 'task' ? titles.get(target)?.trim() || `#${target.slice(0, 8)}` : type === 'review' ? 'A review' : 'A message',
           reason: str(x.reason),
           status: str(x.status),
           resolution: x.resolution ? str(x.resolution) : null,

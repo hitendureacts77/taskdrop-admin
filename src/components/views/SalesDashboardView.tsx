@@ -41,7 +41,7 @@ export function SalesDashboardView({ today, now: nowIso }: { today: TodayCounts;
       <div className="stats">
         <StatLink href="/tasks?filter=posted_today" icon="jobs" label="Jobs posted today" value={today.jobsPosted} />
         <StatLink href="/users?filter=new_today" icon="people" label="New people today" value={today.newPeople} />
-        <StatLink href="/users?filter=available" icon="bolt" label="Workers available now" value={today.availableNow} />
+        <StatLink href="/users?filter=available" icon="bolt" label="Workers available now" value={today.availableNow} sub="Older “available now” setting" hint="This counts only people who have the older “available now” setting switched on, which the app no longer asks for, so it is often 0. “Online now” counts everyone who used the app in the last 3 minutes." />
         <StatLink href="/tasks?filter=waiting" icon="clock" label="Waiting for poster’s OK" value={today.waitingApproval} />
         <StatLink href="/tasks?filter=finished_today" icon="check" label="Jobs finished today" value={today.jobsFinished} />
       </div>

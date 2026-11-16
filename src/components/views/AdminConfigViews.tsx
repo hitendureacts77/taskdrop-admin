@@ -624,6 +624,38 @@ function targetHref(r: AuditRow): string | null {
   return r.personId ? `/users/${r.personId}` : null;
 }
 
+/** True when the free-text detail only repeats the sentence already shown ("... showing" then "... visible"). */
+function detailRepeats(r: AuditRow): boolean {
+  if (!r.detail) return false;
+  const words = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(Boolean);
+  const a = words(describe(r));
+  const b = words(r.detail);
+  const n = Math.min(a.length, b.length, 6);
+  return n >= 4 && a.slice(0, n).join(' ') === b.slice(0, n).join(' ');
+}
+
+/** Who or what a row is about, for the "About ..." line, when the log has one. */
+function AboutLine({ r }: { r: AuditRow }) {
+  if (r.table === 'payouts') return null;
+  if (r.personId) {
+    return (
+      <span className="muted block">
+        About <Link href={`/users/${r.personId}`}>{r.personName}</Link>
+      </span>
+    );
+  }
+  if (r.taskId) {
+    return (
+      <span className="muted block">
+        About job <Link href={`/tasks/${r.taskId}`}>{r.taskTitle ?? `#${r.taskId.slice(0, 8)}`}</Link>
+      </span>
+    );
+  }
+  // Settings rows already name their key in the sentence; any other row shows the record it changed.
+  if (r.targetId && r.table && r.table !== 'settings' && r.table !== 'event') return <span className="muted block">Record #{r.targetId.slice(0, 8)}</span>;
+  return null;
+}
+
 export function AuditView({
   rows,
   total,
@@ -691,12 +723,8 @@ export function AuditView({
                       </td>
                       <td className="td small">
                         {href ? <Link href={href}>{describe(r)}</Link> : describe(r)}
-                        {r.personId && r.table !== 'payouts' ? (
-                          <span className="muted block">
-                            About <Link href={`/users/${r.personId}`}>{r.personName}</Link>
-                          </span>
-                        ) : null}
-                        {r.detail ? <span className="muted block">{r.detail}</span> : null}
+                        <AboutLine r={r} />
+                        {r.detail && !detailRepeats(r) ?<span className="muted block">{r.detail}</span> : null}
                       </td>
                       <td className="td small">
                         <details className="audit-raw">
