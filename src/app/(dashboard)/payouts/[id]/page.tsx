@@ -5,6 +5,8 @@ import { PayoutDetailView } from '@/components/views/PayoutDetailView';
 import { checkWithRazorpayX, giveBackPayout, markPayout } from '@/lib/actions';
 import { getPayoutDetail, getPayoutMethod, getRazorpayXState, requireSeeing } from '@/lib/data';
 
+export const metadata = { title: 'Withdrawal' };
+
 export default async function PayoutPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const me = await requireSeeing('money');
   const { id } = await params;

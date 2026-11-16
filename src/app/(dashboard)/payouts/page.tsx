@@ -15,6 +15,8 @@ import {
   requireSeeing,
 } from '@/lib/data';
 
+export const metadata = { title: 'Payouts' };
+
 type SP = Promise<Record<string, string | string[] | undefined>>;
 
 const CHART_DAYS = [7, 30, 90];

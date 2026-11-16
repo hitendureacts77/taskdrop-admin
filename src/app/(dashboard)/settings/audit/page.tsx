@@ -3,6 +3,8 @@ import { AUDIT_TABLES, getAuditLog } from '@/lib/admin-config';
 import { asAuditScope } from '@/lib/audit-scope';
 import { requireSeeing } from '@/lib/data';
 
+export const metadata = { title: 'Audit log' };
+
 const PAGE_SIZE = 40;
 
 export default async function AuditPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {

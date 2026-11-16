@@ -6,6 +6,8 @@ import { getDisputeReasons, getMoneySettings, getTask, requireAdmin } from '@/li
 import { isTaskHidden } from '@/lib/growth';
 import { getTaskPhotos } from '@/lib/photos';
 
+export const metadata = { title: 'Job' };
+
 export default async function TaskPage({ params }: { params: Promise<{ id: string }> }) {
   const me = await requireAdmin();
   const { id } = await params;

@@ -4,6 +4,8 @@ import { replyTicket, resolveTicket } from '@/lib/actions';
 import { getTicket, requireAdmin } from '@/lib/data';
 import { staffCan } from '@/lib/staff-roles';
 
+export const metadata = { title: 'Help request' };
+
 export default async function TicketPage({ params }: { params: Promise<{ id: string }> }) {
   const me = await requireAdmin();
   const { id } = await params;

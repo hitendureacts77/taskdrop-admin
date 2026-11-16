@@ -6,6 +6,8 @@ import { getUsers, parseUserFilter, requireAdmin } from '@/lib/data';
 import { staffCanSee } from '@/lib/staff-roles';
 import { isUuid } from '@/lib/data';
 
+export const metadata = { title: 'People' };
+
 type SP = Promise<Record<string, string | string[] | undefined>>;
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 

@@ -2,6 +2,8 @@ import { SearchView } from '@/components/views/MoreViews';
 import { getTasks, getUsers, requireAdmin } from '@/lib/data';
 import { staffCanSee } from '@/lib/staff-roles';
 
+export const metadata = { title: 'Search' };
+
 type SP = Promise<Record<string, string | string[] | undefined>>;
 
 export default async function SearchPage({ searchParams }: { searchParams: SP }) {

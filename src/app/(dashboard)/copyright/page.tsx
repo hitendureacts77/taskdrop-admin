@@ -3,6 +3,8 @@ import { getCopyrightNotices } from '@/lib/copyright';
 import { requireAdmin } from '@/lib/data';
 import { staffCan } from '@/lib/staff-roles';
 
+export const metadata = { title: 'Copyright notices' };
+
 export default async function CopyrightPage() {
   const me = await requireAdmin();
   const { ready, rows } = await getCopyrightNotices(me.staffRole);

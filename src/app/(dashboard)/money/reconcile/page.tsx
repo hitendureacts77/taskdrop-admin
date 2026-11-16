@@ -4,6 +4,8 @@ import { getMoneyCheckRows } from '@/lib/growth';
 import { getReconciliationRuns } from '@/lib/ops';
 import { roleLabel } from '@/lib/staff-roles';
 
+export const metadata = { title: 'Money check' };
+
 export default async function ReconcilePage({ searchParams }: { searchParams: Promise<{ days?: string }> }) {
   const me = await requireSeeing('money');
   const raw = Number((await searchParams).days);

@@ -6,6 +6,8 @@ import { mfaState } from '@/lib/mfa';
 import { mfaSwitchCheck } from '@/lib/mfa-switch';
 import { staffCan } from '@/lib/staff-roles';
 
+export const metadata = { title: 'App switches' };
+
 export default async function SwitchesPage() {
   const me = await requireSeeing('settings');
   const [{ switches, payoutMethod }, team, mine] = await Promise.all([getSwitches(), getTeam(me.staffRole), mfaState()]);

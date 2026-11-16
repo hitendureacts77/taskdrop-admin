@@ -4,6 +4,8 @@ import { requireAdmin } from '@/lib/data';
 import { minVersionFor } from '@/lib/devices-calc';
 import { getDevicesSummary } from '@/lib/ops';
 
+export const metadata = { title: 'Devices' };
+
 export const dynamic = 'force-dynamic';
 
 const text = (r: Record<string, unknown> | null | undefined, k: string) => (typeof r?.[k] === 'string' ? (r[k] as string) : null);

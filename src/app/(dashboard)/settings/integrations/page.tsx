@@ -3,6 +3,8 @@ import { emailFor, staffSeesContacts } from '@/lib/contact-mask';
 import { getIntegrations } from '@/lib/admin-config';
 import { requireSeeing } from '@/lib/data';
 
+export const metadata = { title: 'Integrations' };
+
 export const dynamic = 'force-dynamic';
 
 export default async function IntegrationsPage() {

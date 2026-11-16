@@ -2,6 +2,8 @@ import { ControlsView } from '@/components/views/ControlsView';
 import { getAppControls, getDeviceRows } from '@/lib/controls';
 import { requireSeeing } from '@/lib/data';
 
+export const metadata = { title: 'App controls' };
+
 export default async function ControlsPage() {
   await requireSeeing('settings');
   const [controls, devices] = await Promise.all([getAppControls(), getDeviceRows()]);

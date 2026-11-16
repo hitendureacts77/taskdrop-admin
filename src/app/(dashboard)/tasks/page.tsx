@@ -4,6 +4,8 @@ import { getEscrowJobs, getTasks, parseTaskFilter, requireAdmin } from '@/lib/da
 import { lastPageIndex } from '@/lib/data/paging';
 import { titleMatches } from '@/lib/data/search';
 
+export const metadata = { title: 'Jobs' };
+
 type SP = Promise<Record<string, string | string[] | undefined>>;
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 

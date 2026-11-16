@@ -5,6 +5,8 @@ import { requireAdmin } from '@/lib/data';
 import { getStaffList } from '@/lib/growth';
 import { staffCan, staffCanSee } from '@/lib/staff-roles';
 
+export const metadata = { title: 'Segments' };
+
 type SP = Promise<Record<string, string | string[] | undefined>>;
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
