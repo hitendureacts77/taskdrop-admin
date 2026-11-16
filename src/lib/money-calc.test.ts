@@ -18,3 +18,18 @@ test('clearing and on-the-way are reported separately', () => {
   assert.equal(w.clearingMinor, 994500);
   assert.equal(w.onTheWayMinor, 490000);
 });
+
+// B137: every read error used to look like "migration 066 not applied". Only a missing function says that now.
+import { readFileSync } from 'node:fs';
+import { positionProblem } from './money-calc.ts';
+
+test('the money position names the real error, and blames migration 066 only when the function is missing', () => {
+  assert.equal(positionProblem({ message: 'Could not find the function public.admin_money_position without parameters in the schema cache', code: 'PGRST202' }), 'The money position function is missing on this database (migration 066).');
+  assert.equal(positionProblem({ message: 'function public.admin_money_position() does not exist', code: '42883' }), 'The money position function is missing on this database (migration 066).');
+  assert.equal(positionProblem({ message: 'Admins only', code: 'P0001' }), 'Could not read the money position: Admins only');
+  assert.equal(positionProblem({ message: 'upstream request timeout' }), 'Could not read the money position: upstream request timeout');
+  assert.equal(positionProblem(null), null);
+  const src = readFileSync(new URL('./data/payouts.ts', import.meta.url), 'utf8');
+  assert.ok(!/if \(error\) return null;/.test(src.slice(src.indexOf('getMoneyPosition'))), 'no error is swallowed as null');
+  assert.ok(readFileSync(new URL('../components/views/PayoutsView.tsx', import.meta.url), 'utf8').includes('positionError'));
+});
