@@ -213,7 +213,7 @@ export function DashboardView({ d, health, devices }: { d: DashboardData; health
         <StatLink href="/tasks?filter=finished_today" icon="check" label="Jobs finished today" value={d.today.jobsFinished} />
         <StatLink href="/tasks?filter=posted_today" icon="jobs" label="Jobs posted today" value={d.today.jobsPosted} />
         <StatLink href="/users?filter=new_today" icon="people" label="New people today" value={d.today.newPeople} />
-        <StatLink href="/users?filter=available" icon="bolt" label="Workers available now" value={d.today.availableNow} />
+        <StatLink href="/users?filter=available" icon="bolt" label="Workers available now" value={d.today.availableNow} sub="Older “available now” setting" hint="This counts only people who have the older “available now” setting switched on, which the app no longer asks for, so it is often 0. “Online now” (Right now strip) counts everyone who used the app in the last 3 minutes." />
         <StatLink href="/tasks?filter=waiting" icon="clock" label="Waiting for poster’s OK" value={d.today.waitingApproval} />
       </div>
 

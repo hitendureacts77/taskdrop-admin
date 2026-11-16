@@ -49,7 +49,7 @@ export function LiveStrip() {
         <span className="muted">Updates by itself</span>
       </div>
       <div className="stats live-strip">
-        <StatLink href="/users?filter=online" icon="people" label="Online now" value={<Flash value={c.online_now} />} sub={`${fmt(c.online_workers)} of them can work`} />
+        <StatLink href="/users?filter=online" icon="people" label="Online now" value={<Flash value={c.online_now} />} sub={`${fmt(c.online_workers)} of them can work`} hint="Online now: people who used the app in the last 3 minutes. “Can work” counts those among them who finished worker set-up. This is a different number from “Workers available now” on the dashboard, which counts only people with the older “available now” setting switched on." />
         <StatLink href="/tasks?filter=open" icon="jobs" label="Getting quotes" value={<Flash value={c.open_tasks} />} sub={`${fmt(c.quotes_last_hour)} quote${c.quotes_last_hour === 1 ? '' : 's'} in the last hour`} />
         <StatLink href="/tasks?filter=active" icon="bolt" label="Hired & in progress" value={<Flash value={c.in_progress} />} />
         <StatLink
