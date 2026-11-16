@@ -3,6 +3,7 @@ import { createClient as createSessionClient } from '../supabase/server';
 import { ledgerKind } from '../labels';
 import { one } from './shared';
 import { namesFor } from './people';
+import { destinationKind } from '../payout-dest';
 import { isUuid, isTimestamp } from './tasks';
 
 // ---------------------------------------------------------------- activity --
@@ -61,7 +62,8 @@ export async function getLatestMovements(limit = 8): Promise<Movement[]> {
     out.push({
       at: p.updated_at,
       what: p.status === 'requested' ? 'Asked to withdraw' : 'Withdrawal',
-      detail: `${names.get(p.user_id) ?? 'Someone'}${p.destination ? ` · ${p.destination}` : ''}`,
+      // Only UPI or Bank here: paying needs the full id, and that lives on Payouts (A1-7).
+      detail: `${names.get(p.user_id) ?? 'Someone'}${destinationKind(p.destination) ? ` · ${destinationKind(p.destination)}` : ''}`,
       amount: Number(p.amount_minor),
       tone,
       status,

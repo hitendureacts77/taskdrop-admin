@@ -28,6 +28,14 @@ export function savedUpiId(snapshot: string | null | undefined): string | null {
   return m ? (m[1] as string) : null;
 }
 
+/** "UPI" or "Bank" for a saved destination label, never the id or account itself: lists that do not need to pay show only this (A1-7). */
+export function destinationKind(label: string | null | undefined): 'UPI' | 'Bank' | null {
+  if (!label) return null;
+  if (/^\s*Bank\b/i.test(label)) return 'Bank';
+  if (/^\s*UPI\b/i.test(label) || /^\s*[^\s@]+@[^\s@]+\s*$/.test(label)) return 'UPI';
+  return null;
+}
+
 /** The person's payout account as it is on file now. */
 export function currentDestination(p: DestSource): Dest {
   if (p.kind === 'upi' && p.upi_id) return { how: 'UPI', vpa: p.upi_id };

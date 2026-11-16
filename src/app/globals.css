@@ -2439,3 +2439,24 @@ li.run-row { padding: 9px 0; border-bottom: 1px solid var(--line); }
 .photo-img { display: block; width: 100%; height: 130px; object-fit: cover; }
 .photo-file { display: flex; align-items: center; justify-content: center; text-align: center; min-height: 80px; padding: 10px; font-size: 13px; color: var(--ink2); }
 .photo-missing { border: 1px dashed var(--line-strong); border-radius: 10px; color: var(--muted); }
+
+/* Touch targets: on a phone, links and buttons in the page are at least 40 px high (A1-5). */
+@media (max-width: 640px), (pointer: coarse) {
+  .crumbs a,
+  .card-head-right a:not(.btn),
+  .page-head-right a:not(.btn),
+  .live-strip-head a,
+  .pager-links a,
+  .seg a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+  }
+  .btn,
+  .btn-small {
+    min-height: 40px;
+  }
+  .alerts-chip {
+    height: 40px;
+  }
+}
