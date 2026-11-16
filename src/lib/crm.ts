@@ -9,6 +9,7 @@ import { isUuid, namesFor } from './data';
 import { applyOwnerFilter, getOwnerMap, type OwnerRef } from './crm-owners';
 import type { OwnerFilter } from './crm-calc';
 import { getStaffList } from './growth';
+import { readAll } from './data/paging';
 
 /**
  * Reads for the CRM screens: notes, tags, suspensions, segments and messages.
@@ -118,11 +119,11 @@ export async function getTags(): Promise<TagWithCount[]> {
   const supabase = await db();
   const [tags, links] = await Promise.all([
     supabase.from('crm_tags').select('id, name, color').order('name'),
-    supabase.from('crm_user_tags').select('tag_id').limit(20000),
+    readAll<{ tag_id: string }>((from, to) => supabase.from('crm_user_tags').select('tag_id').order('tag_id').order('user_id').range(from, to), 'Could not count tags'),
   ]);
   if (tags.error) throw new Error(`Could not read tags: ${tags.error.message}`);
   const counts = new Map<string, number>();
-  for (const l of (links.data ?? []) as { tag_id: string }[]) counts.set(l.tag_id, (counts.get(l.tag_id) ?? 0) + 1);
+  for (const l of links) counts.set(l.tag_id, (counts.get(l.tag_id) ?? 0) + 1);
   return ((tags.data ?? []) as Tag[]).map((t) => ({ ...t, people: counts.get(t.id) ?? 0 }));
 }
 
@@ -153,14 +154,14 @@ export async function getSuspendedAmong(ids: string[]): Promise<Map<string, { re
 export async function idsWithTag(tagId: string): Promise<string[]> {
   if (!isUuid(tagId)) return [];
   const supabase = await db();
-  const { data } = await supabase.from('crm_user_tags').select('user_id').eq('tag_id', tagId).limit(20000);
-  return ((data ?? []) as { user_id: string }[]).map((r) => r.user_id);
+  const rows = await readAll<{ user_id: string }>((from, to) => supabase.from('crm_user_tags').select('user_id').eq('tag_id', tagId).order('user_id').range(from, to), 'Could not read who has that tag');
+  return rows.map((r) => r.user_id);
 }
 
 export async function idsSuspended(): Promise<string[]> {
   const supabase = await db();
-  const { data } = await supabase.from('user_suspensions').select('user_id').is('lifted_at', null).limit(20000);
-  return ((data ?? []) as { user_id: string }[]).map((r) => r.user_id);
+  const rows = await readAll<{ user_id: string }>((from, to) => supabase.from('user_suspensions').select('user_id').is('lifted_at', null).order('id').range(from, to), 'Could not read who is suspended');
+  return [...new Set(rows.map((r) => r.user_id))];
 }
 
 // ------------------------------------------------------------- one person --
@@ -272,9 +273,9 @@ export type MemberRow = {
 
 async function matchingIds(c: Criteria): Promise<string[]> {
   const supabase = await db();
-  const { data, error } = await supabase.rpc('crm_segment_users', { p_criteria: c });
-  if (error) throw new Error(`Could not work out who matches: ${error.message}`);
-  return ((data ?? []) as { user_id: string }[]).map((r) => r.user_id);
+  // Paged: one request would stop silently at 1,000 people, so the "send to N" count would not match what is sent (B122).
+  const rows = await readAll<{ user_id: string }>((from, to) => supabase.rpc('crm_segment_users', { p_criteria: c }).order('user_id').range(from, to), 'Could not work out who matches');
+  return rows.map((r) => r.user_id);
 }
 
 export async function countMatching(c: Criteria): Promise<number> {

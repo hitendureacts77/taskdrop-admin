@@ -55,3 +55,40 @@ test('stableOrder keeps the requested direction on the main column', () => {
   const first = stableOrder(q, 'ts', true).range(0, 0)[0];
   assert.equal(first?.ts, '2026-11-05T00:00:00Z');
 });
+
+// B122: PostgREST hands back at most max_rows (1,000 on Supabase) per request without saying so, so a list read in one
+// request stops silently. readAll() pages until a page comes back empty and moves on by what it actually got.
+import { readAll } from './paging.ts';
+
+test('readAll reads past a silent 1,000-row cap', async () => {
+  const all = Array.from({ length: 2345 }, (_, i) => i);
+  const calls: [number, number][] = [];
+  const got = await readAll(async (from, to) => {
+    calls.push([from, to]);
+    return { data: all.slice(from, Math.min(to + 1, from + 1000)), error: null };
+  });
+  assert.equal(got.length, 2345);
+  assert.deepEqual(got, all);
+  // Moves on by the rows it got, so a cap below the page size cannot skip anyone.
+  const small = await readAll(async (from, to) => ({ data: all.slice(from, Math.min(to + 1, from + 300)), error: null }));
+  assert.deepEqual(small, all);
+});
+
+test('readAll fails loudly on a read error instead of returning a shorter list', async () => {
+  await assert.rejects(
+    readAll(async (from) => (from === 0 ? { data: [1, 2, 3], error: null } : { data: null, error: { message: 'boom' } }), 'Could not read people'),
+    /Could not read people: boom/,
+  );
+});
+
+test('readAll refuses to run forever', async () => {
+  await assert.rejects(readAll(async () => ({ data: [1], error: null }), 'x', 1000, 50), /more than 50/);
+});
+
+import { readFileSync } from 'node:fs';
+test('CRM audiences, tag counts and the People filters page through every row', () => {
+  const crm = readFileSync(new URL('../crm.ts', import.meta.url), 'utf8');
+  assert.ok(/readAll\([^)]*\n?[^;]*crm_segment_users/.test(crm) || /crm_segment_users[\s\S]{0,200}\.range\(from, to\)/.test(crm));
+  assert.ok(!/crm_segment_users', \{ p_criteria: c \}\);/.test(crm), 'matchingIds must not read the RPC in one request');
+  assert.ok(!crm.includes('.limit(20000)'), 'tag and suspension lists must be paged, not capped');
+});
