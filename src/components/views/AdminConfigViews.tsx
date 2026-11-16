@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import type { AuditRow, Health, Integrations, Switch, SwitchKey, TeamMember } from '@/lib/admin-config';
 import { AUDIT_TABLES, EVENT_WORDS } from '@/lib/admin-config';
+import type { AuditScope } from '@/lib/audit-scope';
 import { allowlistActive, allowlistCount, type Allowlist } from '@/lib/allowlist';
 import type { PayoutMethod } from '@/lib/data';
 import { inr, istDateTime, phone as prettyPhone, timeAgo } from '@/lib/format';
@@ -617,8 +618,23 @@ function targetHref(r: AuditRow): string | null {
   return r.personId ? `/users/${r.personId}` : null;
 }
 
-export function AuditView({ rows, total, table, page, pageSize }: { rows: AuditRow[]; total: number; table: string | null; page: number; pageSize: number }) {
-  const base = (t: string | null, p = 0) => `/settings/audit?${new URLSearchParams({ ...(t ? { table: t } : {}), ...(p ? { page: String(p) } : {}) })}`;
+export function AuditView({
+  rows,
+  total,
+  table,
+  page,
+  pageSize,
+  scope = 'default',
+}: {
+  rows: AuditRow[];
+  total: number;
+  table: string | null;
+  page: number;
+  pageSize: number;
+  scope?: AuditScope;
+}) {
+  const base = (t: string | null, p = 0, s: AuditScope = scope) =>
+    `/settings/audit?${new URLSearchParams({ ...(t ? { table: t } : {}), ...(s !== 'default' ? { who: s } : {}), ...(p ? { page: String(p) } : {}) })}`;
   return (
     <>
       <ConfigHeader active="audit" />
@@ -632,6 +648,15 @@ export function AuditView({ rows, total, table, page, pageSize }: { rows: AuditR
             small
             label="Filter by"
             items={[{ href: base(null), label: 'Everything', active: !table }, ...Object.entries(AUDIT_TABLES).map(([k, label]) => ({ href: base(k), label, active: table === k }))]}
+          />
+          <Tabs
+            small
+            label="Lines"
+            items={[
+              { href: base(table, 0, 'default'), label: 'Without heartbeats', active: scope === 'default' },
+              { href: base(table, 0, 'staff'), label: 'Staff only', active: scope === 'staff' },
+              { href: base(table, 0, 'all'), label: 'Every line', active: scope === 'all' },
+            ]}
           />
         </div>
         {rows.length ? (

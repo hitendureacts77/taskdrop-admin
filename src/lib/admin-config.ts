@@ -8,6 +8,7 @@ import { createClient as createServiceClient } from './supabase/service';
 import { emailFor, phoneFor } from './contact-mask';
 import { asStaffRole, type StaffRole } from './staff-roles';
 import { auditPersonId } from './audit-target';
+import { notHeartbeatOr, type AuditScope } from './audit-scope';
 
 /**
  * Reads for the Admin & configuration screens (team, switches, integrations,
@@ -326,11 +327,14 @@ export const EVENT_WORDS: Record<string, string> = {
   'crm.tag_remove': 'Took a tag off a person',
 };
 
-export async function getAuditLog(table: string | null, page: number, pageSize = 40): Promise<{ rows: AuditRow[]; total: number }> {
+export async function getAuditLog(table: string | null, page: number, pageSize = 40, scope: AuditScope = 'default'): Promise<{ rows: AuditRow[]; total: number }> {
   const supabase = await createSessionClient();
   const db = supabase as unknown as SupabaseClient;
   let q = db.from('admin_audit_log').select('id, at, actor, actor_kind, action, target_table, target_id, before, after, detail', { count: 'exact' });
   if (table) q = q.eq('target_table', table);
+  // B117: heartbeats are hidden by default, never deleted; "Staff only" shows lines staff wrote.
+  if (scope === 'default') q = q.or(notHeartbeatOr());
+  else if (scope === 'staff') q = q.not('actor', 'is', null);
   const from = page * pageSize;
   const { data, error, count } = await q.order('at', { ascending: false }).order('id', { ascending: false }).range(from, from + pageSize - 1);
   if (error) throw new Error(`Could not read the audit log: ${error.message}`);
