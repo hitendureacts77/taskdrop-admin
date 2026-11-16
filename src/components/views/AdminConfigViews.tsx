@@ -593,11 +593,7 @@ function describe(r: AuditRow): string {
 function targetHref(r: AuditRow): string | null {
   if (!r.targetId) return null;
   if (r.table === 'payouts') return `/payouts/${r.targetId}`;
-  if (r.table === 'user_roles' || r.table === 'user_suspensions') {
-    const uid = ((r.after ?? r.before) as { user_id?: string } | null)?.user_id;
-    return uid ? `/users/${uid}` : null;
-  }
-  return null;
+  return r.personId ? `/users/${r.personId}` : null;
 }
 
 export function AuditView({ rows, total, table, page, pageSize }: { rows: AuditRow[]; total: number; table: string | null; page: number; pageSize: number }) {
@@ -643,6 +639,11 @@ export function AuditView({ rows, total, table, page, pageSize }: { rows: AuditR
                       </td>
                       <td className="td small">
                         {href ? <Link href={href}>{describe(r)}</Link> : describe(r)}
+                        {r.personId && r.table !== 'payouts' ? (
+                          <span className="muted block">
+                            About <Link href={`/users/${r.personId}`}>{r.personName}</Link>
+                          </span>
+                        ) : null}
                         {r.detail ? <span className="muted block">{r.detail}</span> : null}
                       </td>
                       <td className="td small">

@@ -90,6 +90,17 @@ export async function deleteNote(_prev: ActionResult, form: FormData): Promise<A
 
 // ------------------------------------------------------------------ tags --
 
+/** A tag's name for the audit line; null when it cannot be read. */
+async function tagLabel(tagId: string): Promise<string | null> {
+  const supabase = await createClient();
+  const { data } = await (supabase as unknown as { from: (t: string) => { select: (c: string) => { eq: (k: string, v: string) => { maybeSingle: () => Promise<{ data: { name: string } | null }> } } } })
+    .from('crm_tags')
+    .select('name')
+    .eq('id', tagId)
+    .maybeSingle();
+  return data?.name ?? null;
+}
+
 export async function assignTag(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   await requireAdmin();
   const denied = await staffGate('people');
@@ -100,6 +111,8 @@ export async function assignTag(_prev: ActionResult, form: FormData): Promise<Ac
   if (!name) return { ok: false, message: 'Type a tag name.' };
   const r = await call('crm_assign_tag', { p_user: userId, p_name: name.slice(0, 30) });
   if (r.error) return { ok: false, message: r.error };
+  // crm_user_tags has no audit trigger, so the change is logged here (B108).
+  await call('admin_log_event', { p_action: 'crm.tag_add', p_target: userId, p_detail: `Tag “${name.slice(0, 30)}”` });
   revalidatePath(`/users/${userId}`);
   revalidatePath('/users');
   revalidatePath('/crm');
@@ -113,8 +126,10 @@ export async function removeTag(_prev: ActionResult, form: FormData): Promise<Ac
   const userId = str(form, 'userId');
   const tagId = str(form, 'tagId');
   if (!isUuid(userId) || !isUuid(tagId)) return { ok: false, message: 'That id looks wrong. Refresh the page.' };
+  const tagName = await tagLabel(tagId);
   const r = await call('crm_remove_tag', { p_user: userId, p_tag: tagId });
   if (r.error) return { ok: false, message: r.error };
+  await call('admin_log_event', { p_action: 'crm.tag_remove', p_target: userId, p_detail: tagName ? `Tag “${tagName}”` : `Tag ${tagId}` });
   revalidatePath(`/users/${userId}`);
   revalidatePath('/users');
   revalidatePath('/crm');
