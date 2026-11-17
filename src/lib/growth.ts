@@ -276,7 +276,7 @@ export async function getStaffPerformance(fromIso: string, toIso: string): Promi
 // ----------------------------------------------------------- analytics --
 
 export async function getBusinessDaily(from: string, to: string): Promise<Read<DailyRow[]>> {
-  return rpc('admin_business_daily', { p_from: from, p_to: to }, [], (rows) =>
+  const out = await rpc('admin_business_daily', { p_from: from, p_to: to }, [], (rows) =>
     rows.map((x) => ({
       day: str(x.day),
       newPeople: num(x.new_people),
@@ -289,6 +289,31 @@ export async function getBusinessDaily(from: string, to: string): Promise<Read<D
       revenueMinor: num(x.revenue_minor),
     })),
   );
+  return withLiveNewPeople(out, from, to);
+}
+
+/** The day-by-day new people from the database include deleted accounts; count only live ones, by India day (L4-12). */
+async function withLiveNewPeople(out: Read<DailyRow[]>, from: string, to: string): Promise<Read<DailyRow[]>> {
+  if (out.error || out.setup || !out.data.length) return out;
+  try {
+    const supabase = await db();
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('created_at')
+      .is('deleted_at', null)
+      .gte('created_at', new Date(`${from}T00:00:00+05:30`).toISOString())
+      .lt('created_at', new Date(new Date(`${to}T00:00:00+05:30`).getTime() + 86400000).toISOString())
+      .limit(50000);
+    if (error) return out;
+    const perDay = new Map<string, number>();
+    for (const r of (data ?? []) as { created_at: string }[]) {
+      const k = istDayKey(new Date(r.created_at));
+      perDay.set(k, (perDay.get(k) ?? 0) + 1);
+    }
+    return { ...out, data: out.data.map((d) => ({ ...d, newPeople: perDay.get(d.day) ?? 0 })) };
+  } catch {
+    return out;
+  }
 }
 
 export async function getFunnel(from: string, to: string): Promise<Read<FunnelRow | null>> {

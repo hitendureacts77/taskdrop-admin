@@ -104,7 +104,7 @@ export function GrowthReports({
         />
       </Card>
 
-      <Card title="Health of the marketplace" sub="Rates are shown as — when there is nothing to divide by.">
+      <Card title="Health of the marketplace" sub="These rates look at the jobs posted in this period, so they can differ a little from the counts above. Shown as — when there is nothing to divide by.">
         <div className="figures">
           <div className="figure">
             <span className="figure-label">Jobs finished ÷ posted</span>

@@ -195,6 +195,8 @@ export async function resolveDispute(_prev: ActionResult, form: FormData): Promi
   const note = String(form.get('note') ?? '').trim().slice(0, 200);
   if (!isUuid(taskId)) return { ok: false, message: 'That job id looks wrong. Refresh the page.' };
   if (outcome !== 'worker' && outcome !== 'poster') return { ok: false, message: 'Unknown decision.' };
+  // A final money decision always leaves a written reason (L4-3).
+  if (note.length < 5) return { ok: false, message: 'Write the reason in a few words. It is saved with the decision.' };
 
   const supabase = await createClient();
   const { error } = await supabase.rpc('admin_resolve_dispute', {
@@ -306,6 +308,16 @@ export async function sendRefund(_prev: ActionResult, form: FormData): Promise<A
   };
 }
 
+/** One audit line for a staff change that has no database audit trigger (S7-1). True when it was recorded. */
+async function auditEvent(action: string, target: string, detail: string): Promise<boolean> {
+  const supabase = await createClient();
+  // `as never`: the generated types predate migration 076.
+  const { error } = await supabase.rpc('admin_log_event' as never, { p_action: action, p_target: target, p_detail: detail } as never);
+  return !error;
+}
+
+const NOT_LOGGED = ' It is saved, but writing it to the audit log failed.';
+
 export async function replyTicket(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   await requireAdmin();
   const denied = await staffGate('people');
@@ -317,9 +329,10 @@ export async function replyTicket(_prev: ActionResult, form: FormData): Promise<
   const supabase = await createClient();
   const { error } = await supabase.rpc('reply_support_ticket', { p_ticket_id: id, p_body: body.slice(0, 4000) });
   if (error) return { ok: false, message: friendly(error.message) };
+  const logged = await auditEvent('support.reply', id, 'Replied to a help request');
   revalidatePath(`/support/${id}`);
   revalidatePath('/support');
-  return { ok: true, message: 'Reply sent. They get a notification.' };
+  return { ok: true, message: `Reply sent. They get a notification.${logged ? '' : NOT_LOGGED}` };
 }
 
 export async function resolveTicket(_prev: ActionResult, form: FormData): Promise<ActionResult> {
@@ -331,9 +344,10 @@ export async function resolveTicket(_prev: ActionResult, form: FormData): Promis
   const supabase = await createClient();
   const { error } = await supabase.rpc('resolve_support_ticket', { p_ticket_id: id });
   if (error) return { ok: false, message: friendly(error.message) };
+  const logged = await auditEvent('support.resolve', id, 'Marked a help request as resolved');
   revalidatePath(`/support/${id}`);
   revalidatePath('/support');
-  return { ok: true, message: 'Marked as resolved.' };
+  return { ok: true, message: `Marked as resolved.${logged ? '' : NOT_LOGGED}` };
 }
 
 /**

@@ -410,9 +410,11 @@ export async function getCrmOverview(): Promise<CrmOverview> {
 export type Audience = { key: string; label: string; group: string; count: number };
 
 /** The audiences a message can go to, each with how many people it would reach today. */
-export async function getAudiences(extra?: Criteria): Promise<Audience[]> {
+export async function getAudiences(extra?: Criteria, opts?: { hideMoney?: boolean }): Promise<Audience[]> {
   const tags = await getTags();
-  const segments = await getSegments(tags);
+  const allSegments = await getSegments(tags);
+  // A money-blind role does not see segments that filter on the wallet (S7-26).
+  const segments = opts?.hideMoney ? allSegments.filter((s) => !s.criteria.min_wallet_minor) : allSegments;
   const [everyone, workers, posters] = await Promise.all([countMatching({}), countMatching({ role: 'worker' }), countMatching({ role: 'poster' })]);
   const out: Audience[] = [];
   if (extra && hasFilters(extra)) out.push({ key: 'filters', label: `Your filters: ${describeCriteria(extra, tags)}`, group: 'From the Segments page', count: await countMatching(extra) });

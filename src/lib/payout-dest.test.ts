@@ -76,3 +76,19 @@ test('destinationKind says UPI or Bank without the id or the account (A1-7)', ()
   assert.equal(destinationKind('50100234567890'), null);
   assert.equal(destinationKind(null), null);
 });
+
+import { maskDestinationLabel, maskQueuedDestination } from './payout-dest.ts';
+
+test('masking a destination hides the UPI id and the bank account', () => {
+  assert.equal(maskDestinationLabel('UPI · asha@ybl'), 'UPI · a••••@ybl');
+  assert.equal(maskDestinationLabel('asha@ybl'), 'UPI · a••••@ybl');
+  assert.equal(maskDestinationLabel('Bank · Asha · ••••1234'), 'Bank · ••••1234');
+  assert.equal(maskDestinationLabel(null), null);
+  const m = maskQueuedDestination({ snapshot: 'UPI · asha@ybl', kind: 'upi', upi_id: 'asha@ybl', account_name: null, account_number: null, ifsc: null });
+  assert.equal(m.upi_id, null);
+  assert.ok(!JSON.stringify(m).includes('asha@'));
+  const b = maskQueuedDestination({ snapshot: null, kind: 'bank', upi_id: null, account_name: 'Asha', account_number: '123456789012', ifsc: 'HDFC0001234' });
+  assert.equal(b.snapshot, 'Bank · ••••9012');
+  assert.equal(b.ifsc, null);
+  assert.equal(b.account_number, null);
+});

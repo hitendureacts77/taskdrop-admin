@@ -109,51 +109,49 @@ export async function getUsers(
     const { data } = await supabase.from('user_roles').select('user_id').eq('role', 'admin');
     restrictTo = ((data ?? []) as { user_id: string }[]).map((r) => r.user_id);
   } else if (filter === 'money') {
-    // Page through the wallets themselves (largest first), then fetch just this page's people,
-    // so the list works however many wallets hold money.
+    // Everyone whose wallet holds or is clearing money, narrowed by the search and without deleted accounts (S7-4),
+    // largest balance first. Wallets are read a thousand at a time, then the people are matched in pieces and paged here.
     const from = page * pageSize;
     if (restrict && !restrict.length) return { rows: [], total: 0 };
-    let wallets: WalletRow[];
-    let count: number | null;
-    if (restrict && restrict.length > IN_CHUNK) {
-      // A long list (a tag, the suspended): read each piece, then sort and page here, the same order as below.
+    const s = likeTerm(search);
+    const wallets: WalletRow[] = [];
+    if (restrict) {
       const parts = await mapLimit(chunk(restrict, IN_CHUNK), 6, async (ids) => {
         const { data, error } = await supabase.from('wallets').select('user_id, balance_minor, clearing_minor').or('balance_minor.gt.0,clearing_minor.gt.0').in('user_id', ids);
         if (error) throw new Error(`Could not read wallets: ${error.message}`);
         return (data ?? []) as WalletRow[];
       });
-      const all = parts.flat().sort((a, b) => Number(b.balance_minor) - Number(a.balance_minor) || a.user_id.localeCompare(b.user_id));
-      count = all.length;
-      wallets = all.slice(from, from + pageSize);
+      wallets.push(...parts.flat());
     } else {
-      let wq = supabase
-        .from('wallets')
-        .select('user_id, balance_minor, clearing_minor', { count: 'exact' })
-        .or('balance_minor.gt.0,clearing_minor.gt.0');
-      if (restrict) wq = wq.in('user_id', restrict);
-      const { data: w, error: wErr, count: c } = await wq
-        .order('balance_minor', { ascending: false })
-        .order('user_id', { ascending: true })
-        .range(from, from + pageSize - 1);
-      if (isPastLastPage(wErr)) return { rows: [], total: c ?? 0 };
-      if (wErr) throw new Error(`Could not read wallets: ${wErr.message}`);
-      wallets = (w ?? []) as WalletRow[];
-      count = c;
+      for (let at = 0; ; at += 1000) {
+        const { data, error } = await supabase
+          .from('wallets')
+          .select('user_id, balance_minor, clearing_minor')
+          .or('balance_minor.gt.0,clearing_minor.gt.0')
+          .order('user_id', { ascending: true })
+          .range(at, at + 999);
+        if (error) throw new Error(`Could not read wallets: ${error.message}`);
+        const got = (data ?? []) as WalletRow[];
+        wallets.push(...got);
+        if (got.length < 1000) break;
+      }
     }
-    if (!wallets.length) return { rows: [], total: count ?? 0 };
     const byId = new Map<string, ProfileRow>();
-    for (const ids of chunk(wallets.map((x) => x.user_id), IN_CHUNK)) {
-      const { data: profs, error: pErr } = await supabase.from('profiles').select(PROFILE_COLS).in('id', ids);
+    const profParts = await mapLimit(chunk(wallets.map((x) => x.user_id), IN_CHUNK), 6, async (ids) => {
+      let pq = supabase.from('profiles').select(PROFILE_COLS).in('id', ids).is('deleted_at', null);
+      if (s) pq = pq.or(`display_name.ilike.%${s}%,username.ilike.%${s}%`);
+      const { data: profs, error: pErr } = await pq;
       if (pErr) throw new Error(`Could not read people: ${pErr.message}`);
-      for (const p of (profs ?? []) as unknown as ProfileRow[]) byId.set(p.id, p);
-    }
+      return (profs ?? []) as unknown as ProfileRow[];
+    });
+    for (const p of profParts.flat()) byId.set(p.id, p);
+    const matched = wallets
+      .filter((x) => byId.has(x.user_id))
+      .sort((x, y) => Number(y.balance_minor) - Number(x.balance_minor) || x.user_id.localeCompare(y.user_id));
     const now = Date.now();
     return {
-      total: count ?? wallets.length,
-      rows: wallets.flatMap((x) => {
-        const p = byId.get(x.user_id);
-        return p ? [toUserRow(p, { b: Number(x.balance_minor), c: Number(x.clearing_minor) }, now)] : [];
-      }),
+      total: matched.length,
+      rows: matched.slice(from, from + pageSize).map((x) => toUserRow(byId.get(x.user_id)!, { b: Number(x.balance_minor), c: Number(x.clearing_minor) }, now)),
     };
   }
   if (restrict) restrictTo = restrictTo ? restrictTo.filter((id) => restrict.includes(id)) : restrict;

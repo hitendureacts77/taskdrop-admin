@@ -101,7 +101,8 @@ function stageLabel(p: QueuedPayout, stage: Stage, rxOn: boolean): { label: stri
 }
 
 /** The account to pay into, short enough for a table cell, with a copy button. */
-function PayTo({ p }: { p: QueuedPayout }) {
+function PayTo({ p, canPay }: { p: QueuedPayout; canPay: boolean }) {
+  if (!canPay) return <span className="payto"><code>{p.snapshot ?? "No account on file"}</code></span>;
   const dest = destinationOf(p);
   if (dest.how === 'UPI') {
     return (
@@ -157,7 +158,7 @@ function QueueTable({ rows, rxOn, roles, now, canPay }: { rows: { p: QueuedPayou
                   {timeAgo(p.requested_at, now)}
                 </td>
                 <td className="td">
-                  <PayTo p={p} />
+                  <PayTo p={p} canPay={canPay} />
                 </td>
                 <td className="td num nowrap">
                   <strong>

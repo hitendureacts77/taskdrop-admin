@@ -313,9 +313,9 @@ export function ReportsView({ s, days, earnedMinor }: { s: PlatformStats; days: 
         </div>
       </Card>
       <div className="stats">
-        <StatLink href="/tasks" icon="jobs" label="Jobs posted" value={s.tasksPosted.toLocaleString('en-IN')} />
-        <StatLink href="/tasks?filter=finished" icon="check" label="Jobs finished" value={s.tasksCompleted.toLocaleString('en-IN')} />
-        <StatLink href="/tasks?filter=cancelled" icon="undo" label="Jobs cancelled" value={s.tasksCancelled.toLocaleString('en-IN')} />
+        <StatLink href="/tasks" icon="jobs" label="Jobs posted" value={s.tasksPosted.toLocaleString('en-IN')} sub="Posted in this period" />
+        <StatLink href="/tasks?filter=finished" icon="check" label="Jobs finished" value={s.tasksCompleted.toLocaleString('en-IN')} sub="Approved in this period" />
+        <StatLink href="/tasks?filter=cancelled" icon="undo" label="Jobs cancelled" value={s.tasksCancelled.toLocaleString('en-IN')} sub="Cancelled in this period, posted any time" />
         <StatLink href="/tasks?filter=open" icon="clock" label="Getting quotes now" value={s.tasksOpen.toLocaleString('en-IN')} />
         <StatLink href="/tasks?filter=disputed" icon="scale" label="Open disputes" value={s.disputesOpen.toLocaleString('en-IN')} />
       </div>

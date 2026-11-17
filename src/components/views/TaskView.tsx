@@ -127,7 +127,7 @@ export function TaskView({
                     {workerNet !== null ? inr(workerNet) : 'Their share'} goes to <strong>{a.worker}’s wallet</strong>. {t.poster} gets nothing back. This can’t be undone.
                   </>
                 }
-                field={{ name: 'note', label: 'Reason (saved with the decision)', placeholder: 'e.g. photos show the work was done' }}
+                field={{ name: 'note', label: 'Reason (saved with the decision)', placeholder: 'e.g. photos show the work was done', required: true }}
                 confirmLabel={`Yes, pay ${a.worker}`}
               />
             </div>
@@ -149,7 +149,7 @@ export function TaskView({
                     included. {a.worker} is paid nothing. This can’t be undone.
                   </>
                 }
-                field={{ name: 'note', label: 'Reason (saved with the decision)', placeholder: 'e.g. work was not done' }}
+                field={{ name: 'note', label: 'Reason (saved with the decision)', placeholder: 'e.g. work was not done', required: true }}
                 confirmLabel={`Yes, refund ${t.poster}`}
               />
             </div>

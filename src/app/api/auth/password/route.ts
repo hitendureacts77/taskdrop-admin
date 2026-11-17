@@ -4,6 +4,7 @@ import { clientAddress } from '@/lib/rate-key';
 import { TOO_FAST, withinRate } from '@/lib/rate-limit';
 import { securityEvent } from '@/lib/security-event';
 import { createClient } from '@/lib/supabase/server';
+import { endPanelSession } from '@/lib/sign-out';
 
 export const dynamic = 'force-dynamic';
 
@@ -81,7 +82,7 @@ export async function POST(req: Request) {
 
   const check = await checkAdmin();
   if (check.status !== 'ok') {
-    await supabase.auth.signOut();
+    await endPanelSession('local');
     return refused(check.status === 'forbidden' ? 'not_admin' : 'no_session', WRONG, 401);
   }
   return NextResponse.json({ ok: true });
