@@ -17,7 +17,7 @@
     "secret-guard": "node scripts/secret-guard.mjs --all"
   },
   "dependencies": {
-    "@sentry/nextjs": "^11.8.0",
+    "@sentry/nextjs": "^11.12.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.119.0",
     "next": "^16.4.5",
@@ -34,7 +34,7 @@
     "eslint": "^9.39.5",
     "eslint-plugin-react-hooks": "^7.1.1",
     "typescript": "^5.6.2",
-    "typescript-eslint": "^8.71.2"
+    "typescript-eslint": "^8.72.2"
   },
   "engines": {
     "node": ">=20"
