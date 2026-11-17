@@ -153,3 +153,10 @@ export function summarizeRuleTasks(rows: { rule_id: string | null; created_at: s
   }
   return out;
 }
+
+/** The criteria without the wallet filter: a money-blind role (Sales) must not ask "how many hold at least Rs X" (S7-26). */
+export function withoutWallet<T extends { min_wallet_minor?: number }>(c: T): T {
+  const { min_wallet_minor: _drop, ...rest } = c;
+  void _drop;
+  return rest as T;
+}

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { checkAdmin } from '@/lib/auth';
 import { csvResponse } from '@/lib/csv';
-import { parseOwnerFilter } from '@/lib/crm-calc';
+import { parseOwnerFilter, withoutWallet } from '@/lib/crm-calc';
 import { applyOwnerFilter } from '@/lib/crm-owners';
 import { filterNames } from '@/lib/export-audit';
 import { exportCsv, idsForCriteria, idsSuspended, idsWithTag, parseCriteria } from '@/lib/crm';
@@ -28,11 +28,14 @@ export async function GET(req: Request) {
   if (!(await withinRate(who.user.id, 'admin-export', 10))) return NextResponse.json({ error: TOO_FAST }, { status: 429 });
 
   const sp = new URL(req.url).searchParams;
+  const noWallet = !staffCanSee(who.user.staffRole, 'money');
   let ids: string[];
   if (sp.get('segment') === '1') {
-    ids = await applyOwnerFilter(await idsForCriteria(parseCriteria(Object.fromEntries(sp))), parseOwnerFilter(sp.get('owner') ?? undefined), who.user.id);
+    ids = await applyOwnerFilter(await idsForCriteria(noWallet ? withoutWallet(parseCriteria(Object.fromEntries(sp))) : parseCriteria(Object.fromEntries(sp))), parseOwnerFilter(sp.get('owner') ?? undefined), who.user.id);
   } else {
-    const filter = parseUserFilter(sp.get('filter') ?? undefined);
+    const parsedFilter = parseUserFilter(sp.get('filter') ?? undefined);
+    // Same clamp as the People page: Sales gets Everyone, not the people with money (S7-13).
+    const filter = noWallet && parsedFilter === 'money' ? 'all' : parsedFilter;
     const tag = sp.get('tag') ?? '';
     let restrict: string[] | null = null;
     if (filter === 'suspended') restrict = await idsSuspended();

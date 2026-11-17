@@ -28,10 +28,12 @@ export default async function SegmentsPage({ searchParams }: { searchParams: SP 
     tagsRead.then(getSegments),
     getStaffList(),
   ]);
+  // Saved segments that filter on the wallet are hidden from Sales too: their name and head count would say who holds money (S7-26).
+  const shownSegments = hideMoney ? segments.filter((x) => !x.criteria.min_wallet_minor) : segments;
   const members = hideMoney ? { ...fetched, rows: fetched.rows.map((r) => ({ ...r, walletMinor: 0, clearingMinor: 0 })) } : fetched;
   return (
     <SegmentsView
-      d={{ hideMoney, criteria, tags, rows: members.rows, total: members.total, page, pageSize, segments, now: new Date().toISOString(), owner, staff, me: me.id, canEdit: staffCan(me.staffRole, 'people') }}
+      d={{ hideMoney, criteria, tags, rows: members.rows, total: members.total, page, pageSize, segments: shownSegments, now: new Date().toISOString(), owner, staff, me: me.id, canEdit: staffCan(me.staffRole, 'people') }}
     />
   );
 }

@@ -6,6 +6,8 @@ import { createClient } from './supabase/server';
 import { createClient as createServiceClient } from './supabase/service';
 import { parseCriteria, type Criteria } from './crm';
 import { staffGate } from './staff';
+import { staffCanSee, type StaffRole } from './staff-roles';
+import { withoutWallet } from './crm-calc';
 import { actionLimit, broadcastDuplicate } from './action-guard';
 import type { ActionResult } from '@/components/ConfirmAction';
 
@@ -25,6 +27,14 @@ async function call(fn: string, args: Record<string, unknown>): Promise<{ error:
   const { data, error } = await (supabase.rpc as unknown as (f: string, a: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>)(fn, args);
   return { error: error ? friendly(error.message) : null, data };
 }
+
+/** Writes one audit line for a change that has no database audit trigger (S7-1). True when it was recorded. */
+async function audit(action: string, target: string, detail: string): Promise<boolean> {
+  const r = await call('admin_log_event', { p_action: action, p_target: target, p_detail: detail.slice(0, 480) });
+  return !r.error;
+}
+
+const NOT_LOGGED = ' The change is saved, but writing it to the audit log failed.';
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? '').trim();
 
@@ -48,9 +58,10 @@ export async function addNote(_prev: ActionResult, form: FormData): Promise<Acti
   }
   const r = await call('crm_add_note', { p_user: userId, p_body: body.slice(0, 4000), p_follow_up: followUp });
   if (r.error) return { ok: false, message: r.error };
+  const logged = await audit('crm.note_add', userId, followUp ? 'Added a note with a follow-up' : 'Added a note');
   revalidatePath(`/users/${userId}`);
   revalidatePath('/crm');
-  return { ok: true, message: followUp ? 'Note saved, with a follow-up reminder.' : 'Note saved.' };
+  return { ok: true, message: (followUp ? 'Note saved, with a follow-up reminder.' : 'Note saved.') + (logged ? '' : NOT_LOGGED) };
 }
 
 export async function updateNote(_prev: ActionResult, form: FormData): Promise<ActionResult> {
@@ -69,9 +80,10 @@ export async function updateNote(_prev: ActionResult, form: FormData): Promise<A
   else return { ok: false, message: 'Unknown action.' };
   const r = await call('crm_update_note', args);
   if (r.error) return { ok: false, message: r.error };
+  const logged = await audit('crm.note_update', isUuid(userId) ? userId : id, `Note ${what === 'pin' ? 'pinned' : what === 'unpin' ? 'unpinned' : what === 'done' ? 'marked done' : 'reopened'}`);
   if (isUuid(userId)) revalidatePath(`/users/${userId}`);
   revalidatePath('/crm');
-  return { ok: true, message: 'Updated.' };
+  return { ok: true, message: logged ? 'Updated.' : `Updated.${NOT_LOGGED}` };
 }
 
 export async function deleteNote(_prev: ActionResult, form: FormData): Promise<ActionResult> {
@@ -83,9 +95,10 @@ export async function deleteNote(_prev: ActionResult, form: FormData): Promise<A
   if (!isUuid(id)) return { ok: false, message: 'That note id looks wrong. Refresh the page.' };
   const r = await call('crm_delete_note', { p_note: id });
   if (r.error) return { ok: false, message: r.error };
+  const logged = await audit('crm.note_delete', isUuid(userId) ? userId : id, 'Deleted a note');
   if (isUuid(userId)) revalidatePath(`/users/${userId}`);
   revalidatePath('/crm');
-  return { ok: true, message: 'Note deleted.' };
+  return { ok: true, message: logged ? 'Note deleted.' : `Note deleted.${NOT_LOGGED}` };
 }
 
 // ------------------------------------------------------------------ tags --
@@ -112,11 +125,11 @@ export async function assignTag(_prev: ActionResult, form: FormData): Promise<Ac
   const r = await call('crm_assign_tag', { p_user: userId, p_name: name.slice(0, 30) });
   if (r.error) return { ok: false, message: r.error };
   // crm_user_tags has no audit trigger, so the change is logged here (B108).
-  await call('admin_log_event', { p_action: 'crm.tag_add', p_target: userId, p_detail: `Tag “${name.slice(0, 30)}”` });
+  const logged = await audit('crm.tag_add', userId, `Tag “${name.slice(0, 30)}”`);
   revalidatePath(`/users/${userId}`);
   revalidatePath('/users');
   revalidatePath('/crm');
-  return { ok: true, message: `Tagged “${name}”.` };
+  return { ok: true, message: `Tagged “${name}”.${logged ? '' : NOT_LOGGED}` };
 }
 
 export async function removeTag(_prev: ActionResult, form: FormData): Promise<ActionResult> {
@@ -129,11 +142,11 @@ export async function removeTag(_prev: ActionResult, form: FormData): Promise<Ac
   const tagName = await tagLabel(tagId);
   const r = await call('crm_remove_tag', { p_user: userId, p_tag: tagId });
   if (r.error) return { ok: false, message: r.error };
-  await call('admin_log_event', { p_action: 'crm.tag_remove', p_target: userId, p_detail: tagName ? `Tag “${tagName}”` : `Tag ${tagId}` });
+  const logged = await audit('crm.tag_remove', userId, tagName ? `Tag “${tagName}”` : `Tag ${tagId}`);
   revalidatePath(`/users/${userId}`);
   revalidatePath('/users');
   revalidatePath('/crm');
-  return { ok: true, message: 'Tag removed.' };
+  return { ok: true, message: logged ? 'Tag removed.' : `Tag removed.${NOT_LOGGED}` };
 }
 
 export async function deleteTag(_prev: ActionResult, form: FormData): Promise<ActionResult> {
@@ -142,11 +155,13 @@ export async function deleteTag(_prev: ActionResult, form: FormData): Promise<Ac
   if (denied) return { ok: false, message: denied };
   const tagId = str(form, 'tagId');
   if (!isUuid(tagId)) return { ok: false, message: 'That tag id looks wrong. Refresh the page.' };
+  const tagName = await tagLabel(tagId);
   const r = await call('crm_delete_tag', { p_tag: tagId });
   if (r.error) return { ok: false, message: r.error };
+  const logged = await audit('crm.tag_delete', tagId, tagName ? `Deleted the tag “${tagName}” from everyone` : 'Deleted a tag from everyone');
   revalidatePath('/crm');
   revalidatePath('/users');
-  return { ok: true, message: 'Tag deleted from everyone.' };
+  return { ok: true, message: logged ? 'Tag deleted from everyone.' : `Tag deleted from everyone.${NOT_LOGGED}` };
 }
 
 // ------------------------------------------------------------ suspension --
@@ -239,23 +254,26 @@ export async function deleteAccount(_prev: ActionResult, form: FormData): Promis
 
 // -------------------------------------------------------------- segments --
 
-function criteriaFrom(form: FormData): Criteria {
+function criteriaFrom(form: FormData, role?: StaffRole): Criteria {
   const raw = str(form, 'query');
-  return parseCriteria(Object.fromEntries(new URLSearchParams(raw)));
+  const c = parseCriteria(Object.fromEntries(new URLSearchParams(raw)));
+  // Sales is money-blind: a typed-in wallet filter is dropped on the server too (S7-26).
+  return role && !staffCanSee(role, 'money') ? withoutWallet(c) : c;
 }
 
 export async function saveSegment(_prev: ActionResult, form: FormData): Promise<ActionResult> {
-  await requireAdmin();
+  const me = await requireAdmin();
   const denied = await staffGate('people');
   if (denied) return { ok: false, message: denied };
   const name = str(form, 'name');
-  const criteria = criteriaFrom(form);
+  const criteria = criteriaFrom(form, me.staffRole);
   if (!name) return { ok: false, message: 'Give the segment a name.' };
   const r = await call('crm_save_segment', { p_name: name.slice(0, 60), p_criteria: criteria });
   if (r.error) return { ok: false, message: r.error };
+  const logged = await audit('crm.segment_save', 'segment', `Saved the segment “${name.slice(0, 60)}”`);
   revalidatePath('/crm/segments');
   revalidatePath('/crm/messages');
-  return { ok: true, message: `Saved as “${name}”. It updates itself as people change.` };
+  return { ok: true, message: `Saved as “${name}”. It updates itself as people change.${logged ? '' : NOT_LOGGED}` };
 }
 
 export async function deleteSegment(_prev: ActionResult, form: FormData): Promise<ActionResult> {
@@ -266,9 +284,10 @@ export async function deleteSegment(_prev: ActionResult, form: FormData): Promis
   if (!isUuid(id)) return { ok: false, message: 'That segment id looks wrong. Refresh the page.' };
   const r = await call('crm_delete_segment', { p_id: id });
   if (r.error) return { ok: false, message: r.error };
+  const logged = await audit('crm.segment_delete', 'segment', 'Deleted a saved segment');
   revalidatePath('/crm/segments');
   revalidatePath('/crm/messages');
-  return { ok: true, message: 'Segment deleted.' };
+  return { ok: true, message: logged ? 'Segment deleted.' : `Segment deleted.${NOT_LOGGED}` };
 }
 
 // -------------------------------------------------------------- messages --
@@ -306,7 +325,7 @@ export async function sendBroadcast(_prev: ActionResult, form: FormData): Promis
     if (!isUuid(id)) return { ok: false, message: 'That tag id looks wrong. Refresh the page.' };
     args.p_criteria = { tag_id: id };
   } else if (audience === 'filters') {
-    args.p_criteria = criteriaFrom(form);
+    args.p_criteria = criteriaFrom(form, me.staffRole);
   } else if (audience.startsWith('segment:')) {
     const id = audience.slice(8);
     if (!isUuid(id)) return { ok: false, message: 'That segment id looks wrong. Refresh the page.' };
@@ -317,6 +336,7 @@ export async function sendBroadcast(_prev: ActionResult, form: FormData): Promis
       .eq('id', id)
       .maybeSingle();
     if (!data) return { ok: false, message: 'That segment no longer exists. Refresh the page.' };
+    if (data.criteria?.min_wallet_minor && !staffCanSee(me.staffRole, 'money')) return { ok: false, message: 'That segment is not available to your staff role.' };
     args.p_criteria = data.criteria;
   } else {
     return { ok: false, message: 'Choose who this goes to.' };

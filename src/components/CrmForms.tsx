@@ -147,7 +147,15 @@ export function BroadcastForm({
   const ready = title.trim().length > 0 && body.trim().length > 0;
 
   return (
-    <form action={formAction} className="reply crm-compose">
+    <form
+      action={formAction}
+      className="reply crm-compose"
+      onSubmit={(e) => {
+        // Enter in the Title box must never send: only the second, labelled button does.
+        const sub = (e.nativeEvent as SubmitEvent).submitter;
+        if (!confirming || !sub || sub.getAttribute('data-send') !== 'yes') e.preventDefault();
+      }}
+    >
       <input type="hidden" name="audience" value={audience} />
       <input type="hidden" name="label" value={fixedPerson ? '' : chosen?.label ?? ''} />
       {filtersQuery ? <input type="hidden" name="query" value={filtersQuery} /> : null}
@@ -210,7 +218,7 @@ export function BroadcastForm({
             <button type="button" className="btn" onClick={() => setConfirming(false)} disabled={pending}>
               Back
             </button>
-            <button type="submit" className="btn btn-primary" disabled={pending}>
+            <button type="submit" data-send="yes" className="btn btn-primary" disabled={pending}>
               {pending ? 'Sending…' : `Yes, send to ${count.toLocaleString('en-IN')}`}
             </button>
           </div>

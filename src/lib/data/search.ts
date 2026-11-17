@@ -11,7 +11,7 @@ export function cleanSearch(q: string | undefined): string {
 
 /** The cleaned search with LIKE wildcards escaped, ready to sit between % signs in ilike. Empty when there is nothing to search. */
 export function likeTerm(q: string | undefined): string {
-  return cleanSearch(q).replace(/[%_]/g, (c) => String.fromCharCode(92) + c);
+  return cleanSearch(q).replace(/[\\%_]/g, (c) => String.fromCharCode(92) + c);
 }
 
 /** The same literal, case-insensitive match the database does for `title ilike %term%`. */
