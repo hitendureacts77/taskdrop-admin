@@ -12,7 +12,7 @@ name: Code scan
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [redesigned-2.0]
   schedule:
     - cron: '41 3 * * 1' # Mondays 03:41 UTC
   workflow_dispatch:
