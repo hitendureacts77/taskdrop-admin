@@ -25,6 +25,7 @@ const SECTIONS: { title: string | null; items: Item[] }[] = [
       { href: '/payouts', label: 'Payouts', icon: 'send', badge: 'payouts', alert: true, view: 'money' },
       { href: '/refunds', label: 'Refunds', icon: 'undo', badge: 'refunds', alert: true, view: 'money' },
       { href: '/money/reconcile', label: 'Money check', icon: 'check', view: 'money' },
+      { href: '/money/plan-b', label: 'Plan B money', icon: 'money', view: 'money' },
     ],
   },
   {
