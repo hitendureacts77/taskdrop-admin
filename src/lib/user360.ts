@@ -1,4 +1,6 @@
 import 'server-only';
+import { EVENT_WORDS } from './admin-config';
+import { auditWords, personAuditOr } from './audit-target';
 import { isUuid } from './data';
 import { createClient as createServiceClient } from './supabase/service';
 import { createClient as createSessionClient } from './supabase/server';
@@ -88,10 +90,12 @@ export async function getUserDevices(userId: string): Promise<UserDevice[] | nul
 export async function getUserAudit(userId: string): Promise<UserAuditEntry[]> {
   if (!isUuid(userId)) return [];
   const supabase = await createSessionClient();
+  // Every row that names them: by id, as user:<id> (contact views), or inside the changed row
+  // (a suspension's user_id, a one-person message's to_user). B108.
   const { data, error } = await supabase
     .from('admin_audit_log')
     .select('id, at, actor, actor_kind, action, target_table, detail')
-    .eq('target_id', userId)
+    .or(personAuditOr(userId))
     .order('at', { ascending: false })
     .limit(50);
   if (error) throw new Error(`Could not read the audit log: ${error.message}`);
@@ -106,7 +110,7 @@ export async function getUserAudit(userId: string): Promise<UserAuditEntry[]> {
     id: r.id,
     at: r.at,
     actor: r.actor ? names.get(r.actor) ?? 'An admin' : r.actor_kind === 'operator' ? 'Owner (database)' : 'The system',
-    action: r.action,
+    action: auditWords(r.action, r.target_table, EVENT_WORDS),
     table: r.target_table,
     detail: r.detail,
   }));

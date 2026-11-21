@@ -4,6 +4,7 @@ import { addIstDays, istDayKey, istFormat, startOfIstDay } from '../days';
 import { namesFor } from './people';
 import { isUuid } from './tasks';
 import { paidAt } from '../event-time';
+import { positionProblem } from '../money-calc';
 
 // ----------------------------------------------------------------- payouts --
 
@@ -128,26 +129,29 @@ export type MoneyPosition = {
   taskdropEarnedMinor: number;
 };
 
-/** Null until migration 066 is applied. */
-export async function getMoneyPosition(): Promise<MoneyPosition | null> {
+/** The position, or null with the reason: the real error, or a missing migration 066 (B137). */
+export async function getMoneyPosition(): Promise<{ position: MoneyPosition | null; error: string | null }> {
   const supabase = await createSessionClient();
   // Not in the generated types until migration 066 is applied to the database.
   const { data, error } = await supabase.rpc('admin_money_position' as never);
-  if (error) return null;
+  if (error) return { position: null, error: positionProblem(error) };
   const r = (Array.isArray(data) ? data[0] : data) as Record<string, number | string> | null;
-  if (!r) return null;
+  if (!r) return { position: null, error: 'The money position came back empty.' };
   const n = (k: string) => Number(r[k] ?? 0);
   return {
-    creditsMinor: n('credits_minor'),
-    earningsMinor: n('earnings_minor'),
-    clearingMinor: n('clearing_minor'),
-    lockedMinor: n('locked_minor'),
-    inFlightMinor: n('in_flight_minor'),
-    refundsOwedMinor: n('refunds_owed_minor'),
-    unappliedMinor: n('unapplied_minor'),
-    heldForPeopleMinor: n('held_for_people_minor'),
-    readyToWithdrawMinor: n('ready_to_withdraw_minor'),
-    taskdropEarnedMinor: n('taskdrop_earned_minor'),
+    error: null,
+    position: {
+      creditsMinor: n('credits_minor'),
+      earningsMinor: n('earnings_minor'),
+      clearingMinor: n('clearing_minor'),
+      lockedMinor: n('locked_minor'),
+      inFlightMinor: n('in_flight_minor'),
+      refundsOwedMinor: n('refunds_owed_minor'),
+      unappliedMinor: n('unapplied_minor'),
+      heldForPeopleMinor: n('held_for_people_minor'),
+      readyToWithdrawMinor: n('ready_to_withdraw_minor'),
+      taskdropEarnedMinor: n('taskdrop_earned_minor'),
+    },
   };
 }
 

@@ -99,7 +99,7 @@ export async function recordCounter(_prev: ActionResult, form: FormData): Promis
   if (!isUuid(id)) return { ok: false, message: 'That notice id looks wrong. Refresh the page.' };
   const r = await call<string>('admin_copyright_counter', { p_notice: id, p_note: str(form, 'note').slice(0, 1000) || null });
   if (r.error) return { ok: false, message: r.error };
-  const from = r.data ? new Date(`${r.data}T00:00:00+05:30`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'in 14 days';
+  const from = r.data ? new Date(`${r.data}T00:00:00+05:30`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' }) : 'in 14 days';
   return done(`Recorded. Forward the counter-notice to the complainant today. You can restore it from ${from} unless they tell you they have gone to court.`);
 }
 

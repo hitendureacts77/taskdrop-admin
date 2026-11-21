@@ -73,9 +73,41 @@ export function scanAdmin(appDir) {
 }
 
 export const APP_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../src/app');
+export const SRC_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+
+/**
+ * Server actions are doors too (B123). The ones that reach many people or cannot be undone must
+ * count a hit per staff member (actionLimit in src/lib/action-guard.ts) before they write.
+ */
+export const LIMITED_ACTIONS = [
+  ['src/lib/crm-actions.ts', 'sendBroadcast'],
+  ['src/lib/crm-actions.ts', 'suspendUser'],
+  ['src/lib/crm-actions.ts', 'unsuspendUser'],
+  ['src/lib/crm-actions.ts', 'deleteAccount'],
+  ['src/lib/growth-actions.ts', 'warnUser'],
+];
+
+/** The text of one exported function, up to the next top-level export; null when it is gone. */
+function functionBody(text, name) {
+  const start = text.search(new RegExp(`export\\s+async\\s+function\\s+${name}\\s*\\(`));
+  if (start < 0) return null;
+  const rest = text.slice(start + 1);
+  const next = rest.search(/\nexport\s/);
+  return next < 0 ? rest : rest.slice(0, next);
+}
+
+export function actionProblems(file, name, text) {
+  const body = functionBody(text, name);
+  if (body === null) return [`${file} ${name}: no longer exists. Update LIMITED_ACTIONS in scripts/check-endpoints.mjs`];
+  return /\bactionLimit\s*\(/.test(body) ? [] : [`${file} ${name}: no per-staff limit (actionLimit)`];
+}
+
+export function scanActions(root) {
+  return LIMITED_ACTIONS.flatMap(([file, name]) => actionProblems(file, name, readFileSync(join(root, file), 'utf8')));
+}
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const problems = scanAdmin(APP_DIR);
+  const problems = [...scanAdmin(APP_DIR), ...scanActions(SRC_DIR)];
   for (const p of problems) console.log(p);
   console.log(problems.length ? `\n${problems.length} problem(s).` : 'Every admin route has a lock and a limit, or a written reason.');
   process.exit(problems.length ? 1 : 0);

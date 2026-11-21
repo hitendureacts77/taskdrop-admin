@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { namesFor } from './data';
 import type { Read } from './growth';
 import { createClient } from './supabase/server';
+import { tryReadAll } from './data/paging';
 
 /**
  * The feedback board (migration 136 in the app repo). Read as the signed-in
@@ -77,10 +78,11 @@ function failed<T>(empty: T, error: Failure): Read<T> {
 export async function getBoardCounts(): Promise<Read<Record<BoardTab, number>>> {
   const empty = { open: 0, under_review: 0, planned: 0, in_progress: 0, done: 0, declined: 0, hidden: 0 } as Record<BoardTab, number>;
   const supabase = await db();
-  const { data, error } = await supabase.from('feedback_posts').select('status, hidden_at').limit(5000);
+  // Paged: one request stops silently at 1,000 ideas (B132).
+  const { data, error } = await tryReadAll<{ status: BoardStatus; hidden_at: string | null }>((from, to) => supabase.from('feedback_posts').select('status, hidden_at').order('id').range(from, to));
   if (error) return failed(empty, error);
   const out = { ...empty };
-  for (const r of (data ?? []) as { status: BoardStatus; hidden_at: string | null }[]) {
+  for (const r of data) {
     if (r.hidden_at) out.hidden += 1;
     else out[r.status] += 1;
   }

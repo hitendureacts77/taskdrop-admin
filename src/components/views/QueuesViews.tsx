@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ClickRow } from '../Clickable';
 import type { DisputeRow, RefundOwed, TicketDetail, TicketRow } from '@/lib/data';
 import { inr, istDateTime, timeAgo } from '@/lib/format';
+import { shownOf } from '@/lib/data/paging';
 import { TICKET_STATUS } from '@/lib/labels';
 import { ConfirmAction, type FormAction } from '../ConfirmAction';
 import { CopyButton } from '../CopyButton';
@@ -10,8 +11,9 @@ import { Card, Empty, HowItWorks, JobLink, Money, Notice, PageHeader, PersonLink
 
 // ---------------------------------------------------------------- disputes --
 
-export function DisputesView({ rows, now: nowIso }: { rows: DisputeRow[]; now: string }) {
+export function DisputesView({ rows, total = null, now: nowIso }: { rows: DisputeRow[]; total?: number | null; now: string }) {
   const now = new Date(nowIso);
+  const more = shownOf(rows.length, total);
   const frozen = rows.filter((r) => r.funded).reduce((a, r) => a + r.escrowMinor, 0);
   return (
     <>
@@ -33,11 +35,11 @@ export function DisputesView({ rows, now: nowIso }: { rows: DisputeRow[]; now: s
         ]}
       />
       <Card
-        title={`${rows.length} open dispute${rows.length === 1 ? '' : 's'}`}
+        title={`${(total ?? rows.length).toLocaleString('en-IN')} open dispute${(total ?? rows.length) === 1 ? '' : 's'}`}
         sub={
           rows.length ? (
             <>
-              <Money minor={frozen} /> frozen in escrow. Oldest first.
+              <Money minor={frozen} /> frozen in escrow{more ? ' across the ones shown' : ''}. Oldest first.{more ? ` ${more}` : ''}
             </>
           ) : undefined
         }
@@ -202,7 +204,8 @@ export function RefundsView({ rows, sendRefund }: { rows: RefundOwed[] | null; s
 
 // ----------------------------------------------------------------- support --
 
-export function SupportView({ rows, status, now: nowIso }: { rows: TicketRow[]; status: string; now: string }) {
+export function SupportView({ rows, total = null, status, now: nowIso }: { rows: TicketRow[]; total?: number | null; status: string; now: string }) {
+  const more = shownOf(rows.length, total);
   const now = new Date(nowIso);
   const tabs = [
     { key: 'waiting', label: 'Waiting for a reply' },
@@ -214,7 +217,7 @@ export function SupportView({ rows, status, now: nowIso }: { rows: TicketRow[]; 
     <>
       <PageHeader crumbs={[{ label: 'Help requests' }]} title="Help requests" sub="Questions and problems people sent from the app. Open one to read it and reply." />
       <Tabs label="Show" items={tabs.map((t) => ({ href: t.key === 'waiting' ? '/support' : `/support?status=${t.key}`, label: t.label, active: t.key === status }))} />
-      <Card title={`${rows.length} conversation${rows.length === 1 ? '' : 's'}`} flush>
+      <Card title={`${(total ?? rows.length).toLocaleString('en-IN')} conversation${(total ?? rows.length) === 1 ? '' : 's'}`} sub={more ?? undefined} flush>
         {rows.length ? (
           <div className="table-wrap">
             <table>

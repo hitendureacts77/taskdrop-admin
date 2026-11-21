@@ -118,7 +118,7 @@ export function PayoutDetailView({
         </Notice>
       ) : null}
 
-      {open && q && byHand ? (
+      {open && q && byHand && canPay ? (
         <Card title={`Pay ${first}`} sub="Two steps: send the money from your own UPI app or bank, then record the bank reference here.">
           {other && dest ? (
             <Notice tone="gold" title={`${first}’s payout account changed since asking`}>

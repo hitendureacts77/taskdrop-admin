@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { destinationOf, manualPayLabel, paidLine, payoutDestinations, savedUpiId, type DestSource } from './payout-dest.ts';
+import { destinationOf, manualPayLabel, paidLine, payoutDestinations, savedUpiId, type DestSource, destinationKind } from './payout-dest.ts';
 
 const base: DestSource = { snapshot: null, kind: null, upi_id: null, account_name: null, account_number: null, ifsc: null };
 
@@ -67,4 +67,28 @@ test('manualPayLabel stops claiming someone is paying once the lock is a day old
   assert.deepEqual(manualPayLabel('processing', '2026-10-04T12:00:00Z', now), { label: 'Locked 40 days: pay or give back', tone: 'red' });
   assert.deepEqual(manualPayLabel('processing', '2026-11-12T11:00:00Z', now), { label: 'Locked 1 day: pay or give back', tone: 'red' });
   assert.deepEqual(manualPayLabel('requested', '2026-10-04T12:00:00Z', now), { label: 'Waiting', tone: 'gold' });
+});
+
+test('destinationKind says UPI or Bank without the id or the account (A1-7)', () => {
+  assert.equal(destinationKind('UPI · ravi.e2e@okaxis'), 'UPI');
+  assert.equal(destinationKind('8074413313@ybl'), 'UPI');
+  assert.equal(destinationKind('Bank · Ravi · ••••1234'), 'Bank');
+  assert.equal(destinationKind('50100234567890'), null);
+  assert.equal(destinationKind(null), null);
+});
+
+import { maskDestinationLabel, maskQueuedDestination } from './payout-dest.ts';
+
+test('masking a destination hides the UPI id and the bank account', () => {
+  assert.equal(maskDestinationLabel('UPI · asha@ybl'), 'UPI · a••••@ybl');
+  assert.equal(maskDestinationLabel('asha@ybl'), 'UPI · a••••@ybl');
+  assert.equal(maskDestinationLabel('Bank · Asha · ••••1234'), 'Bank · ••••1234');
+  assert.equal(maskDestinationLabel(null), null);
+  const m = maskQueuedDestination({ snapshot: 'UPI · asha@ybl', kind: 'upi', upi_id: 'asha@ybl', account_name: null, account_number: null, ifsc: null });
+  assert.equal(m.upi_id, null);
+  assert.ok(!JSON.stringify(m).includes('asha@'));
+  const b = maskQueuedDestination({ snapshot: null, kind: 'bank', upi_id: null, account_name: 'Asha', account_number: '123456789012', ifsc: 'HDFC0001234' });
+  assert.equal(b.snapshot, 'Bank · ••••9012');
+  assert.equal(b.ifsc, null);
+  assert.equal(b.account_number, null);
 });

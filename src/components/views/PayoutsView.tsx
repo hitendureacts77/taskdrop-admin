@@ -19,8 +19,9 @@ export type PayoutsData = {
   queue: QueuedPayout[];
   totals: PayoutTotals;
   history: SettledPayout[];
-  /** Null until migration 066 is applied. */
+  /** Null when it could not be read; positionError says why (B137). */
   position: MoneyPosition | null;
+  positionError?: string | null;
   rx: RazorpayXState;
   /** How new withdrawals are paid: set by the switch on this page. */
   method: PayoutMethod;
@@ -100,7 +101,8 @@ function stageLabel(p: QueuedPayout, stage: Stage, rxOn: boolean): { label: stri
 }
 
 /** The account to pay into, short enough for a table cell, with a copy button. */
-function PayTo({ p }: { p: QueuedPayout }) {
+function PayTo({ p, canPay }: { p: QueuedPayout; canPay: boolean }) {
+  if (!canPay) return <span className="payto"><code>{p.snapshot ?? "No account on file"}</code></span>;
   const dest = destinationOf(p);
   if (dest.how === 'UPI') {
     return (
@@ -156,7 +158,7 @@ function QueueTable({ rows, rxOn, roles, now, canPay }: { rows: { p: QueuedPayou
                   {timeAgo(p.requested_at, now)}
                 </td>
                 <td className="td">
-                  <PayTo p={p} />
+                  <PayTo p={p} canPay={canPay} />
                 </td>
                 <td className="td num nowrap">
                   <strong>
@@ -527,6 +529,7 @@ export function PayoutsView({
         </Card>
 
         <Card title="Money position" sub="Whose money is in the account.">
+          {d.positionError ? <Notice tone="red">{d.positionError}</Notice> : null}
           <KV
             rows={[
               { label: 'In RazorpayX', value: bal != null ? <Money minor={bal} /> : <span className="muted">{d.rx.configured ? 'Unavailable' : 'Not connected'}</span> },

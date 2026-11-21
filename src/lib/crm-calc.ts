@@ -29,6 +29,13 @@ export function matchesOwner(ownerId: string | null | undefined, filter: OwnerFi
 export const ownerFilterLabel = (filter: OwnerFilter, staff: { id: string; name: string }[]): string =>
   filter === 'anyone' ? 'Anyone’s' : filter === 'me' ? 'My' : filter === 'nobody' ? 'Nobody’s' : `${staff.find((s) => s.id === filter)?.name ?? 'A staff member'}’s`;
 
+// ------------------------------------------------------- deleted accounts --
+
+/** People ids without the deleted accounts, in the same order (A1-1: the People list already leaves them out). */
+export function withoutDeleted(ids: readonly string[], deleted: ReadonlySet<string>): string[] {
+  return ids.filter((id) => !deleted.has(id));
+}
+
 // ----------------------------------------------------------------- leads --
 
 export const LEAD_STAGES = [
@@ -145,4 +152,11 @@ export function summarizeRuleTasks(rows: { rule_id: string | null; created_at: s
     }
   }
   return out;
+}
+
+/** The criteria without the wallet filter: a money-blind role (Sales) must not ask "how many hold at least Rs X" (S7-26). */
+export function withoutWallet<T extends { min_wallet_minor?: number }>(c: T): T {
+  const { min_wallet_minor: _drop, ...rest } = c;
+  void _drop;
+  return rest as T;
 }

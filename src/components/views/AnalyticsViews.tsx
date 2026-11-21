@@ -104,7 +104,7 @@ export function GrowthReports({
         />
       </Card>
 
-      <Card title="Health of the marketplace" sub="Rates are shown as — when there is nothing to divide by.">
+      <Card title="Health of the marketplace" sub="These rates look at the jobs posted in this period, so they can differ a little from the counts above. Shown as — when there is nothing to divide by.">
         <div className="figures">
           <div className="figure">
             <span className="figure-label">Jobs finished ÷ posted</span>
@@ -226,7 +226,7 @@ export function GrowthReports({
 export function ReconcileView({ days, rows, from, to, runs, refusal }: { days: number; rows: Read<ReconcileRow[]>; from: string; to: string; runs: OpsRead<ReconRun[]>; refusal: string }) {
   const counts = new Map<string, number>();
   for (const r of rows.data) counts.set(r.code, (counts.get(r.code) ?? 0) + 1);
-  const href = (r: ReconcileRow) => (r.refType === 'task' ? `/tasks/${r.refId}` : r.refType === 'payout' ? `/payouts/${r.refId}` : null);
+  const href = (r: ReconcileRow) => r.href ?? (r.refType === 'task' ? `/tasks/${r.refId}` : r.refType === 'payout' ? `/payouts/${r.refId}` : null);
   return (
     <>
       <PageHeader
@@ -274,6 +274,7 @@ export function ReconcileView({ days, rows, from, to, runs, refusal }: { days: n
                         <tr key={`${r.code}-${r.refId}`}>
                           <td className="td">
                             <Pill tone={r.severity === 'high' ? 'red' : 'gold'}>{r.severity === 'high' ? 'Important' : 'Check'}</Pill> {h ? <Link href={h}>{checkTitle(r.code)}</Link> : checkTitle(r.code)}
+                            {r.subject ? <span className="muted small block">{r.subject}</span> : null}
                           </td>
                           <td className="td nowrap">{r.at ? istDate(r.at) : '—'}</td>
                           <td className="td num">{r.amountMinor === null ? '—' : inr(r.amountMinor)}</td>

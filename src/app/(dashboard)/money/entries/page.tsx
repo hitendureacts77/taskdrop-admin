@@ -3,6 +3,8 @@ import { getLedger, isTimestamp, isUuid, requireSeeing } from '@/lib/data';
 import { addIstDays, istMidnight, istParts, startOfIstDay } from '@/lib/days';
 import { LEDGER_KIND } from '@/lib/labels';
 
+export const metadata = { title: 'Earnings entries' };
+
 type SP = Promise<Record<string, string | string[] | undefined>>;
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 

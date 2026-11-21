@@ -2,6 +2,8 @@ import { CrmHubView } from '@/components/views/CrmViews';
 import { getCrmOverview } from '@/lib/crm';
 import { requireAdmin } from '@/lib/data';
 
+export const metadata = { title: 'Customer hub' };
+
 export default async function CrmPage() {
   await requireAdmin();
   const overview = await getCrmOverview();

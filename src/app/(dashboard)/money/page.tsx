@@ -2,6 +2,8 @@ import { MoneyView } from '@/components/views/MoneyView';
 import { getAllTimeEarnings, getEscrowJobs, getLedger, getMoneyHeld, getMoneySettings, getPayoutQueue, requireSeeing } from '@/lib/data';
 import { getEarningsSeries, parseRange } from '@/lib/earnings';
 
+export const metadata = { title: 'Earnings and escrow' };
+
 type SP = Promise<Record<string, string | string[] | undefined>>;
 
 export default async function MoneyPage({ searchParams }: { searchParams: SP }) {

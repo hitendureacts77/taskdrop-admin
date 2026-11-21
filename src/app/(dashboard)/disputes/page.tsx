@@ -1,8 +1,10 @@
 import { DisputesView } from '@/components/views/QueuesViews';
-import { getDisputes, requireSeeing } from '@/lib/data';
+import { countDisputes, getDisputes, requireSeeing } from '@/lib/data';
+
+export const metadata = { title: 'Disputes' };
 
 export default async function DisputesPage() {
   await requireSeeing('money');
-  const rows = await getDisputes();
-  return <DisputesView rows={rows} now={new Date().toISOString()} />;
+  const [rows, total] = await Promise.all([getDisputes(), countDisputes()]);
+  return <DisputesView rows={rows} total={total} now={new Date().toISOString()} />;
 }

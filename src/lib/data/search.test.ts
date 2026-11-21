@@ -26,3 +26,9 @@ test('titleMatches follows the same literal rules as the list search', () => {
   assert.equal(titleMatches('anything', ''), true);
   assert.equal(titleMatches('anything', undefined), true);
 });
+
+test('likeTerm escapes a backslash so it matches itself', () => {
+  const bs = String.fromCharCode(92);
+  assert.equal(likeTerm(`abc${bs}`), `abc${bs}${bs}`);
+  assert.equal(likeTerm(`a${bs}b`), `a${bs}${bs}b`);
+});

@@ -1,6 +1,10 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { namesFor } from './data';
+import { getPayoutQueue } from './data/payouts';
+import { chunk } from './data/paging';
+import { addIstDays, istDayKey, startOfIstDay } from './days';
+import { lockedLateWithdrawals, mergeOpenProblems, reconcileSubject, type ReconcileContext } from './growth-calc';
 import type { DailyRow, FunnelRow, MarketplaceRow, RetentionRow, StaffPerf } from './growth-calc';
 import { createClient } from './supabase/server';
 import { createClient as createServiceClient } from './supabase/service';
@@ -135,7 +139,7 @@ export async function getReports(status: 'open' | 'done'): Promise<Read<ReportRo
           reporter: names.get(str(x.reporter_id)) ?? 'Someone',
           targetType: type,
           targetId: target,
-          targetLabel: type === 'user' ? names.get(target) ?? 'A person' : type === 'task' ? titles.get(target) ?? 'A job' : type === 'review' ? 'A review' : 'A message',
+          targetLabel: type === 'user' ? names.get(target) ?? 'A person' : type === 'task' ? titles.get(target)?.trim() || `#${target.slice(0, 8)}` : type === 'review' ? 'A review' : 'A message',
           reason: str(x.reason),
           status: str(x.status),
           resolution: x.resolution ? str(x.resolution) : null,
@@ -272,7 +276,7 @@ export async function getStaffPerformance(fromIso: string, toIso: string): Promi
 // ----------------------------------------------------------- analytics --
 
 export async function getBusinessDaily(from: string, to: string): Promise<Read<DailyRow[]>> {
-  return rpc('admin_business_daily', { p_from: from, p_to: to }, [], (rows) =>
+  const out = await rpc('admin_business_daily', { p_from: from, p_to: to }, [], (rows) =>
     rows.map((x) => ({
       day: str(x.day),
       newPeople: num(x.new_people),
@@ -285,6 +289,31 @@ export async function getBusinessDaily(from: string, to: string): Promise<Read<D
       revenueMinor: num(x.revenue_minor),
     })),
   );
+  return withLiveNewPeople(out, from, to);
+}
+
+/** The day-by-day new people from the database include deleted accounts; count only live ones, by India day (L4-12). */
+async function withLiveNewPeople(out: Read<DailyRow[]>, from: string, to: string): Promise<Read<DailyRow[]>> {
+  if (out.error || out.setup || !out.data.length) return out;
+  try {
+    const supabase = await db();
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('created_at')
+      .is('deleted_at', null)
+      .gte('created_at', new Date(`${from}T00:00:00+05:30`).toISOString())
+      .lt('created_at', new Date(new Date(`${to}T00:00:00+05:30`).getTime() + 86400000).toISOString())
+      .limit(50000);
+    if (error) return out;
+    const perDay = new Map<string, number>();
+    for (const r of (data ?? []) as { created_at: string }[]) {
+      const k = istDayKey(new Date(r.created_at));
+      perDay.set(k, (perDay.get(k) ?? 0) + 1);
+    }
+    return { ...out, data: out.data.map((d) => ({ ...d, newPeople: perDay.get(d.day) ?? 0 })) };
+  } catch {
+    return out;
+  }
 }
 
 export async function getFunnel(from: string, to: string): Promise<Read<FunnelRow | null>> {
@@ -326,7 +355,7 @@ export async function getPromotionRoi(from: string, to: string): Promise<Read<Pr
 
 // ------------------------------------------------------ reconciliation --
 
-export type ReconcileRow = { code: string; severity: string; refType: string; refId: string; amountMinor: number | null; at: string | null; detail: string };
+export type ReconcileRow = { code: string; severity: string; refType: string; refId: string; amountMinor: number | null; at: string | null; detail: string; /** Which job, person or payment the line is about (A1-3). */ subject?: string; href?: string | null };
 
 export async function getReconcile(from: string, to: string): Promise<Read<ReconcileRow[]>> {
   return rpc('admin_reconcile', { p_from: from, p_to: to }, [], (rows) =>
@@ -340,4 +369,75 @@ export async function getReconcile(from: string, to: string): Promise<Read<Recon
       detail: str(x.detail),
     })),
   );
+}
+
+/** The longest range admin_reconcile accepts (it refuses `p_to - p_from > 400`). */
+const RECONCILE_MAX_DAYS = 400;
+
+/** Names the job, person and amount behind each line. */
+async function describeReconcile(rows: ReconcileRow[]): Promise<ReconcileRow[]> {
+  if (!rows.length) return rows;
+  const supabase = await db();
+  const ids = (type: string) => [...new Set(rows.filter((r) => r.refType === type).map((r) => r.refId))];
+  const [payouts, payments] = await Promise.all([
+    Promise.all(chunk(ids('payout'), 150).map((c) => supabase.from('payouts').select('id, user_id').in('id', c))),
+    Promise.all(chunk(ids('payment'), 150).map((c) => supabase.from('payments').select('id, user_id, task_id').in('id', c))),
+  ]);
+  const payoutRows = payouts.flatMap((p) => (p.data ?? []) as { id: string; user_id: string }[]);
+  const paymentRows = payments.flatMap((p) => (p.data ?? []) as { id: string; user_id: string; task_id: string | null }[]);
+  const taskIds = [...new Set([...ids('task'), ...paymentRows.map((p) => p.task_id).filter((x): x is string => Boolean(x))])];
+  const [tasks, assigns] = await Promise.all([
+    Promise.all(chunk(taskIds, 150).map((c) => supabase.from('tasks').select('id, title, poster_id').in('id', c))),
+    Promise.all(chunk(taskIds, 150).map((c) => supabase.from('assignments').select('task_id, worker_id, escrow_minor').in('task_id', c))),
+  ]);
+  const taskRows = tasks.flatMap((t) => (t.data ?? []) as { id: string; title: string; poster_id: string }[]);
+  const assignRows = assigns.flatMap((a) => (a.data ?? []) as { task_id: string; worker_id: string; escrow_minor: number }[]);
+  const names = await namesFor([...taskRows.map((t) => t.poster_id), ...assignRows.map((a) => a.worker_id), ...payoutRows.map((p) => p.user_id), ...paymentRows.map((p) => p.user_id)]);
+  const ctx: ReconcileContext = { tasks: new Map(), payouts: new Map(), payments: new Map() };
+  for (const t of taskRows) {
+    const a = assignRows.find((x) => x.task_id === t.id);
+    ctx.tasks.set(t.id, { title: t.title, poster: names.get(t.poster_id) ?? null, worker: a ? names.get(a.worker_id) ?? null : null, amountMinor: a ? num(a.escrow_minor) : null });
+  }
+  for (const p of payoutRows) ctx.payouts.set(p.id, { person: names.get(p.user_id) ?? 'someone' });
+  for (const p of paymentRows) ctx.payments.set(p.id, { person: names.get(p.user_id) ?? 'someone', taskId: p.task_id });
+  return rows.map((r) => {
+    const s = reconcileSubject(r, ctx);
+    return { ...r, subject: s.subject, href: s.href, amountMinor: s.amountMinor };
+  });
+}
+
+/**
+ * Everything the Money check page lists: the range, plus every still-open problem whatever its date (admin_reconcile
+ * refuses more than 400 days, so "any date" is the widest range it takes), plus withdrawals somebody claimed and never
+ * paid, which the database check does not see. Each line carries its job, person and amount. The callers are already
+ * limited to roles that may see money (the RPC refuses the others and says so in `error`).
+ */
+export async function getMoneyCheckRows(days: number): Promise<{ read: Read<ReconcileRow[]>; from: string; to: string }> {
+  const to = istDayKey(startOfIstDay());
+  const from = istDayKey(addIstDays(startOfIstDay(), -(days - 1)));
+  const openFrom = istDayKey(addIstDays(startOfIstDay(), -RECONCILE_MAX_DAYS));
+  const [windowRows, anyDate] = await Promise.all([getReconcile(from, to), getReconcile(openFrom, to)]);
+  // A range from 2020 was refused once and the page silently fell back to the window (B113 recheck): keep the window if "any date" fails.
+  const merged: Read<ReconcileRow[]> = anyDate.error || anyDate.setup ? windowRows : { ...windowRows, data: mergeOpenProblems(windowRows.data, anyDate.data) };
+  if (merged.error || merged.setup) return { read: merged, from, to };
+  let data = merged.data;
+  try {
+    const have = new Set(data.map((r) => `${r.code}|${r.refType}|${r.refId}`));
+    const late = lockedLateWithdrawals(await getPayoutQueue(), Date.now(), have);
+    if (late.length) data = [...data, ...late].sort((a, b) => (b.at ?? '').localeCompare(a.at ?? ''));
+  } catch {
+    // The queue may be closed to this role; the database list stands.
+  }
+  try {
+    data = await describeReconcile(data);
+  } catch {
+    // Names are a convenience; the problems themselves still show.
+  }
+  return { read: { ...merged, data }, from, to };
+}
+
+/** How many problems the Money check lists right now (30-day view), or null when this role cannot read it. */
+export async function countMoneyProblems(): Promise<number | null> {
+  const { read } = await getMoneyCheckRows(30);
+  return read.error || read.setup ? null : read.data.length;
 }

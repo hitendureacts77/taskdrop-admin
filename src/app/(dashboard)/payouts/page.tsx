@@ -2,6 +2,7 @@ import { mfaState } from '@/lib/mfa';
 import { PayoutsView } from '@/components/views/PayoutsView';
 import { checkWithRazorpayX, setPayoutMethod } from '@/lib/actions';
 import { staffCan } from '@/lib/staff-roles';
+import { maskDestinationLabel, maskQueuedDestination } from '@/lib/payout-dest';
 import {
   getMoneyPosition,
   getPayoutMethod,
@@ -14,6 +15,8 @@ import {
   getWithdrawalRequestsOn,
   requireSeeing,
 } from '@/lib/data';
+
+export const metadata = { title: 'Payouts' };
 
 type SP = Promise<Record<string, string | string[] | undefined>>;
 
@@ -32,7 +35,8 @@ export default async function PayoutsPage({ searchParams }: { searchParams: SP }
   const hist = histParam === 'paid' || histParam === 'failed' || histParam === 'cancelled' ? histParam : 'all';
   const histPage = Math.max(0, Math.floor(Number(one(sp.hp)) || 0));
 
-  const [mfa, queue, totals, history, position, rx, method, daily, dayRows] = await Promise.all([
+  const canPay = staffCan(me.staffRole, 'money');
+  const [mfa, queueFull, totals, historyFull, pos, rx, method, daily, dayRowsFull] = await Promise.all([
     mfaState(),
     getPayoutQueue(),
     getPayoutTotals(),
@@ -43,15 +47,20 @@ export default async function PayoutsPage({ searchParams }: { searchParams: SP }
     getWithdrawalRequestsDaily(days),
     day ? getWithdrawalRequestsOn(day) : Promise.resolve([]),
   ]);
+  // Roles that cannot pay never receive the full UPI id, bank account or IFSC (S7-16).
+  const queue = canPay ? queueFull : queueFull.map(maskQueuedDestination);
+  const hideDest = <T extends { destination: string | null }>(r: T): T => ({ ...r, destination: maskDestinationLabel(r.destination) });
+  const history = canPay ? historyFull : historyFull.map(hideDest);
+  const dayRows = canPay ? dayRowsFull : dayRowsFull.map(hideDest);
   const roles = await getRolesFor([...queue.map((p) => p.user_id), ...history.map((h) => h.user_id), ...dayRows.map((r) => r.user_id)]);
   const dayLabel = day ? (daily.find((x) => x.key === day)?.long ?? day) : '';
   // Oldest request first: whoever has waited longest is looked at first.
   const ordered = [...queue].sort((a, b) => a.requested_at.localeCompare(b.requested_at));
   return (
     <PayoutsView
-      d={{ now: new Date().toISOString(), queue: ordered, totals, history, position, rx, method, daily, days, roles, day, dayLabel, dayRows, q, hist, histPage }}
+      d={{ now: new Date().toISOString(), queue: ordered, totals, history, position: pos.position, positionError: pos.error, rx, method, daily, days, roles, day, dayLabel, dayRows, q, hist, histPage }}
       mfa={mfa}
-      canPay={staffCan(me.staffRole, 'money')}
+      canPay={canPay}
       checkAll={checkWithRazorpayX}
       setMethod={setPayoutMethod}
     />

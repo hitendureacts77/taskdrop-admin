@@ -1,5 +1,6 @@
 import { markAlertsRead } from '@/lib/alerts-actions';
 import type { AlertsRead } from '@/lib/alerts';
+import { alertsHeading, singularDigest } from '@/lib/alerts-text';
 import { istDateTime, timeAgo } from '@/lib/format';
 import { ConfirmAction } from '../ConfirmAction';
 import { Card, Empty, PageHeader, Pill, Tabs } from '../ui';
@@ -15,6 +16,7 @@ const KIND: Record<string, string> = {
 
 export function AlertsView({ view, read, now: nowIso, canMark }: { view: 'unread' | 'all'; read: AlertsRead; now: string; canMark: boolean }) {
   const now = new Date(nowIso);
+  const heading = alertsHeading(read.alerts.length, read.unread, view, 100);
   return (
     <>
       <PageHeader title="Alerts" sub="Messages the background jobs left for the team: waiting withdrawals, failed payouts, help requests, disputes and the daily digest." />
@@ -29,7 +31,7 @@ export function AlertsView({ view, read, now: nowIso, canMark }: { view: 'unread
       {read.error ? <ReadError message={read.error} /> : null}
       {!read.setup && !read.error ? (
         read.alerts.length ? (
-          <Card title={`${read.alerts.length} alert${read.alerts.length === 1 ? '' : 's'}`} sub="Newest first, the latest 100." flush>
+          <Card title={heading.title} sub={heading.sub} flush>
             {canMark && read.unread > 0 ? (
               <div style={{ padding: '12px 16px' }}>
                 <ConfirmAction
@@ -48,7 +50,7 @@ export function AlertsView({ view, read, now: nowIso, canMark }: { view: 'unread
                 <li key={a.id}>
                   <span>
                     <strong>{a.title}</strong> <Pill tone={a.kind === 'payout_failed' ? 'red' : a.readAt ? 'grey' : 'blue'}>{KIND[a.kind] ?? a.kind}</Pill>
-                    {a.body ? <span className="muted small block">{a.body}</span> : null}
+                    {a.body ? <span className="muted small block">{a.kind === 'digest' ? singularDigest(a.body) : a.body}</span> : null}
                     <span className="muted small block" title={istDateTime(a.createdAt)}>
                       {timeAgo(a.createdAt, now)}
                       {a.readAt ? ' · read' : ''}

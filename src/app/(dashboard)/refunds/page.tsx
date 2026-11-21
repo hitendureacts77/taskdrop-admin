@@ -2,6 +2,8 @@ import { RefundsView } from '@/components/views/QueuesViews';
 import { sendRefund } from '@/lib/actions';
 import { getRefundsOwed, requireSeeing } from '@/lib/data';
 
+export const metadata = { title: 'Refunds' };
+
 export default async function RefundsPage() {
   await requireSeeing('money');
   const rows = await getRefundsOwed();

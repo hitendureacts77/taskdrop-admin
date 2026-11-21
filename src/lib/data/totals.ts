@@ -40,7 +40,14 @@ export type PlatformStats = {
 
 export async function getPlatformStats(days = 30): Promise<PlatformStats> {
   const supabase = await createSessionClient();
-  const { data, error } = await supabase.rpc('platform_stats', { p_days: days });
+  const since = new Date(Date.now() - Math.max(days, 1) * 86400000).toISOString();
+  const [{ data, error }, people, joined] = await Promise.all([
+    supabase.rpc('platform_stats', { p_days: days }),
+    // The report's own total counts deleted accounts; People in total must match the People list (A1-1).
+    supabase.from('profiles').select('id', { count: 'exact', head: true }).is('deleted_at', null),
+    // New people leave out deleted accounts too, so the number matches People in total and the funnel (L4-12).
+    supabase.from('profiles').select('id', { count: 'exact', head: true }).is('deleted_at', null).gte('created_at', since),
+  ]);
   if (error) throw new Error(`Could not read platform stats: ${error.message}`);
   const j = (data ?? {}) as Record<string, unknown>;
   const n = (k: string) => Number(j[k] ?? 0);
@@ -56,8 +63,8 @@ export async function getPlatformStats(days = 30): Promise<PlatformStats> {
     disputesOpen: n('disputesOpen'),
     quotesPlaced: n('quotesPlaced'),
     quotedRate: n('quotedRate'),
-    newUsers: n('newUsers'),
-    totalUsers: n('totalUsers'),
+    newUsers: joined.error || joined.count == null ? n('newUsers') : joined.count,
+    totalUsers: people.error || people.count == null ? n('totalUsers') : people.count,
     activeUsers: n('activeUsers'),
     avgWorkerRating: n('avgWorkerRating'),
   };
@@ -93,8 +100,8 @@ export async function getTodayCounts(): Promise<TodayCounts> {
   const [finished, posted, people, available, waiting] = await Promise.all([
     supabase.from('tasks').select('id', { count: 'exact', head: true }).in('status', ['COMPLETED', 'AUTO_COMPLETED']).gte('completed_at', since),
     supabase.from('tasks').select('id', { count: 'exact', head: true }).gte('created_at', since),
-    supabase.from('profiles').select('id', { count: 'exact', head: true }).gte('created_at', since),
-    supabase.from('profiles').select('id', { count: 'exact', head: true }).gt('live_until', now),
+    supabase.from('profiles').select('id', { count: 'exact', head: true }).gte('created_at', since).is('deleted_at', null),
+    supabase.from('profiles').select('id', { count: 'exact', head: true }).gt('live_until', now).is('deleted_at', null),
     supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('status', 'WORK_DONE'),
   ]);
   return {

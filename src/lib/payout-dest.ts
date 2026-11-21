@@ -28,6 +28,14 @@ export function savedUpiId(snapshot: string | null | undefined): string | null {
   return m ? (m[1] as string) : null;
 }
 
+/** "UPI" or "Bank" for a saved destination label, never the id or account itself: lists that do not need to pay show only this (A1-7). */
+export function destinationKind(label: string | null | undefined): 'UPI' | 'Bank' | null {
+  if (!label) return null;
+  if (/^\s*Bank\b/i.test(label)) return 'Bank';
+  if (/^\s*UPI\b/i.test(label) || /^\s*[^\s@]+@[^\s@]+\s*$/.test(label)) return 'UPI';
+  return null;
+}
+
 /** The person's payout account as it is on file now. */
 export function currentDestination(p: DestSource): Dest {
   if (p.kind === 'upi' && p.upi_id) return { how: 'UPI', vpa: p.upi_id };
@@ -91,4 +99,32 @@ export function manualPayLabel(status: string, requestedAt: string, nowMs: numbe
   if (age < DAY) return { label: 'You’re paying', tone: 'blue' };
   const days = Math.floor(age / DAY);
   return { label: `Locked ${days} ${days === 1 ? 'day' : 'days'}: pay or give back`, tone: 'red' };
+}
+
+const DOTS = '••••';
+
+/** A saved destination label with the account hidden: "UPI · a••••@ybl", "Bank · ••••1234" (S7-16). */
+export function maskDestinationLabel(label: string | null | undefined): string | null {
+  if (!label) return null;
+  const kind = destinationKind(label);
+  if (kind === 'UPI') {
+    const id = savedUpiId(label);
+    if (!id) return 'UPI';
+    const at = id.lastIndexOf('@');
+    return `UPI · ${id[0]}${DOTS}${id.slice(at)}`;
+  }
+  if (kind === 'Bank') {
+    const last4 = /([0-9]{4})\s*$/.exec(label)?.[1];
+    return last4 ? `Bank · ${DOTS}${last4}` : 'Bank';
+  }
+  return DOTS;
+}
+
+/**
+ * A queue row for a role that cannot pay (Viewer, Support, Sales): the same row with the full UPI id, bank account
+ * number, IFSC and account name taken out, before it reaches the page. The roles that pay (Admin, Finance) get the row as is.
+ */
+export function maskQueuedDestination<T extends DestSource>(p: T): T {
+  const label = maskDestinationLabel(p.snapshot) ?? (p.kind === 'upi' && p.upi_id ? maskDestinationLabel(`UPI · ${p.upi_id}`) : p.kind === 'bank' && p.account_number ? `Bank · ${DOTS}${p.account_number.slice(-4)}` : null);
+  return { ...p, snapshot: label, upi_id: null, account_number: null, ifsc: null, account_name: null };
 }

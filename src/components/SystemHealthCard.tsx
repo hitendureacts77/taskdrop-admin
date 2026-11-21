@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { istDateTime, timeAgo } from '@/lib/format';
 import { getSystemHealth, type RunSummary } from '@/lib/ops';
+import { moneyHealthLine } from '@/lib/growth-calc';
 import { KIND_LABEL, isRunStale, type RunKind } from '@/lib/ops-calc';
 import { Icon } from './Icon';
 import { Card, Pill } from './ui';
@@ -66,7 +67,8 @@ export async function SystemHealthCard() {
     );
   }
   const now = new Date(h.now);
-  const attention = h.stale || !h.ping.ok;
+  const moneyLine = moneyHealthLine(h.moneyOpen);
+  const attention = h.stale || !h.ping.ok || Boolean(moneyLine);
   return (
     <div className="health-card">
       <Card title="System health" sub={attention ? 'Something needs a look.' : 'Everything reports in.'} right={<Link href="/settings/health">Details →</Link>}>
@@ -82,6 +84,15 @@ export async function SystemHealthCard() {
               <RunLine kind="razorpay" run={h.runs.razorpay} now={now} />
             </>
           )}
+          {moneyLine ? (
+            <li>
+              <span>
+                <Link href="/money/reconcile">Money check</Link>
+                <span className="muted small block">{moneyLine}</span>
+              </span>
+              <Pill tone="gold">Needs a look</Pill>
+            </li>
+          ) : null}
           <li>
             <span>
               App service (app-config)

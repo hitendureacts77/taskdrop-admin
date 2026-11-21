@@ -1,5 +1,7 @@
 import { SupportView } from '@/components/views/QueuesViews';
-import { getTickets, requireAdmin } from '@/lib/data';
+import { countTickets, getTickets, requireAdmin } from '@/lib/data';
+
+export const metadata = { title: 'Help requests' };
 
 type SP = Promise<Record<string, string | string[] | undefined>>;
 
@@ -8,6 +10,6 @@ export default async function SupportPage({ searchParams }: { searchParams: SP }
   const sp = await searchParams;
   const s = Array.isArray(sp.status) ? sp.status[0] : sp.status;
   const status = s === 'answered' || s === 'resolved' || s === 'all' ? s : 'waiting';
-  const rows = await getTickets(status);
-  return <SupportView rows={rows} status={status} now={new Date().toISOString()} />;
+  const [rows, total] = await Promise.all([getTickets(status), countTickets(status)]);
+  return <SupportView rows={rows} total={total} status={status} now={new Date().toISOString()} />;
 }

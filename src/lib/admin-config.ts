@@ -6,7 +6,10 @@ import { getNavCounts, getRazorpayXState, getPayoutMethod, hasServiceKey, type N
 import { createClient as createSessionClient } from './supabase/server';
 import { createClient as createServiceClient } from './supabase/service';
 import { emailFor, phoneFor } from './contact-mask';
+import { countMoneyProblems } from './growth';
 import { asStaffRole, type StaffRole } from './staff-roles';
+import { auditPersonId } from './audit-target';
+import { notHeartbeatOr, type AuditScope } from './audit-scope';
 
 /**
  * Reads for the Admin & configuration screens (team, switches, integrations,
@@ -191,6 +194,8 @@ export type Health = {
   checkedAt: string;
   checks: Check[];
   queues: NavCounts;
+  /** How many problems the Money check lists, or null when it could not be read (A1-3). */
+  moneyOpen: number | null;
   latest: { label: string; at: string | null; href: string }[];
   runtime: { env: string; commit: string | null; region: string | null; node: string };
 };
@@ -243,8 +248,9 @@ export async function getHealth(): Promise<Health> {
     const { data } = await db.from(table).select(col).order(col, { ascending: false }).limit(1);
     return ((data ?? []) as unknown as Record<string, string>[])[0]?.[col] ?? null;
   };
-  const [queues, ledger, job, person, ticket] = await Promise.all([
+  const [queues, moneyOpen, ledger, job, person, ticket] = await Promise.all([
     getNavCounts(),
+    countMoneyProblems().catch(() => null),
     latestOf('platform_ledger', 'created_at').catch(() => null),
     latestOf('tasks', 'created_at').catch(() => null),
     latestOf('profiles', 'created_at').catch(() => null),
@@ -255,6 +261,7 @@ export async function getHealth(): Promise<Health> {
     checkedAt: new Date().toISOString(),
     checks,
     queues,
+    moneyOpen,
     latest: [
       { label: 'Money moved', at: ledger, href: '/money/entries' },
       { label: 'Job posted', at: job, href: '/tasks' },
@@ -284,6 +291,12 @@ export type AuditRow = {
   before: unknown;
   after: unknown;
   detail: string | null;
+  /** The person this row is about, when it is about one (B108). */
+  personId: string | null;
+  personName: string | null;
+  /** The job this row is about, when it is about one (a dispute decision names its job). */
+  taskId: string | null;
+  taskTitle: string | null;
 };
 
 /** The tables whose changes the database records (private.audit_change triggers), with a plain name each. */
@@ -318,13 +331,18 @@ export const EVENT_WORDS: Record<string, string> = {
   pause_promotion: 'Paused a promotion',
   'crm.assign_owner': 'Assigned a customer to staff',
   'crm.task_add': 'Added a follow-up',
+  'crm.tag_add': 'Tagged a person',
+  'crm.tag_remove': 'Took a tag off a person',
 };
 
-export async function getAuditLog(table: string | null, page: number, pageSize = 40): Promise<{ rows: AuditRow[]; total: number }> {
+export async function getAuditLog(table: string | null, page: number, pageSize = 40, scope: AuditScope = 'default'): Promise<{ rows: AuditRow[]; total: number }> {
   const supabase = await createSessionClient();
   const db = supabase as unknown as SupabaseClient;
   let q = db.from('admin_audit_log').select('id, at, actor, actor_kind, action, target_table, target_id, before, after, detail', { count: 'exact' });
   if (table) q = q.eq('target_table', table);
+  // B117: heartbeats are hidden by default, never deleted; "Staff only" shows lines staff wrote.
+  if (scope === 'default') q = q.or(notHeartbeatOr());
+  else if (scope === 'staff') q = q.not('actor', 'is', null);
   const from = page * pageSize;
   const { data, error, count } = await q.order('at', { ascending: false }).order('id', { ascending: false }).range(from, from + pageSize - 1);
   if (error) throw new Error(`Could not read the audit log: ${error.message}`);
@@ -340,15 +358,41 @@ export async function getAuditLog(table: string | null, page: number, pageSize =
     after: unknown;
     detail: string | null;
   }[];
-  const actorIds = [...new Set(raw.map((r) => r.actor).filter((x): x is string => Boolean(x)))];
+  const personOf = (r: (typeof raw)[number]) => auditPersonId({ table: r.target_table, targetId: r.target_id, before: r.before, after: r.after });
+  const actorIds = [...new Set([...raw.map((r) => r.actor), ...raw.map(personOf)].filter((x): x is string => Boolean(x)))];
   const names = new Map<string, string>();
   if (actorIds.length) {
     const { data: profs } = await supabase.from('profiles').select('id, display_name').in('id', actorIds);
     for (const p of (profs ?? []) as { id: string; display_name: string }[]) names.set(p.id, p.display_name);
   }
+  // A dispute decision is about a job: name it, the way a suspension names its person.
+  const taskOf = (r: (typeof raw)[number]): string | null => {
+    if (r.target_table !== 'dispute_decisions') return null;
+    for (const side of [r.after, r.before]) {
+      const v = side && typeof side === 'object' ? (side as Record<string, unknown>).task_id : undefined;
+      if (typeof v === 'string' && v) return v;
+    }
+    return null;
+  };
+  const taskIds = [...new Set(raw.map(taskOf).filter((x): x is string => Boolean(x)))];
+  const titles = new Map<string, string>();
+  if (taskIds.length) {
+    const { data: ts } = await supabase.from('tasks').select('id, title').in('id', taskIds);
+    for (const t of (ts ?? []) as { id: string; title: string }[]) titles.set(t.id, t.title);
+  }
   return {
     total: count ?? raw.length,
     rows: raw.map((r) => ({
+      taskId: taskOf(r),
+      taskTitle: (() => {
+        const t = taskOf(r);
+        return t ? titles.get(t)?.trim() || null : null;
+      })(),
+      personId: personOf(r),
+      personName: (() => {
+        const p = personOf(r);
+        return p ? names.get(p) ?? 'A person' : null;
+      })(),
       id: r.id,
       at: r.at,
       actor: r.actor,

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { stableOrder } from './paging.ts';
+import { isPastLastPage, lastPageIndex, stableOrder } from './paging.ts';
 
 type Row = { id: string; ts: string };
 
@@ -54,4 +54,93 @@ test('stableOrder keeps the requested direction on the main column', () => {
   const q = new FakeQuery(rows);
   const first = stableOrder(q, 'ts', true).range(0, 0)[0];
   assert.equal(first?.ts, '2026-11-05T00:00:00Z');
+});
+
+// B122: PostgREST hands back at most max_rows (1,000 on Supabase) per request without saying so, so a list read in one
+// request stops silently. readAll() pages until a page comes back empty and moves on by what it actually got.
+import { readAll } from './paging.ts';
+
+test('readAll reads past a silent 1,000-row cap', async () => {
+  const all = Array.from({ length: 2345 }, (_, i) => i);
+  const calls: [number, number][] = [];
+  const got = await readAll(async (from, to) => {
+    calls.push([from, to]);
+    return { data: all.slice(from, Math.min(to + 1, from + 1000)), error: null };
+  });
+  assert.equal(got.length, 2345);
+  assert.deepEqual(got, all);
+  // Moves on by the rows it got, so a cap below the page size cannot skip anyone.
+  const small = await readAll(async (from, to) => ({ data: all.slice(from, Math.min(to + 1, from + 300)), error: null }));
+  assert.deepEqual(small, all);
+});
+
+test('readAll fails loudly on a read error instead of returning a shorter list', async () => {
+  await assert.rejects(
+    readAll(async (from) => (from === 0 ? { data: [1, 2, 3], error: null } : { data: null, error: { message: 'boom' } }), 'Could not read people'),
+    /Could not read people: boom/,
+  );
+});
+
+test('readAll refuses to run forever', async () => {
+  await assert.rejects(readAll(async () => ({ data: [1], error: null }), 'x', 1000, 50), /more than 50/);
+});
+
+import { readFileSync } from 'node:fs';
+test('CRM audiences, tag counts and the People filters page through every row', () => {
+  const crm = readFileSync(new URL('../crm.ts', import.meta.url), 'utf8');
+  assert.ok(/readAll\([^)]*\n?[^;]*crm_segment_users/.test(crm) || /crm_segment_users[\s\S]{0,200}\.range\(from, to\)/.test(crm));
+  assert.ok(!/crm_segment_users', \{ p_criteria: c \}\);/.test(crm), 'matchingIds must not read the RPC in one request');
+  assert.ok(!crm.includes('.limit(20000)'), 'tag and suspension lists must be paged, not capped');
+});
+
+// B132: other silent caps.
+import { chunk, shownOf } from './paging.ts';
+
+test('chunk splits a long id list so no single .in() address grows past what the server takes', () => {
+  assert.deepEqual(chunk([1, 2, 3, 4, 5], 2), [[1, 2], [3, 4], [5]]);
+  assert.deepEqual(chunk([], 3), []);
+  assert.equal(chunk(Array.from({ length: 1000 }, (_, i) => i), 150).length, 7);
+});
+
+test('a capped list says how many it is not showing', () => {
+  assert.equal(shownOf(200, 200), null);
+  assert.equal(shownOf(12, 12), null);
+  assert.equal(shownOf(200, null), null);
+  assert.equal(shownOf(200, 1234), 'Showing the first 200 of 1,234.');
+});
+
+test('feedback counts, leads, device shares, People filters and the help/dispute lists are not silently capped', () => {
+  const read = (p: string) => readFileSync(new URL(p, import.meta.url), 'utf8');
+  assert.ok(/tryReadAll[<(]/.test(read('../feedback.ts')), 'feedback counts page through every idea');
+  assert.ok(/tryReadAll[<(]/.test(read('../leads.ts')), 'leads page through every lead');
+  assert.ok(/tryReadAll[<(]/.test(read('../controls.ts')), 'device shares count every install');
+  const users = read('./users.ts');
+  assert.ok(users.includes('chunk(') && users.includes('IN_CHUNK'), 'People filters split long id lists');
+  assert.ok(read('./support.ts').includes('export async function countTickets'));
+  assert.ok(read('./disputes.ts').includes('export async function countDisputes'));
+  const views = read('../../components/views/QueuesViews.tsx');
+  assert.ok((views.match(/shownOf\(/g) ?? []).length >= 2, 'both lists say when they show only the first 200');
+});
+
+// A1-4: a page number past the last page must not crash the list.
+test('isPastLastPage recognises PostgREST’s "range not satisfiable" and nothing else', () => {
+  assert.equal(isPastLastPage({ code: 'PGRST103', message: 'Requested range not satisfiable' }), true);
+  assert.equal(isPastLastPage({ message: 'Requested range not satisfiable' }), true);
+  assert.equal(isPastLastPage({ code: '42501', message: 'permission denied' }), false);
+  assert.equal(isPastLastPage(null), false);
+});
+
+test('lastPageIndex is the 0-based last page, and 0 for an empty list', () => {
+  assert.equal(lastPageIndex(0, 30), 0);
+  assert.equal(lastPageIndex(30, 30), 0);
+  assert.equal(lastPageIndex(31, 30), 1);
+  assert.equal(lastPageIndex(758, 30), 25);
+});
+
+test('the Jobs and People lists send a past-the-end page back to the last page', () => {
+  const read = (p: string) => readFileSync(new URL(p, import.meta.url), 'utf8');
+  assert.ok(read('./tasks.ts').includes('isPastLastPage(error)'));
+  assert.ok(read('./users.ts').includes('isPastLastPage(error)'));
+  assert.ok(read('../../app/(dashboard)/tasks/page.tsx').includes('redirect('));
+  assert.ok(read('../../app/(dashboard)/users/page.tsx').includes('redirect('));
 });

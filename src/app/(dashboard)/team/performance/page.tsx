@@ -3,6 +3,8 @@ import { addIstDays, istDayKey, startOfIstDay } from '@/lib/days';
 import { requireAdmin } from '@/lib/data';
 import { getStaffPerformance } from '@/lib/growth';
 
+export const metadata = { title: 'Team performance' };
+
 export default async function PerformancePage({ searchParams }: { searchParams: Promise<{ days?: string }> }) {
   await requireAdmin();
   const raw = Number((await searchParams).days);

@@ -5,7 +5,8 @@ import { getEnvironment } from '@/lib/environment-server';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'TaskDrop Admin',
+  // Each page names itself, so tabs and history tell the pages apart (A1-6).
+  title: { default: 'TaskDrop Admin', template: '%s · TaskDrop Admin' },
   description: 'Internal admin panel -- staff only.',
   robots: { index: false, follow: false },
 };

@@ -49,6 +49,20 @@ export function maskContactText(raw: string | null | undefined): string | null {
   return `${v[0]}${DOT.repeat(3)}`;
 }
 
+const PLACEHOLDER = /^p(\d{6,15})@phone\.taskdrop\.app$/i;
+
+/**
+ * Phone sign-ups sit on a placeholder sign-in address, p<number>@phone.taskdrop.app (phone-auth), with no Auth phone.
+ * That address is not an email to show, and the number inside it IS the phone, so it moves to the phone (to be masked
+ * like any phone) and the email becomes null. Call this before phoneFor/emailFor/exportContactCells (B107).
+ */
+export function signInContacts(email: string | null | undefined, phone: string | null | undefined): { email: string | null; phone: string | null } {
+  const e = email?.trim() || null;
+  const p = phone?.trim() || null;
+  if (e && /@phone\.taskdrop\.app$/i.test(e)) return { email: null, phone: p ?? e.match(PLACEHOLDER)?.[1] ?? null };
+  return { email: e, phone: p };
+}
+
 /** The phone to hand to a screen or a spreadsheet: as stored for roles that may see it, masked for the rest. */
 export function phoneFor(role: StaffRole, raw: string | null | undefined): string | null {
   if (raw == null) return null;

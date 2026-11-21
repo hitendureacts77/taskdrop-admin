@@ -176,6 +176,58 @@ export function formatWait(seconds: number | null): string {
 /** Checks that describe something still unresolved, so they stay on the list however old they are. The rest are closed history and follow the date range. */
 export const OPEN_RECONCILE_CODES: readonly string[] = ['funded_without_paid_payment', 'paid_not_credited', 'payment_stuck_created', 'payout_waiting_long'];
 
+export type ReconcileContext = {
+  tasks: Map<string, { title: string; poster: string | null; worker: string | null; amountMinor: number | null }>;
+  payouts: Map<string, { person: string }>;
+  payments: Map<string, { person: string; taskId: string | null }>;
+};
+
+/** Which job, person and amount a Money check line is about, and where to open it (A1-3). */
+export function reconcileSubject(
+  r: { refType: string; refId: string; amountMinor: number | null },
+  ctx: ReconcileContext,
+): { subject: string; href: string | null; amountMinor: number | null } {
+  if (r.refType === 'task') {
+    const t = ctx.tasks.get(r.refId);
+    if (!t) return { subject: 'Job (no longer readable)', href: `/tasks/${r.refId}`, amountMinor: r.amountMinor };
+    const who = [t.poster ? `poster ${t.poster}` : '', t.worker ? `worker ${t.worker}` : ''].filter(Boolean);
+    return { subject: ['Job “' + t.title + '”', ...who].join(' · '), href: `/tasks/${r.refId}`, amountMinor: r.amountMinor ?? t.amountMinor };
+  }
+  if (r.refType === 'payout') {
+    const p = ctx.payouts.get(r.refId);
+    return { subject: p ? `Withdrawal by ${p.person}` : 'Withdrawal (no longer readable)', href: `/payouts/${r.refId}`, amountMinor: r.amountMinor };
+  }
+  if (r.refType === 'payment') {
+    const p = ctx.payments.get(r.refId);
+    if (!p) return { subject: 'Payment (no longer readable)', href: null, amountMinor: r.amountMinor };
+    const t = p.taskId ? ctx.tasks.get(p.taskId) : undefined;
+    return { subject: `Payment by ${p.person}${t ? ` for “${t.title}”` : ''}`, href: p.taskId ? `/tasks/${p.taskId}` : null, amountMinor: r.amountMinor };
+  }
+  return { subject: '', href: null, amountMinor: r.amountMinor };
+}
+
+const THREE_DAYS_MS = 3 * 86400000;
+
+/**
+ * Withdrawals a person claimed to pay by hand ("processing") and never finished. The database check only looks at
+ * "requested" ones, so these (the locked ones Payouts shows in red) would be missing from the list (A1-3).
+ */
+export function lockedLateWithdrawals(
+  queue: readonly { id: string; status: string; amount_minor: number; requested_at: string; display_name: string | null }[],
+  nowMs: number,
+  have: ReadonlySet<string>,
+): { code: string; severity: string; refType: string; refId: string; amountMinor: number | null; at: string | null; detail: string }[] {
+  return queue
+    .filter((p) => p.status === 'processing' && nowMs - new Date(p.requested_at).getTime() > THREE_DAYS_MS && !have.has(`payout_waiting_long|payout|${p.id}`))
+    .map((p) => ({ code: 'payout_waiting_long', severity: 'medium', refType: 'payout', refId: p.id, amountMinor: Number(p.amount_minor), at: p.requested_at, detail: 'Claimed for paying by hand and still not paid' }));
+}
+
+/** The sentence System health shows when the Money check has open problems; null when there is nothing to say. */
+export function moneyHealthLine(open: number | null): string | null {
+  if (!open) return null;
+  return `${open.toLocaleString('en-IN')} open problem${open === 1 ? '' : 's'} in the Money check`;
+}
+
 /** The date-range rows plus every still-open problem from any date, once each, newest first. */
 export function mergeOpenProblems<T extends { code: string; refType: string; refId: string; at: string | null }>(inWindow: readonly T[], anyDate: readonly T[]): T[] {
   const seen = new Set<string>();

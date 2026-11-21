@@ -9,6 +9,8 @@ import { staffCanSee } from '@/lib/staff-roles';
 import { getUserFollowUps } from '@/lib/growth';
 import { getUserAudit, getUserDevices, getUserPayments, getUserSignIn } from '@/lib/user360';
 
+export const metadata = { title: 'Person' };
+
 export default async function UserPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string }> }) {
   const me = await requireAdmin();
   const { id } = await params;

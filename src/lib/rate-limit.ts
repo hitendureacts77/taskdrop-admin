@@ -13,13 +13,14 @@ export const TOO_FAST = 'You are going too fast. Please wait a moment and try ag
  * key only). A counter that cannot be reached refuses the call and sends a security event, except
  * for the live strip's refresh, which goes ahead (rate-decide.ts, B121).
  */
-export async function withinRate(key: string, bucket: string, limitPerMinute: number): Promise<boolean> {
+export async function withinRate(key: string, bucket: string, limit: number, windowSeconds = 60): Promise<boolean> {
   return decideRate(
     async () =>
       createClient().rpc('api_rate_hit', {
         p_user: key.includes('-') && key.length === 36 ? key : keyToUuid(key),
         p_bucket: bucket,
-        p_limit: limitPerMinute,
+        p_limit: limit,
+        p_window_seconds: windowSeconds,
       }),
     bucket,
     securityEvent,
