@@ -15,7 +15,7 @@ export function PlanBView({ read, refusal, canPause, setPaused, retryMove }: { r
       <>
         <PageHeader crumbs={crumbs} title="Plan B money" sub={sub} />
         <Notice tone="gold" title="Plan B is not set up on this database yet">
-          Nothing is broken. Once the database update behind Plan B (migration 193) is applied here, this page fills in by itself.
+          Nothing is broken. Once the database update behind Plan B (migration 195) is applied here, this page fills in by itself.
         </Notice>
       </>
     );

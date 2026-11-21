@@ -1,5 +1,5 @@
 /**
- * Plan B money controls (migration 193 in the app repo). Pure helpers: turn the
+ * Plan B money controls (migration 195 in the app repo). Pure helpers: turn the
  * database's admin_plan_b_overview() answer into a typed shape, with plain labels.
  */
 
@@ -65,7 +65,7 @@ export function parseOverview(raw: unknown): PlanBOverview {
   };
 }
 
-/** The database says a function is missing (migration 193 not applied on this database). */
+/** The database says a function is missing (migration 195 not applied on this database). */
 export function isPlanBMissing(message: string | null | undefined, code?: string | null): boolean {
   return /PGRST202|42883/.test(code ?? '') || /does not exist|could not find the function|schema cache/i.test(message ?? '');
 }

@@ -8,7 +8,7 @@ export type PlanBRead = { data: PlanBOverview | null; setup: boolean; refused: b
 
 export async function getPlanBOverview(): Promise<PlanBRead> {
   const supabase = await createClient();
-  // The function is new (migration 193), so it is not in the generated types yet.
+  // The function is new (migration 195), so it is not in the generated types yet.
   const { data, error } = await supabase.rpc('admin_plan_b_overview' as never);
   if (error) {
     if (isPlanBMissing(error.message, error.code)) return { data: null, setup: true, refused: false, error: null };
