@@ -11,6 +11,16 @@ import { parseNumberInput } from './setting-input';
 import type { ActionResult } from '@/components/ConfirmAction';
 
 /**
+ * The payout service failed: log the full error on the server and show staff
+ * a short reference instead of the raw error text (audit 2.20, Low).
+ */
+function payoutServiceError(error: unknown): string {
+  const ref = Math.random().toString(36).slice(2, 10);
+  console.error(`[payout-service ${ref}]`, error);
+  return `Could not reach the payout service. Try again shortly (reference ${ref}).`;
+}
+
+/**
  * The only two places the panel moves money. Both go through the database's
  * own admin functions (which check private.is_admin() again and lock the row),
  * never through direct table writes, so a wallet is refunded or credited by the
@@ -132,7 +142,7 @@ export async function checkWithRazorpayX(_prev: ActionResult, _form: FormData): 
   if (mfa) return { ok: false, message: mfa };
   const supabase = await createClient();
   const { data, error } = await supabase.functions.invoke('razorpayx-payouts', { body: { action: 'check-all' } });
-  if (error) return { ok: false, message: `Could not reach the payout service: ${error.message}` };
+  if (error) return { ok: false, message: payoutServiceError(error) };
   if (data?.configured === false) {
     return { ok: false, message: 'RazorpayX is not set up yet. Add RAZORPAYX_ACCOUNT_NUMBER, the API keys and the webhook secret first.' };
   }
@@ -172,7 +182,7 @@ export async function giveBackPayout(_prev: ActionResult, form: FormData): Promi
 
   const supabase = await createClient();
   const { data, error } = await supabase.functions.invoke('razorpayx-payouts', { body: { action: 'give-back', payoutId: id } });
-  if (error) return { ok: false, message: `Could not reach the payout service: ${error.message}` };
+  if (error) return { ok: false, message: payoutServiceError(error) };
   if (data?.configured === false) return { ok: false, message: 'RazorpayX is not set up yet, so it cannot be asked about this withdrawal.' };
   const out = (data ?? {}) as Outcome;
   revalidatePath('/payouts', 'layout');
