@@ -113,6 +113,38 @@ export async function getTaskPhotos(taskId: string): Promise<TaskPhotos> {
   return sign(items.slice(0, 40));
 }
 
+/** A photo or PDF someone attached to feedback (user repo migration 206): { path, kind, name }. */
+export type FeedbackFile = { path: string; kind: 'image' | 'file'; name: string };
+
+/** Reads a stored `attachments` value into files, dropping anything that is not one. */
+export function feedbackFilesOf(v: unknown): FeedbackFile[] {
+  if (!Array.isArray(v)) return [];
+  return (v as { path?: unknown; kind?: unknown; name?: unknown }[])
+    .filter((f) => f && typeof f.path === 'string' && f.path)
+    .slice(0, 3)
+    .map((f) => ({
+      path: f.path as string,
+      kind: f.kind === 'file' ? 'file' : 'image',
+      name: typeof f.name === 'string' && f.name ? f.name : f.kind === 'file' ? 'PDF' : 'Photo',
+    }));
+}
+
+/**
+ * Signed links for the files on many feedback rows at once, in the same order as `lists`.
+ * Callers MUST have called requireAdmin(): this signs with the service key.
+ */
+export async function signFeedbackFiles(lists: FeedbackFile[][]): Promise<AdminPhoto[][]> {
+  const items = lists.flat().map((f) => ({ label: f.name, ref: f.path, kind: f.kind }));
+  if (items.length === 0) return lists.map(() => []);
+  const { photos } = await sign(items);
+  let at = 0;
+  return lists.map((l) => {
+    const out = photos.slice(at, at + l.length);
+    at += l.length;
+    return out;
+  });
+}
+
 /** The job photo for each task id, for the copyright page. A task with no photo is left out. */
 export async function getJobPhotos(taskIds: string[]): Promise<Map<string, AdminPhoto>> {
   const out = new Map<string, AdminPhoto>();

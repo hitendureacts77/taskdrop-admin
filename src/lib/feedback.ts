@@ -4,6 +4,7 @@ import { namesFor } from './data';
 import type { Read } from './growth';
 import { createClient } from './supabase/server';
 import { tryReadAll } from './data/paging';
+import { type AdminPhoto, feedbackFilesOf, signFeedbackFiles } from './photos';
 
 /**
  * The feedback board (migration 136 in the app repo). Read as the signed-in
@@ -58,6 +59,34 @@ export type BoardPost = {
   createdAt: string;
   statusChangedAt: string;
   comments: BoardComment[];
+  /** Photos and PDFs on the idea (migration 206), as signed links. */
+  files: AdminPhoto[];
+};
+
+/** The page's tabs: the board's own, plus the private "Send feedback" notes. */
+export type FeedbackTab = BoardTab | 'notes';
+
+export function asFeedbackTab(v: unknown): FeedbackTab {
+  return v === 'notes' ? 'notes' : asBoardTab(v);
+}
+
+/** A private "Send feedback" note (migration 048): only the sender and staff ever see it. */
+export type PrivateNote = {
+  id: string;
+  kind: string;
+  body: string;
+  page: string | null;
+  author: string;
+  authorId: string;
+  createdAt: string;
+  files: AdminPhoto[];
+};
+
+export const NOTE_KIND: Record<string, string> = {
+  broken: 'Something is broken',
+  confusing: 'Something is confusing',
+  idea: 'An idea',
+  praise: 'Something they love',
 };
 
 const NOT_THERE = /does not exist|could not find the (function|table)|schema cache|PGRST20[24]|42883|42P01/i;
@@ -94,7 +123,7 @@ export async function getBoardPosts(tab: BoardTab): Promise<Read<BoardPost[]>> {
   const supabase = await db();
   const base = supabase
     .from('feedback_posts')
-    .select('id, author_id, title, body, category, status, vote_count, hidden_at, hide_reason, created_at, status_changed_at');
+    .select('id, author_id, title, body, category, status, vote_count, hidden_at, hide_reason, created_at, status_changed_at, attachments');
   const { data, error } = await (tab === 'hidden' ? base.not('hidden_at', 'is', null) : base.is('hidden_at', null).eq('status', tab))
     .order('vote_count', { ascending: false })
     .order('created_at', { ascending: false })
@@ -113,7 +142,10 @@ export async function getBoardPosts(tab: BoardTab): Promise<Read<BoardPost[]>> {
   if (cerr) return failed([], cerr);
   const comments = (cs ?? []) as Record<string, unknown>[];
 
-  const names = await namesFor([...posts.map((p) => str(p.author_id)), ...comments.map((c) => str(c.author_id))].filter(Boolean));
+  const [names, files] = await Promise.all([
+    namesFor([...posts.map((p) => str(p.author_id)), ...comments.map((c) => str(c.author_id))].filter(Boolean)),
+    signFeedbackFiles(posts.map((p) => feedbackFilesOf(p.attachments))),
+  ]);
   const byPost = new Map<string, BoardComment[]>();
   for (const c of comments) {
     const list = byPost.get(str(c.post_id)) ?? [];
@@ -128,7 +160,7 @@ export async function getBoardPosts(tab: BoardTab): Promise<Read<BoardPost[]>> {
     byPost.set(str(c.post_id), list);
   }
   return {
-    data: posts.map((p) => ({
+    data: posts.map((p, i) => ({
       id: str(p.id),
       title: str(p.title),
       body: str(p.body),
@@ -142,6 +174,38 @@ export async function getBoardPosts(tab: BoardTab): Promise<Read<BoardPost[]>> {
       createdAt: str(p.created_at),
       statusChangedAt: str(p.status_changed_at),
       comments: byPost.get(str(p.id)) ?? [],
+      files: files[i] ?? [],
+    })),
+    setup: false,
+    error: null,
+  };
+}
+
+/** The newest private "Send feedback" notes, with their files. Read as the admin (048: staff may read every note). */
+export async function getPrivateNotes(): Promise<Read<PrivateNote[]>> {
+  const supabase = await db();
+  const { data, error } = await supabase
+    .from('feedback')
+    .select('id, user_id, kind, body, page, created_at, attachments')
+    .order('created_at', { ascending: false })
+    .limit(50);
+  if (error) return failed([], error);
+  const rows = (data ?? []) as Record<string, unknown>[];
+  if (!rows.length) return { data: [], setup: false, error: null };
+  const [names, files] = await Promise.all([
+    namesFor(rows.map((r) => str(r.user_id))),
+    signFeedbackFiles(rows.map((r) => feedbackFilesOf(r.attachments))),
+  ]);
+  return {
+    data: rows.map((r, i) => ({
+      id: str(r.id),
+      kind: str(r.kind),
+      body: str(r.body),
+      page: r.page ? str(r.page) : null,
+      author: names.get(str(r.user_id)) ?? 'Someone',
+      authorId: str(r.user_id),
+      createdAt: str(r.created_at),
+      files: files[i] ?? [],
     })),
     setup: false,
     error: null,
