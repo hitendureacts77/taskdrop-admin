@@ -156,7 +156,7 @@ function Actions({ row, kind, noun, others }: { row: CatalogRow; kind: CatalogKi
             name: 'toId',
             label: 'Merge into',
             options: others.map((o) => ({ value: o.id, label: `${o.label} (${o.uses})` })),
-            defaultValue: others[0].id,
+            defaultValue: others[0]?.id ?? '',
           }}
           confirmLabel="Merge"
         />

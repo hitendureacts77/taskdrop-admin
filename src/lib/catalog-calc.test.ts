@@ -33,7 +33,7 @@ test('also matches lists phrases then merged labels, dash when none', () => {
 test('mapCatalogRow reads the rpc shape', () => {
   const r = mapCatalogRow({ id: 'i', label: 'Tutoring', status: 'live', source: 'user', uses: 3, rank: 2, created_by_name: 'Asha', created_at: '2026-11-20T00:00:00Z', phrases: [{ id: 'p', phrase: 'x' }], merged_labels: ['Y'] });
   assert.equal(r.createdByName, 'Asha');
-  assert.equal(r.phrases[0].phrase, 'x');
+  assert.equal(r.phrases[0]?.phrase, 'x');
   assert.deepEqual(r.mergedLabels, ['Y']);
 });
 
