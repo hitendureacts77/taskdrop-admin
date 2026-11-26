@@ -39,6 +39,7 @@ const SECTIONS: { title: string | null; items: Item[] }[] = [
       { href: '/support', label: 'Help requests', icon: 'help', badge: 'support' },
       { href: '/copyright', label: 'Copyright notices', icon: 'alert' },
       { href: '/feedback', label: 'Feedback board', icon: 'megaphone' },
+      { href: '/catalog', label: 'Skills & categories', icon: 'jobs' },
       { href: '/promotions', label: 'Promotions', icon: 'megaphone', view: 'money' },
     ],
   },
