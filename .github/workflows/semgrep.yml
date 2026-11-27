@@ -34,7 +34,7 @@ jobs:
 
       # The runner's own python3 moved to 3.14 (Nov 2026), where Semgrep's protobuf crashes on import
       # ("Metaclasses with custom tp_new are not supported"). Pin a Python that Semgrep supports.
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
 
