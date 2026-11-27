@@ -1,0 +1,25 @@
+// Cloudflare Workers config for the admin console -- TRIAL ONLY (plan task 5.12 step 6).
+// Nothing deploys from here yet: no Cloudflare account, Vercel stays the host.
+// Build + run locally:  npm run cf:build  then  npm run cf:preview
+// Top level = staging worker; `--env production` = production worker.
+// Secrets (SUPABASE_SERVICE_ROLE_KEY, API_GATEWAY_SECRET, ADMIN_SESSION_SECRET, ...)
+// go in with `wrangler secret put` at deploy time, never in this file.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "taskdrop-admin-staging",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "taskdrop-admin-staging" }],
+  "observability": { "enabled": true },
+  "env": {
+    "production": {
+      "name": "taskdrop-admin-production",
+      "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "taskdrop-admin-production" }]
+    }
+  }
+}
