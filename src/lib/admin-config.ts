@@ -10,6 +10,7 @@ import { countMoneyProblems } from './growth';
 import { asStaffRole, type StaffRole } from './staff-roles';
 import { auditPersonId } from './audit-target';
 import { notHeartbeatOr, type AuditScope } from './audit-scope';
+import { appEnv, appRegion, commitSha } from './runtime-env';
 
 /**
  * Reads for the Admin & configuration screens (team, switches, integrations,
@@ -269,9 +270,10 @@ export async function getHealth(): Promise<Health> {
       { label: 'Help request', at: ticket, href: '/support' },
     ],
     runtime: {
-      env: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? 'unknown',
-      commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null,
-      region: process.env.VERCEL_REGION ?? null,
+      // Host-neutral names first (Cloudflare), Vercel's as fallback: src/lib/runtime-env.ts.
+      env: appEnv(process.env) ?? process.env.NODE_ENV ?? 'unknown',
+      commit: commitSha(process.env)?.slice(0, 7) ?? null,
+      region: appRegion(process.env),
       node: process.version,
     },
   };

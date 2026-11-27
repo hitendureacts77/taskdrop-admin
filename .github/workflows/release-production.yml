@@ -3,8 +3,8 @@ name: Release admin to production
 # Plan task 5.12 step 6 / decision 57: the admin console reaches production only through this hand-started release
 # (the user repo has its own release-production.yml). Run it: Actions -> Release admin to production -> Run workflow,
 # branch redesigned-2.0. In order:
-#   1. guard    branch is redesigned-2.0, and the last green "Admin deploy (Cloudflare)" push run (staging) is this
-#               commit or differs from it only in docs.
+#   1. guard    branch is redesigned-2.0, and the last green "Admin deploy (Cloudflare)" push run (staging) really
+#               uploaded (not a skip for missing secrets) and is this commit or differs from it only in docs.
 #   2. deploy   admin-deploy.yml with target production -> Cloudflare Worker taskdrop-admin-production. Give the GitHub
 #               environment production the owner as required reviewer (that is the Approve click).
 #               Skips green with a notice until the Cloudflare secrets exist.
@@ -41,8 +41,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          staged=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/admin-deploy.yml/runs?branch=redesigned-2.0&event=push&status=success&per_page=1" --jq '.workflow_runs[0].head_sha // ""')
+          read -r run_id staged < <(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/admin-deploy.yml/runs?branch=redesigned-2.0&event=push&status=success&per_page=1" --jq '.workflow_runs[0] | "(.id // "") (.head_sha // "")"')
           if [ -z "$staged" ]; then echo "::error::No green staging deploy found. Staging must run a commit before production gets it."; exit 1; fi
+          # A run that skipped for missing Cloudflare secrets is green too; only a run whose upload step succeeded counts.
+          uploaded=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs" --jq '[.jobs[].steps[]? | select(.name == "upload to Cloudflare" and .conclusion == "success")] | length')
+          if [ "$uploaded" != "1" ]; then
+            echo "::error::The last green staging run ($run_id) did not upload to Cloudflare (it skipped). Staging must really run a commit before production gets it."; exit 1
+          fi
           echo "last green staging deploy: $staged"
           echo "this release:              $GITHUB_SHA"
           if [ "$staged" = "$GITHUB_SHA" ]; then exit 0; fi

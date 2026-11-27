@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 import { parseNames, collect } from './cloudflare-admin-secrets.mjs';
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
@@ -47,4 +48,41 @@ test('wrangler has both workers and Mumbai placement', () => {
   assert.match(w, /taskdrop-admin-staging/);
   assert.match(w, /taskdrop-admin-production/);
   assert.match(w, /aws:ap-south-1/);
+});
+
+test('wrangler runs worker.ts, which wraps OpenNext with the Sentry Worker client and the shared options', () => {
+  assert.match(read('wrangler.jsonc'), /"main": "worker\.ts"/);
+  const worker = read('worker.ts');
+  assert.match(worker, /from '@sentry\/nextjs\/cloudflare'/);
+  assert.match(worker, /from '\.\/\.open-next\/worker\.js'/);
+  assert.match(worker, /sentryServerOptions\(/);
+  for (const f of ['src/sentry.server.config.ts', 'src/sentry.edge.config.ts']) {
+    assert.match(read(f), /Sentry\.init\(sentryServerOptions\(/, `${f} uses the shared options`);
+  }
+});
+
+test('deploy passes the portable settings to the Worker', () => {
+  const deploy = read('.github/workflows/admin-deploy.yml');
+  assert.match(deploy, /APP_ENV: \$\{\{ inputs\.target \|\| 'staging' \}\}/);
+  assert.match(deploy, /GIT_COMMIT_SHA: \$\{\{ github\.sha \}\}/);
+  for (const v of ['APP_ENV', 'GIT_COMMIT_SHA', 'APP_REGION', 'NEXT_PUBLIC_SENTRY_ENVIRONMENT']) {
+    assert.ok(deploy.includes(`--var "${v}:`), `${v} passed as a Worker var`);
+  }
+});
+
+test('release refuses a staging run that only skipped', () => {
+  const deploy = read('.github/workflows/admin-deploy.yml');
+  const release = read('.github/workflows/release-production.yml');
+  assert.match(deploy, /- name: upload to Cloudflare\r?\n/);
+  assert.ok(release.includes('select(.name == "upload to Cloudflare" and .conclusion == "success")'));
+  assert.match(release, /did not upload to Cloudflare \(it skipped\)/);
+});
+
+test('no source file reads a VERCEL_ variable except the portable fallbacks', () => {
+  const allowed = new Set(['src/lib/runtime-env.ts', 'src/lib/sentry-dsn.ts', 'src/lib/runtime-env.test.ts']);
+  const files = execSync('git ls-files src', { encoding: 'utf8' }).split('\n').filter((f) => /\.(ts|tsx|mjs|js)$/.test(f));
+  for (const f of files) {
+    if (allowed.has(f)) continue;
+    assert.doesNotMatch(read(f), /process\.env\.VERCEL_/, `${f} reads VERCEL_* directly`);
+  }
 });

@@ -2,13 +2,16 @@
 // Top level = STAGING worker taskdrop-admin-staging; `--env production` = PRODUCTION worker taskdrop-admin-production.
 // Deployed by .github/workflows/admin-deploy.yml (staging, every merge) and release-production.yml (production, by hand).
 // Both skip with a notice until the Cloudflare secrets exist. Vercel stays the host until then.
+// APP_ENV, GIT_COMMIT_SHA, APP_REGION and the Sentry DSN/environment are set per deploy with --var (admin-deploy.yml),
+// so a local preview has no APP_ENV and does not report to Sentry.
 // Build + run locally (Linux/macOS/CI only; OpenNext fails on Windows):  npm run cf:build  then  npm run cf:preview
 // Server secrets (SUPABASE_SERVICE_ROLE_KEY, API_GATEWAY_SECRET, ADMIN_SESSION_SECRET, ...) are never in this file:
 // scripts/cloudflare-admin-secrets.mjs pushes them with `wrangler secret bulk`. NEXT_PUBLIC_* values are inlined at build time.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "taskdrop-admin-staging",
-  "main": ".open-next/worker.js",
+  // worker.ts wraps the OpenNext handler (.open-next/worker.js) with Sentry's Worker client.
+  "main": "worker.ts",
   "compatibility_date": "2026-11-01",
   // nodejs_compat: OpenNext and @supabase/ssr need node:* built-ins; it also fills process.env from vars + secrets.
   // global_fetch_strictly_public: a fetch to a public address from here never loops back into this account's own Workers.

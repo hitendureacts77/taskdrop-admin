@@ -94,6 +94,11 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       # Reaches run: scripts only through this variable, never pasted in (Semgrep run-shell-injection).
       TARGET: ${{ inputs.target || 'staging' }}
+      # Host-neutral names the code reads before the VERCEL_* ones (src/lib/runtime-env.ts). Set for the build and
+      # passed to the Worker as vars at upload.
+      APP_ENV: ${{ inputs.target || 'staging' }}
+      GIT_COMMIT_SHA: ${{ github.sha }}
+      APP_REGION: ap-south-1
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -144,12 +149,22 @@ jobs:
             production) case "$NEXT_PUBLIC_SUPABASE_URL" in *"$production_ref"*) ;; *) echo "::error::The production build must use the production Supabase project."; exit 1 ;; esac ;;
             staging) case "$NEXT_PUBLIC_SUPABASE_URL" in *"$production_ref"*) echo "::error::The staging build must not use the production Supabase project."; exit 1 ;; esac ;;
           esac
+          # The browser reports to Sentry under this stage's name unless the environment sets its own.
+          export NEXT_PUBLIC_SENTRY_ENVIRONMENT="${NEXT_PUBLIC_SENTRY_ENVIRONMENT:-$TARGET}"
           npx opennextjs-cloudflare build
 
+      # release-production.yml looks for this step NAME succeeding in the staging run; keep the two in step.
       - name: upload to Cloudflare
         if: steps.ready.outputs.ok == 'true'
+        env:
+          NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
+          NEXT_PUBLIC_SENTRY_ENVIRONMENT: ${{ secrets.NEXT_PUBLIC_SENTRY_ENVIRONMENT }}
         run: |
-          if [ "$TARGET" = "production" ]; then npx wrangler deploy --env production; else npx wrangler deploy; fi
+          # Worker vars, read at run time by the Next server code and by worker.ts (Sentry). Not secret.
+          vars=(--var "APP_ENV:$APP_ENV" --var "GIT_COMMIT_SHA:$GIT_COMMIT_SHA" --var "APP_REGION:$APP_REGION")
+          vars+=(--var "NEXT_PUBLIC_SENTRY_ENVIRONMENT:${NEXT_PUBLIC_SENTRY_ENVIRONMENT:-$TARGET}")
+          if [ -n "$NEXT_PUBLIC_SENTRY_DSN" ]; then vars+=(--var "NEXT_PUBLIC_SENTRY_DSN:$NEXT_PUBLIC_SENTRY_DSN"); fi
+          if [ "$TARGET" = "production" ]; then npx wrangler deploy --env production "${vars[@]}"; else npx wrangler deploy "${vars[@]}"; fi
 
       # After the upload so the Worker exists (a bulk push to a missing Worker fails). Secrets persist across later uploads.
       - name: push server secrets
@@ -174,4 +189,6 @@ jobs:
         env:
           READY: ${{ steps.ready.outputs.ok }}
         run: |
-          if [ "$READY" = "true" ]; then echo "deployed=true" >> "$GITHUB_OUTPUT"; else echo "deployed=false" >> "$GITHUB_OUTPUT"; fi
+          if [ "$READY" = "true" ]; then deployed=true; else deployed=false; fi
+          echo "deployed=$deployed" >> "$GITHUB_OUTPUT"
+          echo "Admin $TARGET deployed to Cloudflare: $deployed" >> "$GITHUB_STEP_SUMMARY"

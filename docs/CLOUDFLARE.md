@@ -14,5 +14,16 @@ Environments `staging` and `production` (production: owner as required reviewer)
 - Optional: `ADMIN_EMAIL`, `ADMIN_PHONE`, `ADMIN_IDLE_MINUTES`, `ADMIN_SESSION_HOURS`, `IMAGEKIT_PRIVATE_KEY`, `IMAGEKIT_URL_ENDPOINT`, `IMAGEKIT_DASHBOARD_URL`, `INNGEST_DASHBOARD_URL`, `SENTRY_PROJECT_URL`, `NEXT_PUBLIC_SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_ENVIRONMENT`, `SENTRY_AUTH_TOKEN` (source maps).
 Server secret names live in `scripts/cloudflare-admin-secrets.txt`; `scripts/cloudflare-admin-secrets.mjs` pushes them with `wrangler secret bulk` (stdin, never printed).
 
-## Sentry on Workers (open gap)
-`src/instrumentation.ts` loads `sentry.server.config` when `NEXT_RUNTIME === 'nodejs'`, which OpenNext reports on Workers. `@sentry/nextjs` v11 server init is Node-oriented (OpenTelemetry, http patching) and is not confirmed to work in workerd. Smallest fix, not done: add `worker.ts` that wraps the generated `.open-next/worker.js` with `withSentry` from `@sentry/nextjs/cloudflare` (same `beforeSend`/`scrubEvent`/`beforeSendSpan` options) and point `main` in wrangler.jsonc at it. Verify on staging once deployed.
+## Sentry on Workers
+`wrangler.jsonc` runs `worker.ts`. It wraps the OpenNext handler (`.open-next/worker.js`) with `withSentry` from `@sentry/nextjs/cloudflare`.
+Server, edge and Worker share one set of options and scrubbing: `src/lib/sentry-options.ts`.
+On Workers the Worker client is in charge. `Sentry.init` in `sentry.server.config` / `sentry.edge.config` makes no second client there (Sentry docs; checked in the SDK source).
+A local `cf:preview` has no `APP_ENV`, so it does not report. CI job "Cloudflare Worker bundle (dry run)" bundles `worker.ts` on every PR.
+Check on staging after the first deploy: throw a test error and see it in Sentry.
+
+## Portable settings
+The code reads `APP_ENV`, `GIT_COMMIT_SHA`, `APP_REGION` first, then the `VERCEL_*` names (`src/lib/runtime-env.ts`). One build works on both hosts.
+`admin-deploy.yml` sets them for the build and passes them to the Worker with `--var`, with the Sentry DSN and environment. They are not secret.
+
+## Release guard
+`release-production.yml` takes the last green staging run and checks that its "upload to Cloudflare" step succeeded. A run that only skipped (no Cloudflare secrets) does not count.
