@@ -1,0 +1,177 @@
+name: Admin deploy (Cloudflare)
+
+# Plan task 5.12 step 6. Builds the admin console with OpenNext on Linux (it cannot build on Windows) and uploads it
+# to the Cloudflare Worker taskdrop-admin-<target>, then pushes the server secrets into that Worker.
+#   push to redesigned-2.0   -> staging, every merge (docs-only pushes deploy nothing)
+#   workflow_dispatch        -> staging or production by hand (production still waits on the environment's reviewers)
+#   workflow_call            -> release-production.yml calls it with target production
+# Skips GREEN with a notice until CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID exist (Vercel stays the host until then).
+# Secrets: the two Cloudflare ones are repository secrets; everything else is an environment secret of
+# the GitHub environment staging or production (names: docs/CLOUDFLARE.md). A reusable workflow gets only the secrets
+# its caller passes BY NAME, so every one is declared under workflow_call.secrets below.
+
+on:
+  push:
+    branches: [redesigned-2.0]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: staging or production
+        required: true
+        default: staging
+        type: choice
+        options: [staging, production]
+  workflow_call:
+    inputs:
+      target:
+        description: staging or production
+        required: true
+        type: string
+    outputs:
+      deployed:
+        description: 'true when a Worker was uploaded, false when the run skipped for missing Cloudflare secrets'
+        value: ${{ jobs.deploy.outputs.deployed }}
+    secrets:
+      CLOUDFLARE_API_TOKEN:
+        required: false
+      CLOUDFLARE_ACCOUNT_ID:
+        required: false
+      SUPABASE_SERVICE_ROLE_KEY:
+        required: false
+      ADMIN_SESSION_SECRET:
+        required: false
+      API_GATEWAY_SECRET:
+        required: false
+      ADMIN_EMAIL:
+        required: false
+      ADMIN_PHONE:
+        required: false
+      ADMIN_IDLE_MINUTES:
+        required: false
+      ADMIN_SESSION_HOURS:
+        required: false
+      IMAGEKIT_PRIVATE_KEY:
+        required: false
+      IMAGEKIT_URL_ENDPOINT:
+        required: false
+      IMAGEKIT_DASHBOARD_URL:
+        required: false
+      INNGEST_DASHBOARD_URL:
+        required: false
+      SENTRY_PROJECT_URL:
+        required: false
+      NEXT_PUBLIC_SUPABASE_URL:
+        required: false
+      NEXT_PUBLIC_SUPABASE_ANON_KEY:
+        required: false
+      NEXT_PUBLIC_SENTRY_DSN:
+        required: false
+      NEXT_PUBLIC_SENTRY_ENVIRONMENT:
+        required: false
+      SENTRY_AUTH_TOKEN:
+        required: false
+
+concurrency:
+  group: admin-deploy-${{ inputs.target || 'staging' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: admin ${{ inputs.target || 'staging' }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.target || 'staging' }}
+    timeout-minutes: 30
+    outputs:
+      deployed: ${{ steps.done.outputs.deployed }}
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      # Reaches run: scripts only through this variable, never pasted in (Semgrep run-shell-injection).
+      TARGET: ${{ inputs.target || 'staging' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: ready to deploy?
+        id: ready
+        run: |
+          case "$TARGET" in
+            staging|production) ;;
+            *) echo "::error::target must be staging or production"; exit 1 ;;
+          esac
+          if [ "$TARGET" = "production" ] && [ "$GITHUB_REF" != "refs/heads/redesigned-2.0" ]; then
+            echo "::error::Production deploys run from redesigned-2.0 only."; exit 1
+          fi
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::notice::Cloudflare secrets not set yet (plan 5.12): admin $TARGET not deployed (Vercel still serves it)."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        if: steps.ready.outputs.ok == 'true'
+        with:
+          node-version: '22'
+          cache: npm
+
+      - if: steps.ready.outputs.ok == 'true'
+        run: npm ci
+
+      # The public values are inlined into the bundle at build time, so a staging build must point at the staging
+      # database and a production build at the production database. Only refs are compared, no value is printed.
+      - name: build (OpenNext)
+        if: steps.ready.outputs.ok == 'true'
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
+          NEXT_PUBLIC_SENTRY_ENVIRONMENT: ${{ secrets.NEXT_PUBLIC_SENTRY_ENVIRONMENT }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: |
+          production_ref=dyzskuzqcqbexssyrrxc
+          if [ -z "$NEXT_PUBLIC_SUPABASE_URL" ] || [ -z "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ]; then
+            echo "::error::NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY are not set in the GitHub environment $TARGET."; exit 1
+          fi
+          case "$TARGET" in
+            production) case "$NEXT_PUBLIC_SUPABASE_URL" in *"$production_ref"*) ;; *) echo "::error::The production build must use the production Supabase project."; exit 1 ;; esac ;;
+            staging) case "$NEXT_PUBLIC_SUPABASE_URL" in *"$production_ref"*) echo "::error::The staging build must not use the production Supabase project."; exit 1 ;; esac ;;
+          esac
+          npx opennextjs-cloudflare build
+
+      - name: upload to Cloudflare
+        if: steps.ready.outputs.ok == 'true'
+        run: |
+          if [ "$TARGET" = "production" ]; then npx wrangler deploy --env production; else npx wrangler deploy; fi
+
+      # After the upload so the Worker exists (a bulk push to a missing Worker fails). Secrets persist across later uploads.
+      - name: push server secrets
+        if: steps.ready.outputs.ok == 'true'
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ADMIN_SESSION_SECRET: ${{ secrets.ADMIN_SESSION_SECRET }}
+          API_GATEWAY_SECRET: ${{ secrets.API_GATEWAY_SECRET }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          ADMIN_PHONE: ${{ secrets.ADMIN_PHONE }}
+          ADMIN_IDLE_MINUTES: ${{ secrets.ADMIN_IDLE_MINUTES }}
+          ADMIN_SESSION_HOURS: ${{ secrets.ADMIN_SESSION_HOURS }}
+          IMAGEKIT_PRIVATE_KEY: ${{ secrets.IMAGEKIT_PRIVATE_KEY }}
+          IMAGEKIT_URL_ENDPOINT: ${{ secrets.IMAGEKIT_URL_ENDPOINT }}
+          IMAGEKIT_DASHBOARD_URL: ${{ secrets.IMAGEKIT_DASHBOARD_URL }}
+          INNGEST_DASHBOARD_URL: ${{ secrets.INNGEST_DASHBOARD_URL }}
+          SENTRY_PROJECT_URL: ${{ secrets.SENTRY_PROJECT_URL }}
+        run: node scripts/cloudflare-admin-secrets.mjs --target "$TARGET"
+
+      - name: record result
+        id: done
+        env:
+          READY: ${{ steps.ready.outputs.ok }}
+        run: |
+          if [ "$READY" = "true" ]; then echo "deployed=true" >> "$GITHUB_OUTPUT"; else echo "deployed=false" >> "$GITHUB_OUTPUT"; fi
