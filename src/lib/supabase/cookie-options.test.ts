@@ -68,8 +68,11 @@ test('both cookie writers use these options, and no page script uses the browser
   const server = src('./server.ts');
   assert.match(server, /cookieStore\.set\(name, value, adminCookieWrite\(options\)\)/);
   assert.match(server, /cookieOptions: adminAuthCookieBase\(/);
-  for (const file of ['../../components/LiveProvider.tsx', '../../components/MfaPanel.tsx']) {
+  for (const file of ['../../components/LiveProvider.tsx', '../../components/MfaPanel.tsx', '../../app/login/page.tsx']) {
     assert.ok(!src(file).includes('supabase/browser'), `${file} must not use the browser Supabase client`);
   }
   assert.ok(!src('../../components/LiveProvider.tsx').includes('supabase.auth'), 'LiveProvider must not touch supabase.auth');
+  // H37: Google sign-in starts on the server, so its code verifier cookie is HttpOnly too.
+  assert.match(src('../../app/auth/google/route.ts'), /skipBrowserRedirect: true/);
+  assert.match(src('../../app/login/page.tsx'), /\/auth\/google/);
 });

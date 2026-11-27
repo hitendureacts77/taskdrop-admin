@@ -28,6 +28,7 @@ export const ROUTES = {
   'api/live': { kind: 'staff' },
   'api/reports/export': { kind: 'staff' },
   'auth/callback': { kind: 'public', why: 'Google sends people back here with a one-time code; Supabase Auth checks the code and limits the exchanges' },
+  'auth/google': { kind: 'public', why: 'Starts Google sign-in: builds the Google address and sets the one-time code cookie; calls no service, and nothing happens until the person finishes at Google' },
 };
 
 /** Problems with one route, given its path (under src/app, no file name) and its source. */
