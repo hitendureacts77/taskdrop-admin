@@ -44,6 +44,35 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
         run: npm run build
 
+  # The Cloudflare Worker (plan task 5.12): builds with OpenNext on Linux (it fails on Windows) and bundles worker.ts
+  # with wrangler. A dry run needs no Cloudflare token and uploads nothing.
+  cloudflare-bundle:
+    name: Cloudflare Worker bundle (dry run)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: opennextjs-cloudflare build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
+        run: npx opennextjs-cloudflare build
+
+      - name: wrangler dry run (bundles worker.ts)
+        run: |
+          set -o pipefail
+          npx wrangler deploy --dry-run --outdir .cf-dry 2>&1 | tail -20
+
   # The database types are generated from the live schema (`npm run db:types`). This regenerates
   # them and fails when the committed file differs, so a migration in the app repo cannot leave
   # the panel's types behind. It needs a Supabase access token; without the secret (a fork's or

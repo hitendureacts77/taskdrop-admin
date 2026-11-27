@@ -1,0 +1,38 @@
+// Cloudflare Workers config for the admin console (plan task 5.12 step 6).
+// Top level = STAGING worker taskdrop-admin-staging; `--env production` = PRODUCTION worker taskdrop-admin-production.
+// Deployed by .github/workflows/admin-deploy.yml (staging, every merge) and release-production.yml (production, by hand).
+// Both skip with a notice until the Cloudflare secrets exist. Vercel stays the host until then.
+// APP_ENV, GIT_COMMIT_SHA, APP_REGION and the Sentry DSN/environment are set per deploy with --var (admin-deploy.yml),
+// so a local preview has no APP_ENV and does not report to Sentry.
+// Build + run locally (Linux/macOS/CI only; OpenNext fails on Windows):  npm run cf:build  then  npm run cf:preview
+// Server secrets (SUPABASE_SERVICE_ROLE_KEY, API_GATEWAY_SECRET, ADMIN_SESSION_SECRET, ...) are never in this file:
+// scripts/cloudflare-admin-secrets.mjs pushes them with `wrangler secret bulk`. NEXT_PUBLIC_* values are inlined at build time.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "taskdrop-admin-staging",
+  // worker.ts wraps the OpenNext handler (.open-next/worker.js) with Sentry's Worker client.
+  "main": "worker.ts",
+  "compatibility_date": "2026-11-01",
+  // nodejs_compat: OpenNext and @supabase/ssr need node:* built-ins; it also fills process.env from vars + secrets.
+  // global_fetch_strictly_public: a fetch to a public address from here never loops back into this account's own Workers.
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "taskdrop-admin-staging" }],
+  // Run the whole Worker in Mumbai, next to the staff and the Supabase project (the admin does many database reads per page).
+  "placement": { "mode": "targeted", "region": "aws:ap-south-1" },
+  "observability": { "enabled": true },
+  // Named environments do not inherit `services`, `vars` or `assets` bindings reliably, so production repeats what it needs.
+  "env": {
+    "production": {
+      "name": "taskdrop-admin-production",
+      "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+      "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+      "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "taskdrop-admin-production" }],
+      "placement": { "mode": "targeted", "region": "aws:ap-south-1" },
+      "observability": { "enabled": true }
+    }
+  }
+}

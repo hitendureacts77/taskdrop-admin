@@ -9,3 +9,10 @@ next-env.d.ts
 .vercel
 .DS_Store
 npm-debug.log*
+
+# Cloudflare (OpenNext trial, task 5.12)
+.open-next/
+.wrangler/
+.dev.vars*
+!.dev.vars.example
+cloudflare-env.d.ts

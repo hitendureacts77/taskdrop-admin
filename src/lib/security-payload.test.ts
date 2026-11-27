@@ -43,10 +43,15 @@ test('password failures, wrong codes, forbidden checks and staff refusals are re
 });
 
 test('span scrubbing is on beforeSendSpan, which runs with span streaming (B127)', () => {
-  for (const f of ['../sentry.server.config.ts', '../sentry.edge.config.ts', '../instrumentation-client.ts']) {
+  // Server, edge and the Cloudflare Worker share src/lib/sentry-options.ts; the browser has its own init.
+  for (const f of ['./sentry-options.ts', '../instrumentation-client.ts']) {
     const t = read(f);
     assert.match(t, /beforeSendSpan:/, f);
     assert.doesNotMatch(t, /beforeSendTransaction/, f);
+  }
+  for (const f of ['../sentry.server.config.ts', '../sentry.edge.config.ts', '../../worker.ts']) {
+    assert.match(read(f), /sentryServerOptions\(/, f);
+    assert.doesNotMatch(read(f), /beforeSendTransaction/, f);
   }
 });
 

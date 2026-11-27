@@ -1,0 +1,133 @@
+name: Release admin to production
+
+# Plan task 5.12 step 6 / decision 57: the admin console reaches production only through this hand-started release
+# (the user repo has its own release-production.yml). Run it: Actions -> Release admin to production -> Run workflow,
+# branch redesigned-2.0. In order:
+#   1. guard    branch is redesigned-2.0, and the last green "Admin deploy (Cloudflare)" push run (staging) really
+#               uploaded (not a skip for missing secrets) and is this commit or differs from it only in docs.
+#   2. deploy   admin-deploy.yml with target production -> Cloudflare Worker taskdrop-admin-production. Give the GitHub
+#               environment production the owner as required reviewer (that is the Approve click).
+#               Skips green with a notice until the Cloudflare secrets exist.
+#   3. check    the production sign-in page answers 200 (repository variable ADMIN_PRODUCTION_URL).
+#   4. record   tag admin-production-<date>-<time> on the released commit.
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: release-admin-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    name: staging already runs this commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: redesigned-2.0 only
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/redesigned-2.0" ]; then echo "::error::Releases run from redesigned-2.0 only."; exit 1; fi
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: the last green staging deploy is this commit (docs aside)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          read -r run_id staged < <(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/admin-deploy.yml/runs?branch=redesigned-2.0&event=push&status=success&per_page=1" --jq '.workflow_runs[0] | "(.id // "") (.head_sha // "")"')
+          if [ -z "$staged" ]; then echo "::error::No green staging deploy found. Staging must run a commit before production gets it."; exit 1; fi
+          # A run that skipped for missing Cloudflare secrets is green too; only a run whose upload step succeeded counts.
+          uploaded=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs" --jq '[.jobs[].steps[]? | select(.name == "upload to Cloudflare" and .conclusion == "success")] | length')
+          if [ "$uploaded" != "1" ]; then
+            echo "::error::The last green staging run ($run_id) did not upload to Cloudflare (it skipped). Staging must really run a commit before production gets it."; exit 1
+          fi
+          echo "last green staging deploy: $staged"
+          echo "this release:              $GITHUB_SHA"
+          if [ "$staged" = "$GITHUB_SHA" ]; then exit 0; fi
+          if ! git cat-file -e "$staged^{commit}" 2>/dev/null; then echo "::error::The staging commit is not in this branch's history."; exit 1; fi
+          if ! git merge-base --is-ancestor "$staged" "$GITHUB_SHA"; then echo "::error::This commit is older than what staging runs. Release the branch tip."; exit 1; fi
+          # admin-deploy.yml ignores pushes that only touch docs, so those may differ.
+          if ! git diff --quiet "$staged" "$GITHUB_SHA" -- . ':(exclude)docs' ':(exclude,glob)**/*.md'; then
+            echo "::error::Staging has not finished deploying this commit. Wait for 'Admin deploy (Cloudflare)' to go green, then run this again."
+            git diff --stat "$staged" "$GITHUB_SHA" -- . ':(exclude)docs' ':(exclude,glob)**/*.md' | tail -15
+            exit 1
+          fi
+          echo "Only docs differ from the staging commit."
+
+  deploy:
+    name: admin production
+    needs: guard
+    uses: ./.github/workflows/admin-deploy.yml
+    with:
+      target: production
+    # Each secret by name, never the inherit shortcut; GitHub resolves a passed name in the called job's environment (production).
+    secrets:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      ADMIN_SESSION_SECRET: ${{ secrets.ADMIN_SESSION_SECRET }}
+      API_GATEWAY_SECRET: ${{ secrets.API_GATEWAY_SECRET }}
+      ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+      ADMIN_PHONE: ${{ secrets.ADMIN_PHONE }}
+      ADMIN_IDLE_MINUTES: ${{ secrets.ADMIN_IDLE_MINUTES }}
+      ADMIN_SESSION_HOURS: ${{ secrets.ADMIN_SESSION_HOURS }}
+      IMAGEKIT_PRIVATE_KEY: ${{ secrets.IMAGEKIT_PRIVATE_KEY }}
+      IMAGEKIT_URL_ENDPOINT: ${{ secrets.IMAGEKIT_URL_ENDPOINT }}
+      IMAGEKIT_DASHBOARD_URL: ${{ secrets.IMAGEKIT_DASHBOARD_URL }}
+      INNGEST_DASHBOARD_URL: ${{ secrets.INNGEST_DASHBOARD_URL }}
+      SENTRY_PROJECT_URL: ${{ secrets.SENTRY_PROJECT_URL }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
+      NEXT_PUBLIC_SENTRY_ENVIRONMENT: ${{ secrets.NEXT_PUBLIC_SENTRY_ENVIRONMENT }}
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+
+  check:
+    name: production sign-in answers
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DEPLOYED: ${{ needs.deploy.outputs.deployed }}
+      # Repository variable ADMIN_PRODUCTION_URL: the production admin address, no trailing slash.
+      ADMIN_URL: ${{ vars.ADMIN_PRODUCTION_URL }}
+    steps:
+      - name: the production admin sign-in page answers 200
+        run: |
+          if [ "$DEPLOYED" != "true" ]; then echo "::notice::Nothing was deployed to Cloudflare (secrets not set yet): check skipped."; exit 0; fi
+          if [ -z "$ADMIN_URL" ]; then echo "::error::Set the repository variable ADMIN_PRODUCTION_URL (the production admin address)."; exit 1; fi
+          code=000
+          for i in 1 2 3; do
+            code=$(curl -sS -o /dev/null --max-time 30 -w '%{http_code}' "$ADMIN_URL/login" || true)
+            if [ "$code" = "200" ]; then break; fi
+            sleep $((10 * i))
+          done
+          echo "$ADMIN_URL/login -> $code"
+          if [ "$code" != "200" ]; then echo "::error::The production admin sign-in page answered $code"; exit 1; fi
+
+  record:
+    name: tag the release
+    needs: [deploy, check]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: tag admin-production-<date>-<time>
+        if: needs.deploy.outputs.deployed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="admin-production-$(date -u +%Y%m%d-%H%M)"
+          if gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$tag" -f sha="$GITHUB_SHA" --silent; then
+            echo "Released $GITHUB_SHA as $tag" | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning::Production was released, but the tag $tag could not be written."
+          fi
