@@ -3,7 +3,6 @@
 import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { loginErrorText } from '@/lib/login-errors';
-import { createClient } from '@/lib/supabase/browser';
 
 export default function LoginPage() {
   // useSearchParams opts a page out of static rendering unless it's inside
@@ -58,19 +57,12 @@ function LoginForm() {
     }
   };
 
-  const signIn = async () => {
+  // Google sign-in starts on the server (/auth/google), so the one-time code verifier is an
+  // HttpOnly cookie no page script can read (H37). The browser only follows the redirects.
+  const signIn = () => {
     setBusy(true);
     setError(null);
-    const supabase = createClient();
-    const { error: err } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    });
-    if (err) {
-      setError(err.message);
-      setBusy(false);
-    }
-    // On success the browser navigates away to Google -- nothing else to do here.
+    window.location.href = '/auth/google';
   };
 
   return (
