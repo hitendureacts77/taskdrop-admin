@@ -9,6 +9,8 @@ import { getUsers, isUuid, parseUserFilter } from '@/lib/data';
 import { TOO_FAST, withinRate } from '@/lib/rate-limit';
 import { staffCanSee } from '@/lib/staff-roles';
 import { createClient } from '@/lib/supabase/server';
+import { isTestUserId } from '@/lib/test-data';
+import { getHideTestData } from '@/lib/v2-gate-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,6 +34,8 @@ export async function GET(req: Request) {
   let ids: string[];
   if (sp.get('segment') === '1') {
     ids = await applyOwnerFilter(await idsForCriteria(noWallet ? withoutWallet(parseCriteria(Object.fromEntries(sp))) : parseCriteria(Object.fromEntries(sp))), parseOwnerFilter(sp.get('owner') ?? undefined), who.user.id);
+    // Admin v2 "Hide test data" (only ever on with the v2 gate): the spreadsheet matches the Segments list on screen.
+    if (await getHideTestData()) ids = ids.filter((id) => !isTestUserId(id));
   } else {
     const parsedFilter = parseUserFilter(sp.get('filter') ?? undefined);
     // Same clamp as the People page: Sales gets Everyone, not the people with money (S7-13).
