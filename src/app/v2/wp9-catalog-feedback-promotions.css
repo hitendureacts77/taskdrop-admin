@@ -1,1 +1,22 @@
 /* Admin v2, work package wp9-catalog-feedback-promotions. Every rule must start with [data-v2]. Owned by that package only. */
+
+[data-v2] .wp9-small { font-size: 13px; }
+[data-v2] .wp9-muted { color: var(--muted); }
+[data-v2] .wp9-nowrap { white-space: nowrap; }
+[data-v2] .wp9-mt { margin-top: 14px; }
+[data-v2] .wp9-prose { margin: 8px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+[data-v2] .wp9-stack { display: flex; flex-direction: column; gap: 14px; }
+[data-v2] .wp9-name { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+[data-v2] .wp9-phrases { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+[data-v2] .wp9-phrase { display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--line); background: var(--sunk); border-radius: 999px; padding: 1px 4px 1px 10px; font-size: 12px; }
+[data-v2] .wp9-phrase[title] { padding-right: 10px; }
+[data-v2] .wp9-phrase .v2-btn.sm { min-height: 24px; padding: 0 6px; border: 0; background: none; font-size: 14px; }
+[data-v2] .wp9-acts { display: inline-flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+[data-v2] .wp9-comments { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
+[data-v2] .wp9-comments summary { cursor: pointer; font-weight: 600; font-size: 13px; }
+[data-v2] .wp9-comment { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+[data-v2] .wp9-comment > span { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 760px) {
+  [data-v2] .wp9-acts { justify-content: flex-start; }
+  [data-v2] .wp9-comment { flex-direction: column; }
+}

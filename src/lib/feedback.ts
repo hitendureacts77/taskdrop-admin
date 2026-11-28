@@ -5,6 +5,7 @@ import type { Read } from './growth';
 import { createClient } from './supabase/server';
 import { tryReadAll } from './data/paging';
 import { type AdminPhoto, feedbackFilesOf, signFeedbackFiles } from './photos';
+import { isTestUserId, notTestIdFilter } from './test-data';
 
 /**
  * The feedback board (migration 136 in the app repo). Read as the signed-in
@@ -41,6 +42,7 @@ export type BoardComment = {
   body: string;
   isTeam: boolean;
   author: string;
+  authorId: string | null;
   hidden: boolean;
   at: string;
 };
@@ -103,12 +105,19 @@ function failed<T>(empty: T, error: Failure): Read<T> {
   return { data: empty, setup, error: setup ? null : error.message };
 }
 
+/** Admin v2 "Hide test data": leave out fake seed people and "[e2e]" titles (07-build-plan-v2.md 6.6). */
+export type BoardReadOpts = { hideTest?: boolean };
+
 /** How many ideas sit under each tab, so the tabs can show a number. */
-export async function getBoardCounts(): Promise<Read<Record<BoardTab, number>>> {
+export async function getBoardCounts(opts: BoardReadOpts = {}): Promise<Read<Record<BoardTab, number>>> {
   const empty = { open: 0, under_review: 0, planned: 0, in_progress: 0, done: 0, declined: 0, hidden: 0 } as Record<BoardTab, number>;
   const supabase = await db();
   // Paged: one request stops silently at 1,000 ideas (B132).
-  const { data, error } = await tryReadAll<{ status: BoardStatus; hidden_at: string | null }>((from, to) => supabase.from('feedback_posts').select('status, hidden_at').order('id').range(from, to));
+  const { data, error } = await tryReadAll<{ status: BoardStatus; hidden_at: string | null }>((from, to) => {
+    let q = supabase.from('feedback_posts').select('status, hidden_at');
+    if (opts.hideTest) q = q.or(notTestIdFilter('author_id')).not('title', 'ilike', '[e2e]%');
+    return q.order('id').range(from, to);
+  });
   if (error) return failed(empty, error);
   const out = { ...empty };
   for (const r of data) {
@@ -119,11 +128,12 @@ export async function getBoardCounts(): Promise<Read<Record<BoardTab, number>>> 
 }
 
 /** Ideas under one tab, most voted first, each with its comments. */
-export async function getBoardPosts(tab: BoardTab): Promise<Read<BoardPost[]>> {
+export async function getBoardPosts(tab: BoardTab, opts: BoardReadOpts = {}): Promise<Read<BoardPost[]>> {
   const supabase = await db();
-  const base = supabase
+  let base = supabase
     .from('feedback_posts')
     .select('id, author_id, title, body, category, status, vote_count, hidden_at, hide_reason, created_at, status_changed_at, attachments');
+  if (opts.hideTest) base = base.or(notTestIdFilter('author_id')).not('title', 'ilike', '[e2e]%');
   const { data, error } = await (tab === 'hidden' ? base.not('hidden_at', 'is', null) : base.is('hidden_at', null).eq('status', tab))
     .order('vote_count', { ascending: false })
     .order('created_at', { ascending: false })
@@ -140,7 +150,7 @@ export async function getBoardPosts(tab: BoardTab): Promise<Read<BoardPost[]>> {
     .order('created_at', { ascending: true })
     .limit(1000);
   if (cerr) return failed([], cerr);
-  const comments = (cs ?? []) as Record<string, unknown>[];
+  const comments = ((cs ?? []) as Record<string, unknown>[]).filter((c) => !opts.hideTest || !isTestUserId(str(c.author_id)));
 
   const [names, files] = await Promise.all([
     namesFor([...posts.map((p) => str(p.author_id)), ...comments.map((c) => str(c.author_id))].filter(Boolean)),
@@ -154,6 +164,7 @@ export async function getBoardPosts(tab: BoardTab): Promise<Read<BoardPost[]>> {
       body: str(c.body),
       isTeam: Boolean(c.is_team),
       author: c.is_team ? `Team (${names.get(str(c.author_id)) ?? 'staff'})` : names.get(str(c.author_id)) ?? 'Someone',
+      authorId: c.author_id ? str(c.author_id) : null,
       hidden: c.hidden_at != null,
       at: str(c.created_at),
     });
@@ -182,13 +193,11 @@ export async function getBoardPosts(tab: BoardTab): Promise<Read<BoardPost[]>> {
 }
 
 /** The newest private "Send feedback" notes, with their files. Read as the admin (048: staff may read every note). */
-export async function getPrivateNotes(): Promise<Read<PrivateNote[]>> {
+export async function getPrivateNotes(opts: BoardReadOpts = {}): Promise<Read<PrivateNote[]>> {
   const supabase = await db();
-  const { data, error } = await supabase
-    .from('feedback')
-    .select('id, user_id, kind, body, page, created_at, attachments')
-    .order('created_at', { ascending: false })
-    .limit(50);
+  let q = supabase.from('feedback').select('id, user_id, kind, body, page, created_at, attachments');
+  if (opts.hideTest) q = q.or(notTestIdFilter('user_id')).not('body', 'ilike', '[e2e]%');
+  const { data, error } = await q.order('created_at', { ascending: false }).limit(50);
   if (error) return failed([], error);
   const rows = (data ?? []) as Record<string, unknown>[];
   if (!rows.length) return { data: [], setup: false, error: null };
