@@ -1,5 +1,7 @@
 # Admin panel redesign: staging build plan (28 Nov 2026)
 
+> **Superseded (28 Nov 2026)** by `07-build-plan-v2.md` (design v2, built in place behind a gate). Kept for history only.
+
 Status: **plan only, nothing built.** The design (`03-design-brief.md`, `design/admin-design.html`) is **waiting for your review**. This plan starts when you say **"build the admin design"**.
 
 Inputs: `01-current-admin-inventory.md`, `02-user-app-features-inventory.md`, `03-design-brief.md` (section numbers below point to it).
