@@ -8,7 +8,10 @@ import { settledSummary } from '@/lib/settled-summary';
 import { withdrawalMoney } from '@/lib/money-calc';
 import { MoneyLock } from '../MoneyLock';
 import { ClickRow } from '../Clickable';
-import { ConfirmAction, type FormAction } from '../ConfirmAction';
+import type { ComponentType } from 'react';
+import type { FormAction } from '../ConfirmAction';
+import type { MoneyConfirmProps } from '../v2/money/MoneyConfirm';
+import { PlainConfirm } from '../v2/money/PlainConfirm';
 import { CopyButton } from '../CopyButton';
 import { Icon } from '../Icon';
 import { LineChart } from '../LineChart';
@@ -188,7 +191,10 @@ export function PayoutsView({
   checkAll,
   setMethod,
   canPay = true,
+  confirm: CA = PlainConfirm,
 }: {
+  /** Admin v2 passes its Confirm box here; with the gate off it is today's ConfirmAction. */
+  confirm?: ComponentType<MoneyConfirmProps>;
   d: PayoutsData;
   canPay?: boolean;
   mfa: MfaState;
@@ -281,7 +287,7 @@ export function PayoutsView({
         }
         right={
           d.rx.configured && (rxOn || rxInFlight) ? (
-            <ConfirmAction
+            <CA
               action={checkAll}
               hidden={{}}
               trigger="Check with RazorpayX"
@@ -492,7 +498,8 @@ export function PayoutsView({
               </div>
               <p className="muted small">You pay each one yourself and record the reference.</p>
               {d.method !== 'manual' ? (
-                <ConfirmAction
+                <CA
+                  v2={{ area: 'admin' }}
                   action={setMethod}
                   hidden={{ method: 'manual' }}
                   trigger="Switch to manual"
@@ -515,7 +522,8 @@ export function PayoutsView({
                 </button>
               ) : null}
               {d.method !== 'razorpayx' && d.rx.configured ? (
-                <ConfirmAction
+                <CA
+                  v2={{ area: 'admin' }}
                   action={setMethod}
                   hidden={{ method: 'razorpayx' }}
                   trigger="Switch to RazorpayX"

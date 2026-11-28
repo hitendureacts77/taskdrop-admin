@@ -1,1 +1,34 @@
 /* Admin v2, work package wp1-money. Every rule must start with [data-v2]. Owned by that package only. */
+
+/* Money check: the 6-check summary as links. */
+[data-v2] .v2-checks { list-style: none; margin: 0; padding: 0; }
+[data-v2] .v2-checks li + li { border-top: 1px solid var(--line); }
+[data-v2] .v2-checks a { display: flex; align-items: center; gap: 12px; justify-content: space-between; padding: 10px 2px; color: var(--ink); text-decoration: none; }
+[data-v2] .v2-checks a:hover b { text-decoration: underline; }
+[data-v2] .v2-checks a > span:first-child { flex: 1; min-width: 0; }
+[data-v2] .block { display: block; }
+
+/* Money check: nightly runs open in place. */
+[data-v2] details.v2-run { border: 1px solid var(--line); border-radius: var(--rc); margin-bottom: 8px; background: var(--surface); }
+[data-v2] details.v2-run > summary { display: flex; align-items: center; gap: 10px; justify-content: space-between; padding: 10px 12px; cursor: pointer; list-style: none; }
+[data-v2] details.v2-run > summary::-webkit-details-marker { display: none; }
+[data-v2] details.v2-run > summary > span:first-child { flex: 1; min-width: 0; }
+[data-v2] details.v2-run[open] > summary { border-bottom: 1px solid var(--line); }
+[data-v2] details.v2-run > p { padding: 0 12px 10px; }
+
+/* "How it works" folded explainer (refunds). */
+[data-v2] details.v2-how { border: 1px solid var(--line); border-radius: var(--rc); background: var(--sunk); padding: 0 14px; margin-bottom: 14px; }
+[data-v2] details.v2-how > summary { cursor: pointer; font-weight: 700; padding: 10px 0; }
+[data-v2] details.v2-how ol { margin: 0 0 12px; padding-left: 20px; color: var(--muted); }
+[data-v2] details.v2-how li + li { margin-top: 6px; }
+
+/* Inputs passed into the Confirm box (UTR, reason). */
+[data-v2] .v2-fields .v2-field > span { display: block; margin-bottom: 6px; }
+[data-v2] .v2-fields .v2-field small { display: block; font-weight: 400; margin-top: 4px; }
+
+/* Today's money views on the v2 path: v2 card radius and the gold held-money accent. */
+[data-v2] .pay-step { border-color: var(--line); border-radius: var(--rc); }
+[data-v2] .pay-step-num { background: var(--gold-s); color: var(--gold-t); }
+[data-v2] .method-option { border-radius: var(--rc); }
+[data-v2] .method-option.on { border-color: var(--jade-l); background: var(--jade-s); }
+[data-v2] .dest-missing { color: var(--red-t); }

@@ -1,4 +1,7 @@
 import { mfaState } from '@/lib/mfa';
+import { MoneyConfirm } from '@/components/v2/money/MoneyConfirm';
+import { isTestRow } from '@/lib/test-data';
+import { getHideTestData, getV2 } from '@/lib/v2-gate-server';
 import { PayoutsView } from '@/components/views/PayoutsView';
 import { checkWithRazorpayX, setPayoutMethod } from '@/lib/actions';
 import { staffCan } from '@/lib/staff-roles';
@@ -36,7 +39,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: SP }
   const histPage = Math.max(0, Math.floor(Number(one(sp.hp)) || 0));
 
   const canPay = staffCan(me.staffRole, 'money');
-  const [mfa, queueFull, totals, historyFull, pos, rx, method, daily, dayRowsFull] = await Promise.all([
+  const [mfa, queueAll, totals, historyAll, pos, rx, method, daily, dayRowsAll, v2, hide] = await Promise.all([
     mfaState(),
     getPayoutQueue(),
     getPayoutTotals(),
@@ -46,7 +49,14 @@ export default async function PayoutsPage({ searchParams }: { searchParams: SP }
     getPayoutMethod(),
     getWithdrawalRequestsDaily(days),
     day ? getWithdrawalRequestsOn(day) : Promise.resolve([]),
+    getV2(),
+    getHideTestData(),
   ]);
+  // Hide test data (v2 only; false with the gate off): fake seed people and their withdrawals leave every list on the page.
+  const keep = (r: { user_id: string }) => !hide || !isTestRow({ userId: r.user_id });
+  const queueFull = queueAll.filter(keep);
+  const historyFull = historyAll.filter(keep);
+  const dayRowsFull = dayRowsAll.filter(keep);
   // Roles that cannot pay never receive the full UPI id, bank account or IFSC (S7-16).
   const queue = canPay ? queueFull : queueFull.map(maskQueuedDestination);
   const hideDest = <T extends { destination: string | null }>(r: T): T => ({ ...r, destination: maskDestinationLabel(r.destination) });
@@ -61,6 +71,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: SP }
       d={{ now: new Date().toISOString(), queue: ordered, totals, history, position: pos.position, positionError: pos.error, rx, method, daily, days, roles, day, dayLabel, dayRows, q, hist, histPage }}
       mfa={mfa}
       canPay={canPay}
+      confirm={v2 ? MoneyConfirm : undefined}
       checkAll={checkWithRazorpayX}
       setMethod={setPayoutMethod}
     />
