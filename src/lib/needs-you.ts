@@ -28,6 +28,8 @@ export type NeedsItem = {
   href: string;
   /** Which staff role can act on it (see staff-roles.ts). */
   area: StaffArea;
+  /** Fake seed person or an [e2e] job (lib/test-data.ts): left out when "Hide test data" is on (admin v2). */
+  test?: boolean;
 };
 
 export const NEEDS_DEADLINE_HOURS: Record<NeedsKind, number> = {
@@ -180,4 +182,56 @@ export function copyrightNeed(n: { id: string; complainant: string | null; work:
     href: '/copyright',
     area: NEEDS_AREA.copyright,
   };
+}
+
+// ------------------------------------------------------------ admin v2 list --
+
+/** The kind filter on /needs-you (admin v2). The address says "withdrawal", the code says "payout". */
+export type NeedsFilter = 'all' | NeedsKind;
+
+const FILTER_PARAM: Record<string, NeedsFilter> = {
+  withdrawal: 'payout',
+  payout: 'payout',
+  refund: 'refund',
+  dispute: 'dispute',
+  help: 'help',
+  copyright: 'copyright',
+};
+
+/** ?kind=... to a filter; anything unknown shows everything. */
+export function parseNeedsFilter(v: string | string[] | undefined): NeedsFilter {
+  const raw = Array.isArray(v) ? v[0] : v;
+  return (raw && Object.hasOwn(FILTER_PARAM, raw.toLowerCase()) ? FILTER_PARAM[raw.toLowerCase()] : null) || 'all';
+}
+
+/** The address for a filter ("withdrawal" for payouts, as the design names it). */
+export function needsFilterHref(f: NeedsFilter): string {
+  return f === 'all' ? '/needs-you' : `/needs-you?kind=${f === 'payout' ? 'withdrawal' : f}`;
+}
+
+export const NEEDS_FILTER_LABEL: Record<NeedsKind, string> = {
+  payout: 'Withdrawals',
+  dispute: 'Disputes',
+  refund: 'Refunds',
+  help: 'Help requests',
+  copyright: 'Copyright notices',
+};
+
+/** The order of the filter chips: money kinds first, as the design shows them. */
+export const NEEDS_FILTER_ORDER: NeedsKind[] = ['payout', 'dispute', 'refund', 'help', 'copyright'];
+
+/**
+ * What the v2 list shows: test rows left out when "Hide test data" is on, then
+ * the kind filter. `hidden` counts the test rows left out (for the note).
+ * Counts per kind are taken after hiding, so chips, summary and rows agree.
+ */
+export function visibleNeeds<T extends NeedsItem>(
+  items: T[],
+  opts: { hideTest: boolean; filter: NeedsFilter },
+): { rows: T[]; all: T[]; hidden: number; counts: Record<NeedsKind, number> } {
+  const all = opts.hideTest ? items.filter((i) => !i.test) : items;
+  const counts: Record<NeedsKind, number> = { payout: 0, refund: 0, dispute: 0, help: 0, copyright: 0 };
+  for (const i of all) counts[i.kind] += 1;
+  const rows = opts.filter === 'all' ? all : all.filter((i) => i.kind === opts.filter);
+  return { rows, all, hidden: items.length - all.length, counts };
 }
