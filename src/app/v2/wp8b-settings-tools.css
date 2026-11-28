@@ -1,1 +1,52 @@
 /* Admin v2, work package wp8b-settings-tools. Every rule must start with [data-v2]. Owned by that package only. */
+/* Rules, Integrations, System health, Audit log (src/components/v2/settings-tools). */
+
+[data-v2] .wp8b-was { color: var(--muted); font-size: 13px; font-weight: 600; margin-left: 6px; }
+[data-v2] .wp8b-gap { margin-top: 12px; margin-bottom: 0; }
+[data-v2] .wp8b-sm { font-size: 12.5px; }
+[data-v2] .wp8b-stack { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+[data-v2] .wp8b-ok { color: var(--jade-t); font-size: 13px; font-weight: 600; }
+[data-v2] .wp8b-err { color: var(--red-t); font-weight: 600; }
+
+/* Forms: the side "Add a rule" card and the Edit box fields. */
+[data-v2] .wp8b-form { display: flex; flex-direction: column; gap: 4px; }
+[data-v2] .wp8b-form label { font-weight: 700; font-size: 13px; margin-top: 8px; }
+[data-v2] .wp8b-form input, [data-v2] .wp8b-form select { width: 100%; padding: 9px 11px; border: 1px solid var(--line2); border-radius: var(--rc); font: inherit; font-size: 14px; }
+[data-v2] .wp8b-form-foot { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+
+/* Rule list */
+[data-v2] .wp8b-rules { list-style: none; margin: 0; padding: 0; }
+[data-v2] .wp8b-rule { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px 14px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); }
+[data-v2] .wp8b-rule:last-child { border-bottom: 0; }
+[data-v2] .wp8b-rule .tx { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+[data-v2] .wp8b-rule .d { font-size: 13.5px; }
+[data-v2] .wp8b-rule .acts { gap: 6px; }
+
+/* Health checks */
+[data-v2] .wp8b-checks { list-style: none; margin: 0; padding: 0; }
+[data-v2] .wp8b-check { display: flex; gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--line); }
+[data-v2] .wp8b-check:last-child { border-bottom: 0; }
+[data-v2] .wp8b-check .tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
+[data-v2] .wp8b-check .st { flex: none; width: 24px; height: 24px; border-radius: 999px; display: grid; place-items: center; }
+[data-v2] .wp8b-check .st.y { background: var(--jade-s); color: var(--jade-t); }
+[data-v2] .wp8b-check .st.n { background: var(--red-s); color: var(--red-t); }
+
+/* Link lists (waiting, latest activity) */
+[data-v2] .wp8b-links { list-style: none; margin: 0; padding: 0; }
+[data-v2] .wp8b-links li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+[data-v2] .wp8b-links li:last-child { border-bottom: 0; }
+
+/* Audit log */
+[data-v2] .wp8b-bar { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+[data-v2] .wp8b-bar .v2-chips { margin-bottom: 8px; }
+[data-v2] .wp8b-bar .v2-filters { margin-bottom: 8px; }
+[data-v2] .wp8b-when { display: flex; flex-direction: column; white-space: nowrap; }
+[data-v2] .wp8b-what { display: flex; flex-direction: column; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+[data-v2] .wp8b-raw summary { cursor: pointer; color: var(--muted); font-size: 12.5px; }
+[data-v2] .wp8b-raw pre { white-space: pre-wrap; word-break: break-word; max-height: 260px; overflow: auto; background: var(--sunk); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 6px 0 0; }
+
+@media (max-width: 760px) {
+  [data-v2] .wp8b-rule { grid-template-columns: minmax(0, 1fr) auto; }
+  [data-v2] .wp8b-rule .acts { grid-column: 1 / -1; }
+  [data-v2] .wp8b-when { white-space: normal; }
+}
