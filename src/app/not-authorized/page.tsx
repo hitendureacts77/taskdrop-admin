@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation';
 import { checkAdmin } from '@/lib/auth';
 import { endPanelSession } from '@/lib/sign-out';
 import { createClient } from '@/lib/supabase/server';
+import { getV2 } from '@/lib/v2-gate-server';
+import { NotAuthorizedV2 } from './NotAuthorizedV2';
 
 /** Ends this browser's session only: a non-admin's TaskDrop app sign-in elsewhere stays (B119, B131). */
 async function signOutHere() {
@@ -33,6 +35,8 @@ export default async function NotAuthorizedPage({ searchParams }: { searchParams
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  if (await getV2()) return <NotAuthorizedV2 unavailable={unavailable} email={user?.email ?? null} signedIn={Boolean(user)} signOut={signOutHere} />;
 
   return (
     <main

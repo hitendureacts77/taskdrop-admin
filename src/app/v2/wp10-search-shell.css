@@ -1,1 +1,49 @@
 /* Admin v2, work package wp10-search-shell. Every rule must start with [data-v2]. Owned by that package only. */
+
+/* ---- Top-bar typeahead (components/v2/search/SearchTypeahead.tsx) ---- */
+[data-v2] .v2-sres { position: absolute; top: calc(100% + 6px); left: 0; right: 0; min-width: 280px; max-height: 70vh; overflow: auto; z-index: 80; display: none; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18); }
+[data-v2] .v2-sres.show { display: block; }
+[data-v2] .v2-sres h6 { margin: 8px 10px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+[data-v2] .v2-sres a { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; color: var(--ink); text-decoration: none; font-size: 14px; }
+[data-v2] .v2-sres a > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-v2] .v2-sres a:hover, [data-v2] .v2-sres a.hl { background: var(--sunk); text-decoration: none; }
+[data-v2] .v2-sres a small { color: var(--muted); flex: none; font-size: 12px; }
+[data-v2] .v2-sres a.all { color: var(--blue-t); font-weight: 700; }
+[data-v2] .v2-sres .v2-tag-test { margin-left: 6px; }
+[data-v2] .v2-sres-note { margin: 6px 10px; font-size: 12.5px; color: var(--muted); }
+@media (max-width: 760px) {
+  [data-v2] .v2-sres { position: fixed; top: auto; left: 8px; right: 8px; margin-top: 6px; min-width: 0; }
+}
+
+/* ---- /search page (components/v2/search/SearchPageV2.tsx) ---- */
+[data-v2] .v2-slist { display: flex; flex-direction: column; }
+[data-v2] .v2-sline { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); color: var(--ink); text-decoration: none; min-width: 0; }
+[data-v2] .v2-sline:last-child { border-bottom: 0; }
+[data-v2] .v2-sline:hover { text-decoration: none; color: var(--blue-t); }
+[data-v2] .v2-sline > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+[data-v2] .v2-sline .r { flex: none; font-size: 13px; color: var(--ink2); }
+[data-v2] .v2-sline .v2-tag-test { margin-left: 6px; }
+[data-v2] .v2-small { font-size: 12.5px; }
+[data-v2] .v2-snone { margin: 0; }
+[data-v2] .v2-ph .right .v2-filters { margin: 0; }
+
+/* ---- Sign-in and "not an admin" pages (app/login, app/not-authorized) ---- */
+[data-v2] .v2-authwrap { min-height: calc(100vh - var(--ribbon-h, 0px)); display: flex; align-items: center; justify-content: center; padding: 16px; background: var(--bg, var(--sunk)); }
+[data-v2] .v2-authcard { width: 100%; max-width: 420px; padding: 28px; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--shadow, 0 8px 30px rgba(0, 0, 0, 0.08)); color: var(--ink); }
+[data-v2] .v2-authcard h1 { margin: 14px 0 4px; font-size: 24px; letter-spacing: -0.01em; }
+[data-v2] .v2-authcard > p { margin: 0 0 16px; font-size: 14px; line-height: 1.5; }
+[data-v2] .v2-authcard .v2-note { margin: 0 0 14px; }
+[data-v2] .v2-authlogo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 17px; }
+[data-v2] .v2-authlogo .mark { width: 32px; height: 32px; border-radius: 9px; background: var(--jade); display: grid; place-items: center; flex: none; color: #fff; font-size: 13px; }
+[data-v2] .v2-authlogo small { display: block; font-weight: 600; font-size: 11px; color: var(--muted); }
+[data-v2] .v2-authbtn { width: 100%; min-height: 44px; }
+[data-v2] .v2-author { display: flex; align-items: center; gap: 10px; margin: 18px 0 6px; font-size: 12px; color: var(--muted); }
+[data-v2] .v2-author span { flex: 1; height: 1px; background: var(--line); }
+[data-v2] .v2-authform { display: grid; gap: 6px; }
+[data-v2] .v2-authform label { font-weight: 700; font-size: 13px; margin-top: 8px; }
+[data-v2] .v2-authform input { width: 100%; padding: 10px 12px; border: 1px solid var(--line2); border-radius: var(--rc); font-family: inherit; font-size: 14px; }
+[data-v2] .v2-authform .v2-authbtn { margin-top: 12px; }
+[data-v2] .v2-authcard .v2-empty { padding: 8px 0; }
+[data-v2] .v2-authcard .v2-empty p { line-height: 1.55; font-size: 14px; }
+[data-v2] .v2-authacts { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
+[data-v2] .v2-authsmall { font-size: 12px; margin-top: 10px; }
