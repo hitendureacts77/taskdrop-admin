@@ -10,6 +10,10 @@ import { getNavCountsFor, requireAdmin } from '@/lib/data';
 import { mfaState } from '@/lib/mfa';
 import { endPanelSession } from '@/lib/sign-out';
 import { roleLabel, staffCanSee } from '@/lib/staff-roles';
+import { V2Shell } from '@/components/v2/V2Shell';
+import { getV2NavCounts } from '@/lib/data/nav-v2';
+import { getEnvironment } from '@/lib/environment-server';
+import { getHideTestData, getV2, getV2Theme } from '@/lib/v2-gate-server';
 
 async function signOutAction() {
   'use server';
@@ -28,12 +32,26 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const [counts, mfa] = await Promise.all([getNavCountsFor(user.staffRole), mfaState()]);
   const seesMoney = staffCanSee(user.staffRole, 'money');
   const seesSettings = staffCanSee(user.staffRole, 'settings');
+  const idleMinutes = Math.max(1, Number(process.env.ADMIN_IDLE_MINUTES) || 30);
+
+  // Admin design v2 (07-build-plan-v2.md): a new shell around the same pages, only when the gate is on.
+  if (await getV2()) {
+    const [v2Counts, env, theme, hideTest] = await Promise.all([getV2NavCounts(user.staffRole, counts), getEnvironment(), getV2Theme(), getHideTestData()]);
+    return (
+      <LiveProvider initialNav={counts} alertRole={user.staffRole} alertsAllowed={user.notify}>
+        <V2Shell user={user} counts={v2Counts} mfa={mfa} env={env} theme={theme} hideTest={hideTest} idleMinutes={idleMinutes} signOut={signOutAction}>
+          {children}
+        </V2Shell>
+      </LiveProvider>
+    );
+  }
+
   const today = new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'short', day: 'numeric', month: 'short' });
 
   return (
     <LiveProvider initialNav={counts} alertRole={user.staffRole} alertsAllowed={user.notify}>
       <div className="shell">
-        <IdleGuard idleMinutes={Math.max(1, Number(process.env.ADMIN_IDLE_MINUTES) || 30)} />
+        <IdleGuard idleMinutes={idleMinutes} />
         <a href="#content" className="skip">
           Skip to content
         </a>
