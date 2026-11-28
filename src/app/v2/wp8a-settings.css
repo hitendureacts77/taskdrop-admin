@@ -1,1 +1,55 @@
 /* Admin v2, work package wp8a-settings. Every rule must start with [data-v2]. Owned by that package only. */
+
+[data-v2] .wp8a-was { font-size: 12.5px; font-weight: 600; color: var(--muted); }
+[data-v2] .wp8a-mt { margin-top: 16px; }
+[data-v2] .wp8a-m0 { margin-top: 0; }
+[data-v2] .wp8a-small { font-size: 12.5px; }
+[data-v2] .wp8a-key { font-size: 11px; }
+[data-v2] .wp8a-warn { color: var(--orange-t); }
+[data-v2] .wp8a-stack { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+/* A switch or setting row: words on the left, value and button on the right. */
+[data-v2] .wp8a-swrow { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+[data-v2] .wp8a-swrow:last-child { border-bottom: 0; }
+[data-v2] .wp8a-swrow .tx { flex: 1; min-width: 200px; }
+[data-v2] .wp8a-swrow .d { color: var(--muted); font-size: 13px; margin-top: 2px; }
+[data-v2] .wp8a-swrow .val { font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+[data-v2] .wp8a-swrow.blk { background: var(--red-s); border-radius: var(--rc); padding: 12px; border: 1px solid var(--red-l); }
+[data-v2] .wp8a-ro { max-width: 200px; }
+
+/* Advanced settings and the devices lines. */
+[data-v2] .wp8a-adv { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+[data-v2] .wp8a-adv > span { min-width: 0; overflow-wrap: anywhere; }
+[data-v2] .wp8a-ver { display: inline-flex; align-items: center; gap: 4px; margin-right: 10px; flex-wrap: wrap; }
+
+/* The switches matrix: a toggle and its word in each cell. */
+[data-v2] .wp8a-cellsw { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+[data-v2] .wp8a-matrix td:first-child { min-width: 200px; }
+
+/* History change chips. */
+[data-v2] .wp8a-ba { display: inline-flex; padding: 2px 8px; margin: 2px 4px 2px 0; }
+
+/* Forms (wording, versions, banner). */
+[data-v2] .wp8a-form { display: flex; flex-direction: column; margin-top: 10px; }
+[data-v2] .wp8a-form label { font-weight: 700; font-size: 13px; margin: 12px 0 6px; }
+[data-v2] .wp8a-form input, [data-v2] .wp8a-form select { width: 100%; padding: 9px 11px; border: 1px solid var(--line2); border-radius: var(--rc); font-family: inherit; font-size: 14px; }
+[data-v2] .wp8a-form .hint { color: var(--muted); font-size: 12px; margin-top: 4px; }
+[data-v2] .wp8a-g3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+[data-v2] .wp8a-g2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+[data-v2] .wp8a-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+[data-v2] .v2-ch .wp8a-actions { margin-top: 0; }
+[data-v2] .wp8a-ok { color: var(--jade-t); font-weight: 700; font-size: 13px; }
+[data-v2] .wp8a-err { color: var(--red-t); font-weight: 700; font-size: 13px; }
+
+/* Launch areas list. */
+[data-v2] .wp8a-areas { list-style: none; margin: 8px 0; padding: 0; }
+[data-v2] .wp8a-areas li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+
+[data-v2] .wp8a-you { margin-left: 6px; }
+[data-v2] .wp8a-ol { margin: 4px 0 0; padding-left: 18px; }
+
+@media (max-width: 760px) {
+  [data-v2] .wp8a-g3 { grid-template-columns: 1fr; }
+  [data-v2] .wp8a-matrix td:first-child { min-width: 0; }
+  [data-v2] .wp8a-swrow .tx { min-width: 0; flex-basis: 100%; }
+}

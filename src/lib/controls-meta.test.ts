@@ -60,3 +60,31 @@ test('the phone requirement is an admin change that needs no authenticator', () 
   assert.equal(areaFor(['require_phone_verified']), 'admin');
   assert.equal(needsMfa(['require_phone_verified']), false);
 });
+
+// ---- switch history (controls-history.ts, admin v2 WP8a) ----
+import { parseDetail, toHistoryRow } from './controls-history.ts';
+
+test('switch history: app control detail becomes reason + readable changes', () => {
+  const p = parseDetail('reason: Pushing app update; maintenance: false -> true; banner_level: info -> critical');
+  assert.equal(p.why, 'Pushing app update');
+  assert.deepEqual(p.changes, [
+    { what: 'Maintenance mode', from: 'Off', to: 'On' },
+    { what: 'Banner look', from: 'Information', to: 'Serious' },
+  ]);
+  assert.equal(parseDetail('no reason given; posting: true -> false').why, null);
+  const r = toHistoryRow({ at: 'x', actorName: 'Owner', action: 'app_control_changed', targetTable: 'event', targetId: 'app_controls:android', before: null, after: null, detail: 'reason: test; posting: true -> false' });
+  assert.equal(r.place, 'Android');
+  assert.deepEqual(r.changes, [{ what: 'Posting jobs', from: 'On', to: 'Off' }]);
+});
+
+test('switch history: settings rows, money pause, walkthrough link', () => {
+  const s = toHistoryRow({ at: 'x', actorName: 'Owner', action: 'UPDATE settings', targetTable: 'settings', targetId: 'dev_otp_for_all', before: { value: false }, after: { value: true }, detail: null });
+  assert.deepEqual(s.changes, [{ what: 'Developer sign-in', from: 'Off', to: 'On' }]);
+  const f = toHistoryRow({ at: 'x', actorName: 'Owner', action: 'UPDATE settings', targetTable: 'settings', targetId: 'money_flow', before: { value: 'wallet' }, after: { value: 'plan_b' }, detail: null });
+  assert.deepEqual(f.changes, [{ what: 'How money flows', from: 'Wallet', to: 'Pay per task' }]);
+  const m = toHistoryRow({ at: 'x', actorName: 'Owner', action: 'money_paused', targetTable: 'event', targetId: 'settings:money_paused', before: null, after: null, detail: 'reason: Razorpay down' });
+  assert.equal(m.why, 'Razorpay down');
+  assert.deepEqual(m.changes, [{ what: 'Pause all money', from: 'Off', to: 'On' }]);
+  const w = toHistoryRow({ at: 'x', actorName: 'Owner', action: 'walkthrough_link_changed', targetTable: 'event', targetId: 'settings:walkthrough_video_url', before: null, after: null, detail: 'none -> https://youtu.be/abcdefg' });
+  assert.deepEqual(w.changes, [{ what: 'Walkthrough video', from: 'None', to: 'https://youtu.be/abcdefg' }]);
+});
