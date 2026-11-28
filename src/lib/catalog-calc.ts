@@ -27,10 +27,15 @@ export function asFilter(v: unknown): CatalogFilter {
   return v === 'added' || v === 'new' || v === 'hidden' ? v : 'all';
 }
 
+/** Added in the last 7 days (the "New this week" filter and the v2 pill). */
+export function isNewThisWeek(r: Pick<CatalogRow, 'createdAt'>, now: Date): boolean {
+  return now.getTime() - new Date(r.createdAt).getTime() <= WEEK_MS;
+}
+
 export function matchesFilter(r: CatalogRow, f: CatalogFilter, now: Date): boolean {
   if (r.status === 'merged') return false;
   if (f === 'added') return r.source === 'user';
-  if (f === 'new') return now.getTime() - new Date(r.createdAt).getTime() <= WEEK_MS;
+  if (f === 'new') return isNewThisWeek(r, now);
   if (f === 'hidden') return r.status === 'hidden';
   return true;
 }

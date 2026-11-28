@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { alsoMatches, asFilter, filterCounts, mapCatalogRow, mergeExplainer, sortRows, type CatalogRow } from './catalog-calc.ts';
+import { alsoMatches, asFilter, filterCounts, isNewThisWeek, mapCatalogRow, mergeExplainer, sortRows, type CatalogRow } from './catalog-calc.ts';
 
 const now = new Date('2026-11-25T12:00:00Z');
 const row = (o: Partial<CatalogRow>): CatalogRow => ({ id: 'x', label: 'X', status: 'live', source: 'builtin', uses: 0, rank: 1, createdByName: null, createdAt: '2026-01-01T00:00:00Z', phrases: [], mergedLabels: [], ...o });
@@ -39,4 +39,9 @@ test('mapCatalogRow reads the rpc shape', () => {
 
 test('merge explainer', () => {
   assert.equal(mergeExplainer(1, 'Maths', 'Tutoring', 'skill'), '1 worker’s profile changes from Maths to Tutoring. “Maths” now points to Tutoring, so the next worker who types it is asked to pick Tutoring.');
+});
+
+test('new this week: up to 7 days old', () => {
+  assert.equal(isNewThisWeek({ createdAt: '2026-11-19T12:00:00Z' }, now), true);
+  assert.equal(isNewThisWeek({ createdAt: '2026-11-18T11:00:00Z' }, now), false);
 });
