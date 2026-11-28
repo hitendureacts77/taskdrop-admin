@@ -5,7 +5,10 @@ import { inr, istDateTime, timeAgo } from '@/lib/format';
 import { payoutStage, payoutStatus, PAYOUT_STAGE } from '@/lib/labels';
 import { MoneyLock } from '../MoneyLock';
 import { ClickCard } from '../Clickable';
-import { ConfirmAction, type FormAction } from '../ConfirmAction';
+import type { ComponentType } from 'react';
+import type { FormAction } from '../ConfirmAction';
+import type { MoneyConfirmProps } from '../v2/money/MoneyConfirm';
+import { PlainConfirm } from '../v2/money/PlainConfirm';
 import { CopyButton } from '../CopyButton';
 import { Icon } from '../Icon';
 import { UpiQr } from '../UpiQr';
@@ -25,7 +28,10 @@ export function PayoutDetailView({
   giveBack,
   canPay = true,
   useCurrent = false,
+  confirm: CA = PlainConfirm,
 }: {
+  /** Admin v2 passes its Confirm box here; with the gate off it is today's ConfirmAction. */
+  confirm?: ComponentType<MoneyConfirmProps>;
   canPay?: boolean;
   /** The admin chose the account on file now instead of the one saved on the withdrawal. */
   useCurrent?: boolean;
@@ -56,12 +62,15 @@ export function PayoutDetailView({
   const st = payoutStatus(p.status, first);
   const label = p.status === 'paid' ? (p.via === 'razorpayx' ? 'Paid by RazorpayX' : 'Paid by hand') : stage && !byHand ? PAYOUT_STAGE[stage].label : st.label;
   const hidden = { id: p.id, name: d.name, amount };
+  // v2 tier 3: type the amount in rupees (commas and the rupee sign are ignored).
+  const amountWord = (p.amount_minor / 100).toFixed(2).replace(/\.00$/, '');
 
   const recordPaid = (channel: 'upi' | 'bank' | 'other', primary: boolean) => {
     const words = { upi: 'by UPI', bank: 'by bank transfer', other: 'another way' }[channel];
     return (
-      <ConfirmAction
+      <CA
         key={channel}
+        v2={{ tier: 3, word: amountWord }}
         action={markPayout}
         hidden={{ ...hidden, status: 'paid', channel }}
         trigger={channel === 'other' ? 'Paid another way' : `Paid ${words}`}
@@ -182,7 +191,7 @@ export function PayoutDetailView({
               )}
               {p.status === 'requested' && dest?.how !== 'MISSING' ? (
                 <div className="pay-step-actions">
-                  <ConfirmAction
+                  <CA
                     action={markPayout}
                     hidden={{ ...hidden, status: 'processing' }}
                     trigger={`I’m paying it now: stop ${first} cancelling`}
@@ -222,7 +231,8 @@ export function PayoutDetailView({
                 <strong>Can’t pay it?</strong>
               </div>
               <div className="pay-step-actions">
-                <ConfirmAction
+                <CA
+                  v2={{ tier: 3, word: amountWord }}
                   action={markPayout}
                   hidden={{ ...hidden, status: 'failed' }}
                   trigger={p.status === 'processing' ? 'It didn’t go through' : `Don’t send: put ${amount} back in ${first}’s earnings`}
@@ -248,7 +258,7 @@ export function PayoutDetailView({
           <p>{stageHelp(stage, q, first, rxOn)}</p>
           <div className="pay-step-actions">
             {rx.configured ? (
-              <ConfirmAction
+              <CA
                 action={checkAll}
                 hidden={{}}
                 trigger="Check with RazorpayX"
@@ -259,7 +269,7 @@ export function PayoutDetailView({
               />
             ) : null}
             {stage === 'not-sent' ? (
-              <ConfirmAction
+              <CA
                 action={markPayout}
                 hidden={{ ...hidden, status: 'processing' }}
                 trigger="Pay it by hand instead"
@@ -270,7 +280,8 @@ export function PayoutDetailView({
               />
             ) : null}
             {stage === 'stuck' ? (
-              <ConfirmAction
+              <CA
+                v2={{ tier: 3, word: amountWord }}
                 action={giveBack}
                 hidden={hidden}
                 trigger={`Give ${amount} back to ${first}`}

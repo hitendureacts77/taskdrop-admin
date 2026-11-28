@@ -1,5 +1,7 @@
 import { notFound } from 'next/navigation';
 import { mfaState } from '@/lib/mfa';
+import { MoneyConfirm } from '@/components/v2/money/MoneyConfirm';
+import { getV2 } from '@/lib/v2-gate-server';
 import { maskDestinationLabel, maskQueuedDestination } from '@/lib/payout-dest';
 import { staffCan } from '@/lib/staff-roles';
 import { PayoutDetailView } from '@/components/views/PayoutDetailView';
@@ -14,7 +16,7 @@ export default async function PayoutPage({ params, searchParams }: { params: Pro
   const sp = await searchParams;
   // The method and the MFA state do not depend on the withdrawal, so they are read while it loads.
   const canPay = staffCan(me.staffRole, 'money');
-  const [mfa, detail, method] = await Promise.all([mfaState(), getPayoutDetail(id), getPayoutMethod()]);
+  const [mfa, detail, method, v2] = await Promise.all([mfaState(), getPayoutDetail(id), getPayoutMethod(), getV2()]);
   if (!detail) notFound();
   // Roles that cannot pay never receive the full UPI id, bank account or IFSC (S7-16).
   const d = canPay
@@ -30,6 +32,7 @@ export default async function PayoutPage({ params, searchParams }: { params: Pro
       method={method}
       mfa={mfa}
       canPay={canPay}
+      confirm={v2 ? MoneyConfirm : undefined}
       useCurrent={sp.use === 'current'}
       markPayout={markPayout}
       checkAll={checkWithRazorpayX}

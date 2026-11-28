@@ -2,6 +2,8 @@ import { EntriesView, ENTRY_WHEN, type EntryWhen } from '@/components/views/Entr
 import { getLedger, isTimestamp, isUuid, requireSeeing } from '@/lib/data';
 import { addIstDays, istMidnight, istParts, startOfIstDay } from '@/lib/days';
 import { LEDGER_KIND } from '@/lib/labels';
+import { isTestRow } from '@/lib/test-data';
+import { getHideTestData } from '@/lib/v2-gate-server';
 
 export const metadata = { title: 'Earnings entries' };
 
@@ -33,7 +35,7 @@ export default async function EntriesPage({ searchParams }: { searchParams: SP }
   const cursor = cursorAt && cursorId && isTimestamp(cursorAt) && isUuid(cursorId) ? { at: cursorAt, id: cursorId } : null;
 
   const PAGE = 50;
-  const rows = await getLedger({ kind: kind ?? undefined, since, before: until?.toISOString(), after: cursor ?? undefined, limit: PAGE + 1 });
+  const [rows, hide] = await Promise.all([getLedger({ kind: kind ?? undefined, since, before: until?.toISOString(), after: cursor ?? undefined, limit: PAGE + 1 }), getHideTestData()]);
   const entries = rows.slice(0, PAGE);
   const last = entries[entries.length - 1];
   return (
@@ -41,7 +43,8 @@ export default async function EntriesPage({ searchParams }: { searchParams: SP }
       d={{
         when,
         kind,
-        entries,
+        // Hide test data (v2 only): lines from fake seed and [e2e] jobs are left out; paging still follows the full list.
+        entries: hide ? entries.filter((l) => !isTestRow({ id: l.taskId, title: l.title })) : entries,
         olderCursor: rows.length > PAGE && last ? `${last.at}|${last.id}` : null,
         isFirstPage: !cursor,
       }}

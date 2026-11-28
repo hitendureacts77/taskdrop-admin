@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import type { AllTime, EscrowJob, LedgerEntry, MoneyHeld, MoneySettings } from '@/lib/data';
 import type { EarningsSeries, RangeKey, Split } from '@/lib/earnings';
 import { istDateTime, pct, prettyDayKey } from '@/lib/format';
@@ -36,7 +37,8 @@ function nextStep(j: EscrowJob, now: Date): string {
   return 'Held until the worker finishes and the poster approves.';
 }
 
-export function MoneyView({ d }: { d: MoneyData }) {
+/** `afterEscrow`: admin v2 only (the Pay per task moves); nothing is passed with the gate off. */
+export function MoneyView({ d, afterEscrow }: { d: MoneyData; afterEscrow?: ReactNode }) {
   const now = new Date(d.now);
   const e = d.earnings;
   const s = d.settings;
@@ -294,6 +296,8 @@ export function MoneyView({ d }: { d: MoneyData }) {
           <Empty title="Nothing is held right now">When a poster pays for a hired job, it shows up here until the work is approved.</Empty>
         )}
       </Card>
+
+      {afterEscrow ?? null}
 
       <Card
         id="whose"
