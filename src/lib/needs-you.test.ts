@@ -5,11 +5,14 @@ import {
   describeSla,
   disputeNeed,
   helpNeed,
+  needsFilterHref,
   needsSummary,
+  parseNeedsFilter,
   payoutNeed,
   rankNeeds,
   refundNeed,
   slaOf,
+  visibleNeeds,
   waitingFor,
   type NeedsItem,
 } from './needs-you.ts';
@@ -130,4 +133,43 @@ test('missing names never read as "undefined" or "null"', () => {
     copyrightNeed({ id: '5', complainant: null, work: null, since: hoursAgo(1) }),
   ];
   for (const n of all) assert.doesNotMatch(`${n.title} ${n.sub}`, /undefined|null|NaN/, n.kind);
+});
+
+// ---------------------------------------------------------- admin v2 list --
+
+
+test('parseNeedsFilter: design names, code names, junk', () => {
+  assert.equal(parseNeedsFilter('withdrawal'), 'payout');
+  assert.equal(parseNeedsFilter('payout'), 'payout');
+  assert.equal(parseNeedsFilter('Dispute'), 'dispute');
+  assert.equal(parseNeedsFilter(['help', 'refund']), 'help');
+  assert.equal(parseNeedsFilter(undefined), 'all');
+  assert.equal(parseNeedsFilter('constructor'), 'all');
+  assert.equal(parseNeedsFilter('nope'), 'all');
+});
+
+test('needsFilterHref round-trips through parseNeedsFilter', () => {
+  for (const f of ['all', 'payout', 'refund', 'dispute', 'help', 'copyright'] as const) {
+    const q = new URL(needsFilterHref(f), 'http://x').searchParams.get('kind') ?? undefined;
+    assert.equal(parseNeedsFilter(q), f);
+  }
+  assert.equal(needsFilterHref('payout'), '/needs-you?kind=withdrawal');
+});
+
+test('visibleNeeds hides test rows before counting and filtering', () => {
+  const items: NeedsItem[] = [
+    { ...item('payout', 30, 'p1'), test: true },
+    item('payout', 2, 'p2'),
+    item('dispute', 50, 'd1'),
+    { ...item('help', 1, 'h1'), test: true },
+  ];
+  const shown = visibleNeeds(items, { hideTest: true, filter: 'all' });
+  assert.equal(shown.rows.length, 2);
+  assert.equal(shown.hidden, 2);
+  assert.equal(shown.counts.payout, 1);
+  assert.equal(shown.counts.help, 0);
+  const pay = visibleNeeds(items, { hideTest: false, filter: 'payout' });
+  assert.deepEqual(pay.rows.map((r) => r.id), ['p1', 'p2']);
+  assert.equal(pay.hidden, 0);
+  assert.equal(pay.all.length, 4);
 });

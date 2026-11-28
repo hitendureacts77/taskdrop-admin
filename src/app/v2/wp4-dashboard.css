@@ -1,1 +1,96 @@
 /* Admin v2, work package wp4-dashboard. Every rule must start with [data-v2]. Owned by that package only. */
+
+/* Spacing helpers */
+[data-v2] .wp4-mt { margin-top: 16px; }
+[data-v2] .wp4-mb { margin-bottom: 16px; }
+[data-v2] .wp4-small { font-size: 12.5px; }
+[data-v2] .wp4-center { justify-content: center; margin-top: 10px; }
+[data-v2] .wp4-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+[data-v2] .wp4-side > * { margin: 0; }
+[data-v2] .wp4-foot { font-size: 12.5px; color: var(--muted); margin: 12px 0 0; }
+[data-v2] .wp4-asof { font-size: 12.5px; color: var(--muted); display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+[data-v2] .wp4-asof a { display: inline-flex; align-items: center; gap: 3px; }
+[data-v2] .wp4-bignum { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+[data-v2] .wp4-pills { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+[data-v2] .wp4-actlist { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Live numbers flash when they change */
+[data-v2] .wp4-flash { animation: wp4-flash 1.6s ease-out; border-radius: 6px; }
+@keyframes wp4-flash { 0% { background: var(--gold-s); } 100% { background: transparent; } }
+@media (prefers-reduced-motion: reduce) { [data-v2] .wp4-flash { animation: none; } }
+
+/* Needs you rows */
+[data-v2] .wp4-needs { list-style: none; margin: 0 -20px; padding: 0; }
+[data-v2] .wp4-ibx { display: flex; gap: 12px; align-items: flex-start; padding: 12px 20px; border-top: 1px solid var(--line); }
+[data-v2] .wp4-needs > .wp4-ibx:first-child { border-top: 0; }
+[data-v2] .wp4-ibx.late { background: color-mix(in srgb, var(--red-s) 60%, transparent); }
+[data-v2] .wp4-ibx .ic { flex: 0 0 auto; width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; background: var(--sunk); color: var(--muted); }
+[data-v2] .wp4-ibx .ic.gold { background: var(--gold-s); color: var(--gold-t); }
+[data-v2] .wp4-ibx .ic.jade { background: var(--jade-s); color: var(--jade-t); }
+[data-v2] .wp4-ibx .ic.orange { background: var(--orange-s); color: var(--orange-t); }
+[data-v2] .wp4-ibx .ic.blue { background: var(--blue-s); color: var(--blue-t); }
+[data-v2] .wp4-ibx .ic.red { background: var(--red-s); color: var(--red-t); }
+[data-v2] .wp4-ibx .body { flex: 1; min-width: 0; }
+[data-v2] .wp4-ibx .t { font-weight: 700; overflow-wrap: anywhere; }
+[data-v2] .wp4-ibx .t a { color: var(--ink); text-decoration: none; }
+[data-v2] .wp4-ibx .t a:hover { text-decoration: underline; }
+[data-v2] .wp4-ibx .meta { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+[data-v2] .wp4-ibx .acts { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+[data-v2] .wp4-when { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); margin-top: 4px; flex-wrap: wrap; }
+[data-v2] .wp4-wbar { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); margin-top: 6px; flex-wrap: wrap; }
+[data-v2] .wp4-wbar .tr { width: 120px; max-width: 40%; height: 6px; border-radius: 99px; background: var(--sunk); overflow: hidden; display: inline-block; }
+[data-v2] .wp4-wbar .fi { display: block; height: 100%; border-radius: 99px; background: var(--jade); }
+[data-v2] .wp4-wbar .fi.soon { background: var(--orange); }
+[data-v2] .wp4-wbar .fi.late { background: var(--red); }
+[data-v2] .wp4-wbar b.late { color: var(--red-t); }
+[data-v2] .wp4-board-head { display: flex; justify-content: flex-end; margin: -6px 0 10px; }
+
+/* Things to do */
+[data-v2] .wp4-todo { list-style: none; margin: 0; padding: 0; }
+[data-v2] .wp4-todo li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+[data-v2] .wp4-todo li:last-child { border-bottom: 0; }
+
+/* Earnings */
+[data-v2] .wp4-chart-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+[data-v2] .wp4-split-total { display: flex; justify-content: space-between; border-top: 1px solid var(--line); margin-top: 8px; padding-top: 10px; }
+
+/* Horizontal bar rows (where money came from, whose money) */
+[data-v2] .wp4-hbar { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(60px, 1fr) auto; gap: 10px; align-items: center; padding: 7px 0; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+[data-v2] .wp4-hbar:hover { background: var(--sunk); text-decoration: none; color: var(--ink); }
+[data-v2] .wp4-hbar .l { min-width: 0; overflow-wrap: anywhere; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+[data-v2] .wp4-hbar .tr { height: 8px; border-radius: 99px; background: var(--sunk); overflow: hidden; }
+[data-v2] .wp4-hbar .fi { display: block; height: 100%; border-radius: 99px; background: var(--jade); opacity: 0.8; }
+[data-v2] .wp4-hbar .v { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+[data-v2] .wp4-hbar .sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex: 0 0 auto; }
+[data-v2] .wp4-stack { display: flex; height: 12px; border-radius: 99px; overflow: hidden; background: var(--sunk); margin: 12px 0 8px; }
+[data-v2] .wp4-stack span { display: block; height: 100%; }
+
+/* Live feed */
+[data-v2] .v2-chip[aria-pressed='true'] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+[data-v2] button.v2-chip { cursor: pointer; font-family: inherit; }
+[data-v2] .wp4-feed { list-style: none; margin: 0 -20px; padding: 0; }
+[data-v2] .wp4-feed .f { display: flex; align-items: flex-start; gap: 10px; padding: 9px 20px; border-top: 1px solid var(--line); color: var(--ink); text-decoration: none; font-size: 14px; }
+[data-v2] .wp4-feed li:first-child .f { border-top: 0; }
+[data-v2] .wp4-feed a.f:hover { background: var(--sunk); text-decoration: none; color: var(--ink); }
+[data-v2] .wp4-feed .dt { width: 8px; height: 8px; border-radius: 50%; margin-top: 7px; flex: 0 0 auto; background: var(--muted); }
+[data-v2] .wp4-feed .dt.tasks { background: var(--blue); }
+[data-v2] .wp4-feed .dt.money { background: var(--gold); }
+[data-v2] .wp4-feed .dt.people { background: var(--jade); }
+[data-v2] .wp4-feed .dt.help { background: var(--orange); }
+[data-v2] .wp4-feed .tx { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+[data-v2] .wp4-feed .tm { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+/* Loading and error (today's markup, v2 look) */
+[data-v2] .v2-main > .loading { display: flex; align-items: center; gap: 10px; padding: 24px; color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); }
+[data-v2] .v2-main > .card[role='alert'] { background: var(--surface); border: 1px solid var(--red-l); border-radius: var(--r); padding: 20px; }
+[data-v2] .v2-main > .card[role='alert'] .error-detail { font-size: 12px; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; }
+
+@media (max-width: 760px) {
+  [data-v2] .v2-grid.wp4-keep2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  [data-v2] .wp4-ibx { flex-wrap: wrap; padding: 12px 16px; }
+  [data-v2] .wp4-ibx .acts { width: 100%; justify-content: flex-end; }
+  [data-v2] .wp4-needs, [data-v2] .wp4-feed { margin: 0 -16px; }
+  [data-v2] .wp4-feed .f { padding: 9px 16px; }
+  [data-v2] .wp4-hbar { grid-template-columns: minmax(0, 1fr) auto; }
+  [data-v2] .wp4-hbar .tr { grid-column: 1 / -1; grid-row: 2; }
+}

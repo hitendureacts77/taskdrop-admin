@@ -4,6 +4,7 @@ import { getDisputes, getPayoutQueue, getRefundsOwed, getTickets, type RefundOwe
 import { PAYOUT_STAGE, payoutStage } from './labels';
 import { copyrightNeed, disputeNeed, helpNeed, payoutNeed, refundNeed, type NeedsItem } from './needs-you';
 import { staffCanSee, type StaffRole } from './staff-roles';
+import { isTestRow } from './test-data';
 import { createClient as createSessionClient } from './supabase/server';
 
 /**
@@ -56,19 +57,19 @@ export async function getNeedsYou(role: StaffRole = 'admin', refundsRead?: Promi
     for (const p of payouts.value) {
       const stage = payoutStage(p, nowMs);
       if (!PAYOUT_STAGE[stage].needsYou) continue;
-      items.push(payoutNeed({ id: p.id, name: p.display_name, amountMinor: p.amount_minor, since: p.requested_at, stageLabel: PAYOUT_STAGE[stage].label }));
+      items.push({ ...payoutNeed({ id: p.id, name: p.display_name, amountMinor: p.amount_minor, since: p.requested_at, stageLabel: PAYOUT_STAGE[stage].label }), test: isTestRow({ userId: p.user_id }) });
     }
   }
   // Null without the service key: refunds can't be listed, so none are claimed.
   if (refunds.status === 'fulfilled' && refunds.value) {
     for (const r of refunds.value) {
-      items.push(refundNeed({ taskId: r.taskId, poster: r.poster, dueMinor: r.dueMinor, title: r.title, since: r.cancelledAt }, nowIso));
+      items.push({ ...refundNeed({ taskId: r.taskId, poster: r.poster, dueMinor: r.dueMinor, title: r.title, since: r.cancelledAt }, nowIso), test: isTestRow({ posterId: r.posterId, title: r.title }) });
     }
   }
   if (disputes.status === 'fulfilled') {
     for (const d of disputes.value) {
-      items.push(
-        disputeNeed({
+      items.push({
+        ...disputeNeed({
           taskId: d.taskId,
           title: d.title,
           poster: d.poster,
@@ -77,11 +78,12 @@ export async function getNeedsYou(role: StaffRole = 'admin', refundsRead?: Promi
           frozenMinor: d.funded ? d.escrowMinor || d.lockedMinor : 0,
           since: d.since,
         }),
-      );
+        test: isTestRow({ posterId: d.posterId, userId: d.workerId, title: d.title }),
+      });
     }
   }
   if (tickets.status === 'fulfilled') {
-    for (const t of tickets.value) items.push(helpNeed({ id: t.id, user: t.user, subject: t.subject, since: t.updatedAt }));
+    for (const t of tickets.value) items.push({ ...helpNeed({ id: t.id, user: t.user, subject: t.subject, since: t.updatedAt }), test: isTestRow({ userId: t.userId }) });
   }
   if (notices.status === 'fulfilled') items.push(...notices.value);
 
