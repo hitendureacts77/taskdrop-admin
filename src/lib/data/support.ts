@@ -3,18 +3,21 @@ import { createClient as createSessionClient } from '../supabase/server';
 import { namesFor } from './people';
 import { isUuid } from './tasks';
 import { stableOrder } from './paging';
+import { notTestIdFilter } from '../test-data';
 
 // ----------------------------------------------------------------- support --
 
 export type TicketRow = { id: string; subject: string; category: string; status: string; userId: string; user: string; createdAt: string; updatedAt: string };
 
-export async function getTickets(status: 'waiting' | 'answered' | 'resolved' | 'all'): Promise<TicketRow[]> {
+/** `hideTest` (admin v2, Hide test data) leaves out fake-seed people and [e2e] subjects. */
+export async function getTickets(status: 'waiting' | 'answered' | 'resolved' | 'all', hideTest = false): Promise<TicketRow[]> {
   const supabase = await createSessionClient();
   let q = supabase
     .from('support_tickets')
     .select('id, subject, category, status, user_id, created_at, updated_at')
     .limit(200);
   if (status !== 'all') q = q.eq('status', status);
+  if (hideTest) q = q.or(notTestIdFilter('user_id')).not('subject', 'ilike', '[e2e]%');
   const { data, error } = await stableOrder(q, 'updated_at', status === 'waiting');
   if (error) throw new Error(`Could not read help requests: ${error.message}`);
   const rows = (data ?? []) as { id: string; subject: string; category: string; status: string; user_id: string; created_at: string; updated_at: string }[];
@@ -32,10 +35,11 @@ export async function getTickets(status: 'waiting' | 'answered' | 'resolved' | '
 }
 
 /** How many help requests sit under a tab; the list shows at most 200 (B132). */
-export async function countTickets(status: 'waiting' | 'answered' | 'resolved' | 'all'): Promise<number | null> {
+export async function countTickets(status: 'waiting' | 'answered' | 'resolved' | 'all', hideTest = false): Promise<number | null> {
   const supabase = await createSessionClient();
   let q = supabase.from('support_tickets').select('id', { count: 'exact', head: true });
   if (status !== 'all') q = q.eq('status', status);
+  if (hideTest) q = q.or(notTestIdFilter('user_id')).not('subject', 'ilike', '[e2e]%');
   const { count, error } = await q;
   return error ? null : count;
 }
