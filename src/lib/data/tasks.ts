@@ -5,6 +5,7 @@ import { serviceOrNull, likeTerm } from './shared';
 import { namesFor } from './people';
 import { isPastLastPage, stableOrder } from './paging';
 import { type LedgerEntry } from './activity';
+import { notTestIdFilter } from '../test-data';
 
 // ------------------------------------------------------------------- tasks --
 
@@ -50,7 +51,8 @@ export type TaskRow = {
 const ACTIVE = ['LOCKED', 'TASK_STARTED', 'OVERDUE', 'REVISION_REQUESTED'];
 const HOLDING = ['LOCKED', 'TASK_STARTED', 'OVERDUE', 'WORK_DONE', 'REVISION_REQUESTED', 'DISPUTED'];
 
-export async function getTasks(filter: TaskFilter, search: string | undefined, page: number, pageSize = 30): Promise<{ rows: TaskRow[]; total: number }> {
+/** hideTest (v2 only, lib/test-data.ts): leave out fake seed posters and [e2e] titles; the count uses the same filter. */
+export async function getTasks(filter: TaskFilter, search: string | undefined, page: number, pageSize = 30, hideTest = false): Promise<{ rows: TaskRow[]; total: number }> {
   const supabase = await createSessionClient();
   const since = startOfIstDay().toISOString();
   let q = supabase
@@ -95,6 +97,7 @@ export async function getTasks(filter: TaskFilter, search: string | undefined, p
   }
   const s = likeTerm(search);
   if (s) q = q.ilike('title', `%${s}%`);
+  if (hideTest) q = q.or(notTestIdFilter('poster_id')).not('title', 'ilike', '[e2e]%');
   const from = page * pageSize;
   const ordered = stableOrder(q, 'updated_at');
   const { data, error, count } = await ordered.range(from, from + pageSize - 1);
@@ -181,6 +184,103 @@ export type TaskDetail = {
   payment: { amountMinor: number; status: string; paidAt: string | null; providerPaymentId: string | null; refundedMinor: number } | null;
   reviews: { rating: number; comment: string | null; aboutRole: string; author: string; createdAt: string }[];
 };
+
+/**
+ * Plan B (pay per task): the payment company's hold for a job and TaskDrop's books for it
+ * (task_holds, money_ledger, user repo migration 195; dispute split 255). Both tables are
+ * party-only under RLS, so they are read with the service key; null when there is no key or
+ * no hold (an older wallet job). Only money staff pages call this.
+ */
+export type TaskHold = {
+  id: string;
+  status: string;
+  provider: string;
+  offerMinor: number;
+  chargedMinor: number;
+  feeMinor: number;
+  commissionMinor: number;
+  workerShareMinor: number;
+  releaseMinor: number | null;
+  refundMinor: number | null;
+  releaseKey: string | null;
+  paymentId: string | null;
+  note: string | null;
+  paidAt: string | null;
+  askedAt: string | null;
+  settledAt: string | null;
+  ledger: { id: string; kind: string; amountMinor: number; mine: 'worker' | 'poster' | 'taskdrop'; at: string }[];
+};
+
+/** task_holds and money_ledger are newer than the generated types, so they are read untyped (as getDisputeReasons does). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- tables missing from database.types.ts
+type UntypedDb = { from: (t: string) => any };
+const untyped = (c: unknown): UntypedDb | null => (c ? (c as UntypedDb) : null);
+
+export async function getTaskHold(taskId: string): Promise<TaskHold | null> {
+  if (!isUuid(taskId)) return null;
+  const service = untyped(serviceOrNull());
+  if (!service) return null;
+  const { data, error } = await service
+    .from('task_holds')
+    .select('id, status, provider, offer_minor, charged_minor, fee_minor, commission_minor, worker_share_minor, release_minor, refund_minor, release_key, provider_payment_id, note, paid_at, asked_at, settled_at, poster_id, worker_id, created_at')
+    .eq('task_id', taskId)
+    .order('created_at', { ascending: false })
+    .limit(5);
+  if (error) return null;
+  type H = {
+    id: string; status: string; provider: string; offer_minor: number; charged_minor: number; fee_minor: number; commission_minor: number;
+    worker_share_minor: number; release_minor: number | null; refund_minor: number | null; release_key: string | null; provider_payment_id: string | null;
+    note: string | null; paid_at: string | null; asked_at: string | null; settled_at: string | null; poster_id: string; worker_id: string;
+  };
+  const rows = (data ?? []) as unknown as H[];
+  // The live hold first (as private.task_hold does), else the newest.
+  const h = rows.find((r) => r.status === 'held' || r.status === 'awaiting_payment') ?? rows[0];
+  if (!h) return null;
+  const led = await service
+    .from('money_ledger')
+    .select('id, kind, amount_minor, user_id, created_at')
+    .eq('hold_id', h.id)
+    .order('created_at', { ascending: true });
+  const ledgerRows = ((led.error ? [] : led.data) ?? []) as unknown as { id: string; kind: string; amount_minor: number; user_id: string | null; created_at: string }[];
+  const n = (v: number | null) => (v === null || v === undefined ? null : Number(v));
+  return {
+    id: h.id,
+    status: h.status,
+    provider: h.provider,
+    offerMinor: Number(h.offer_minor),
+    chargedMinor: Number(h.charged_minor),
+    feeMinor: Number(h.fee_minor),
+    commissionMinor: Number(h.commission_minor),
+    workerShareMinor: Number(h.worker_share_minor),
+    releaseMinor: n(h.release_minor),
+    refundMinor: n(h.refund_minor),
+    releaseKey: h.release_key,
+    paymentId: h.provider_payment_id,
+    note: h.note,
+    paidAt: h.paid_at,
+    askedAt: h.asked_at,
+    settledAt: h.settled_at,
+    ledger: ledgerRows.map((l) => ({
+      id: l.id,
+      kind: l.kind,
+      amountMinor: Number(l.amount_minor),
+      mine: l.user_id === null ? 'taskdrop' : l.user_id === h.poster_id ? 'poster' : 'worker',
+      at: l.created_at,
+    })),
+  };
+}
+
+/** What Plan B holds for each of these jobs right now (status 'held'), by job id. Service key; empty without it. */
+export async function getHeldByTask(taskIds: string[]): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  const ids = taskIds.filter(isUuid);
+  const service = untyped(serviceOrNull());
+  if (!service || !ids.length) return out;
+  const { data, error } = await service.from('task_holds').select('task_id, charged_minor').in('task_id', ids).eq('status', 'held');
+  if (error) return out;
+  for (const r of (data ?? []) as unknown as { task_id: string; charged_minor: number }[]) out.set(r.task_id, Number(r.charged_minor));
+  return out;
+}
 
 export const isUuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 /** A Postgres timestamptz as PostgREST prints it, e.g. 2026-09-27T12:23:00.123456+00:00. Nothing else gets into a filter string. */
