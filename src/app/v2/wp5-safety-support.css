@@ -1,1 +1,65 @@
 /* Admin v2, work package wp5-safety-support. Every rule must start with [data-v2]. Owned by that package only. */
+
+[data-v2] .wp5-was { color: var(--muted); font-size: 13px; font-weight: 600; margin-left: 4px; }
+[data-v2] .wp5-stack { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+[data-v2] .wp5-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+[data-v2] .wp5-small { font-size: 13px; margin: 6px 0; }
+[data-v2] .wp5-gap { gap: 6px; flex-wrap: wrap; align-items: center; }
+
+/* Inbox-style rows (team alerts, flagged content) */
+[data-v2] .wp5-list { list-style: none; margin: 8px -20px -20px; padding: 0; }
+[data-v2] .wp5-item { display: flex; gap: 12px; align-items: flex-start; padding: 14px 20px; border-top: 1px solid var(--line); min-width: 0; }
+[data-v2] .wp5-item.read { opacity: 0.78; }
+[data-v2] .wp5-ic { flex: none; width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--sunk); color: var(--muted); border: 1px solid var(--line); }
+[data-v2] .wp5-ic.ok { background: var(--jade-s); color: var(--jade-t); border-color: var(--jade-l); }
+[data-v2] .wp5-ic.earn { background: var(--blue-s); color: var(--blue-t); border-color: var(--blue-l); }
+[data-v2] .wp5-ic.wait { background: var(--gold-s); color: var(--gold-t); border-color: var(--gold-l); }
+[data-v2] .wp5-ic.bad { background: var(--orange-s); color: var(--orange-t); border-color: var(--orange-l); }
+[data-v2] .wp5-ic.danger { background: var(--red-s); color: var(--red-t); border-color: var(--red-l); }
+[data-v2] .wp5-body { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+[data-v2] .wp5-t { font-weight: 700; margin-top: 4px; }
+[data-v2] .wp5-body .v2-row .wp5-t { margin-top: 0; }
+[data-v2] .wp5-text { font-size: 13px; margin-top: 2px; color: var(--ink2); white-space: pre-line; }
+[data-v2] .wp5-meta { font-size: 12px; color: var(--muted); margin-top: 4px; }
+[data-v2] .wp5-go { display: inline-block; font-size: 13px; font-weight: 700; margin-top: 4px; }
+[data-v2] .wp5-more { font-size: 13px; margin-top: 4px; }
+[data-v2] .wp5-more summary { cursor: pointer; color: var(--muted); }
+[data-v2] .wp5-more ul { list-style: none; margin: 4px 0 0; padding: 0; }
+[data-v2] .wp5-more li { padding: 3px 0; }
+[data-v2] .wp5-acts { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; max-width: 340px; }
+[data-v2] .wp5-acts.col { flex-direction: column; align-items: flex-start; max-width: none; }
+[data-v2] .wp5-quote { font-size: 13px; margin: 6px 0 0; }
+[data-v2] .wp5-msg { margin-top: 8px; padding: 9px 12px; border-radius: 12px; background: var(--sunk); border: 1px solid var(--line); font-size: 13px; max-width: 100%; }
+[data-v2] .wp5-msg small { display: block; color: var(--muted); margin-top: 4px; }
+[data-v2] .wp5-msg.review span[aria-label] { color: var(--gold-t); letter-spacing: 1px; }
+[data-v2] .wp5-kinds { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+[data-v2] .wp5-pre { white-space: pre-line; font-size: 13px; margin: 8px 0; }
+[data-v2] .wp5-side .v2-note { margin-bottom: 0; }
+
+/* Help request conversation */
+[data-v2] .wp5-chat { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+[data-v2] .wp5-chat li { max-width: 80%; padding: 10px 13px; border-radius: 14px; font-size: 14px; overflow-wrap: anywhere; }
+[data-v2] .wp5-chat li p { margin: 0; white-space: pre-line; }
+[data-v2] .wp5-chat li small { display: block; margin-top: 4px; font-size: 11px; color: var(--muted); }
+[data-v2] .wp5-chat li.person { align-self: flex-start; background: var(--sunk); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+[data-v2] .wp5-chat li.staff { align-self: flex-end; background: var(--jade-s); border: 1px solid var(--jade-l); border-bottom-right-radius: 4px; }
+
+/* Forms (reply, log a notice) */
+[data-v2] .wp5-form { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+[data-v2] .wp5-form label:not(.sr-only) { font-size: 13px; font-weight: 700; margin-top: 6px; }
+[data-v2] .wp5-form input, [data-v2] .wp5-form textarea { width: 100%; padding: 9px 11px; border: 1px solid var(--line2); border-radius: var(--rc); font-family: inherit; font-size: 14px; }
+[data-v2] .wp5-form .v2-btn { align-self: flex-start; margin-top: 6px; }
+[data-v2] .wp5-hint { font-size: 12px; color: var(--muted); }
+[data-v2] .wp5-ok { color: var(--jade-t); font-size: 13px; margin: 4px 0; }
+[data-v2] .wp5-err { color: var(--red-t); font-size: 13px; margin: 4px 0; }
+
+/* Copyright table cells */
+[data-v2] .wp5-cell { display: flex; flex-direction: column; gap: 3px; font-size: 13px; min-width: 0; overflow-wrap: anywhere; }
+[data-v2] .wp5-cell .photo-grid { margin-top: 4px; }
+[data-v2] .wp5-how { margin: 8px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+
+@media (max-width: 760px) {
+  [data-v2] .wp5-item { flex-wrap: wrap; }
+  [data-v2] .wp5-acts { max-width: none; width: 100%; justify-content: flex-start; padding-left: 46px; }
+  [data-v2] .wp5-chat li { max-width: 92%; }
+}
