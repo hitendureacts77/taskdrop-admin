@@ -74,3 +74,58 @@ test('toolLinks shows a dashboard link only for an https URL', () => {
     ],
   );
 });
+
+// ---- v2 Business reports helpers (ops-reports.ts) ----
+import { changePct, chartBuckets, chartUnit, dayLabel, quotedShare, retentionTint } from './ops-reports.ts';
+
+const dayRow = (day: string, funded: number, revenue: number) => ({ day, newPeople: 0, jobsPosted: 0, jobsFinished: 0, cancellations: 0, disputesDecided: 0, fundedMinor: funded, topupMinor: 0, revenueMinor: revenue });
+
+test('chartUnit: day up to 30, week for 90, month for a year', () => {
+  assert.equal(chartUnit(7), 'day');
+  assert.equal(chartUnit(30), 'day');
+  assert.equal(chartUnit(90), 'week');
+  assert.equal(chartUnit(365), 'month');
+});
+
+test('dayLabel reads as "3 Nov"', () => {
+  assert.equal(dayLabel('2026-11-03'), '3 Nov');
+});
+
+test('chartBuckets keeps one point per day for short ranges, in date order', () => {
+  const b = chartBuckets([dayRow('2026-11-02', 200, 20), dayRow('2026-11-01', 100, 10)], 7);
+  assert.deepEqual(b.map((x) => [x.label, x.fundedMinor, x.revenueMinor]), [['1 Nov', 100, 10], ['2 Nov', 200, 20]]);
+});
+
+test('chartBuckets groups 90 days into blocks of 7 from the first day', () => {
+  const rows = Array.from({ length: 10 }, (_, i) => dayRow(`2026-11-${String(i + 1).padStart(2, '0')}`, 100, 5));
+  const b = chartBuckets(rows, 90);
+  assert.equal(b.length, 2);
+  assert.equal(b[0]!.label, 'Week of 1 Nov');
+  assert.equal(b[0]!.fundedMinor, 700);
+  assert.equal(b[1]!.label, 'Week of 8 Nov');
+  assert.equal(b[1]!.revenueMinor, 15);
+});
+
+test('chartBuckets groups a year by calendar month', () => {
+  const b = chartBuckets([dayRow('2026-10-31', 1, 1), dayRow('2026-11-01', 2, 2), dayRow('2026-11-30', 3, 3)], 365);
+  assert.deepEqual(b.map((x) => [x.label, x.fundedMinor]), [['Oct 2026', 1], ['Nov 2026', 5]]);
+});
+
+test('quotedShare accepts a fraction or a percent', () => {
+  assert.equal(quotedShare(0.81), 0.81);
+  assert.equal(quotedShare(81), 0.81);
+  assert.equal(quotedShare(Number.NaN), 0);
+});
+
+test('retentionTint is 0..45 and 0 for an empty cell', () => {
+  assert.equal(retentionTint(null), 0);
+  assert.equal(retentionTint(1), 45);
+  assert.equal(retentionTint(0.5), 23);
+  assert.equal(retentionTint(2), 45);
+});
+
+test('changePct is null with nothing before', () => {
+  assert.equal(changePct(5, 0), null);
+  assert.equal(changePct(112, 100), 12);
+  assert.equal(changePct(90, 100), -10);
+});
