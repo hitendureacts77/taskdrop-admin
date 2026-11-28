@@ -2,6 +2,8 @@ import { PerformanceView } from '@/components/views/CrmGrowthViews';
 import { addIstDays, istDayKey, startOfIstDay } from '@/lib/days';
 import { requireAdmin } from '@/lib/data';
 import { getStaffPerformance } from '@/lib/growth';
+import { TeamPerformanceV2 } from '@/components/v2/reports/TeamPerformanceV2';
+import { getHideTestData, getV2 } from '@/lib/v2-gate-server';
 
 export const metadata = { title: 'Team performance' };
 
@@ -13,5 +15,8 @@ export default async function PerformancePage({ searchParams }: { searchParams: 
   const from = addIstDays(today, -(days - 1));
   const to = addIstDays(today, 1);
   const rows = await getStaffPerformance(from.toISOString(), to.toISOString());
+  if (await getV2()) {
+    return <TeamPerformanceV2 rows={rows} days={days} from={from.toISOString()} to={istDayKey(addIstDays(to, -1))} hideTest={await getHideTestData()} />;
+  }
   return <PerformanceView rows={rows} days={days} from={from.toISOString()} to={istDayKey(addIstDays(to, -1))} />;
 }

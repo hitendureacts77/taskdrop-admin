@@ -4,6 +4,8 @@ import { addIstDays, istDayKey, startOfIstDay } from '@/lib/days';
 import { getEarnedSince, getPlatformStats, requireSeeing } from '@/lib/data';
 import { getBusinessDaily, getFunnel, getMarketplaceNumbers, getPromotionRoi, getRetention } from '@/lib/growth';
 import { previousWindow } from '@/lib/growth-calc';
+import { ReportsV2 } from '@/components/v2/reports/ReportsV2';
+import { getHideTestData, getV2 } from '@/lib/v2-gate-server';
 
 export const metadata = { title: 'Business reports' };
 
@@ -27,6 +29,9 @@ export default async function ReportsPage({ searchParams }: { searchParams: SP }
     getPromotionRoi(from, to),
     getMarketplaceNumbers(from, to),
   ]);
+  if (await getV2()) {
+    return <ReportsV2 days={days} s={stats} earnedMinor={earnedMinor} daily={daily} previous={previous} funnel={funnel} retention={retention} promo={promo} marketplace={marketplace} hideTest={await getHideTestData()} />;
+  }
   return (
     <>
       <ReportsView s={stats} days={days} earnedMinor={earnedMinor} />
