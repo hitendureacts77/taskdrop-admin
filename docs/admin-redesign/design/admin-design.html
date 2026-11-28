@@ -1,0 +1,1053 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TaskDrop Admin Design</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f1f2f1;--surface:#fff;--sunk:#f7f7f6;--line:#e4e5e3;--line2:#d3d5d2;
+  --ink:#16171a;--ink2:#3f4240;--muted:#676b68;
+  --jade:#0e8f72;--jade-t:#0a6f58;--jade-s:#e8f5f0;--jade-l:#bfe3d5;
+  --blue:#2f5bea;--blue-t:#1e40af;--blue-s:#edf2fe;--blue-l:#c9d6fb;
+  --gold:#e0a85a;--gold-t:#7d5210;--gold-s:#fbf2e2;--gold-l:#efd9ae;
+  --orange:#e0724a;--orange-t:#b0482a;--orange-s:#fcefe9;--orange-l:#f3cdbe;
+  --red:#c0322b;--red-t:#a3241e;--red-s:#fdecea;--red-l:#f4c3bf;
+  --side:#062b22;--side-ink:#cfe5dd;--side-muted:#86a89c;--side-active:#0e3b30;
+  --shadow:0 1px 2px rgba(16,24,20,.05),0 4px 16px rgba(16,24,20,.05);
+  --r:14px;--rc:10px;
+}
+:root[data-theme="dark"]{
+  --bg:#0e1311;--surface:#161c1a;--sunk:#121816;--line:#26302c;--line2:#34403b;
+  --ink:#eef1ef;--ink2:#c9cfcc;--muted:#9aa5a0;
+  --jade:#2fb592;--jade-t:#4fcfa9;--jade-s:rgba(47,181,146,.14);--jade-l:rgba(47,181,146,.35);
+  --blue:#5b7cff;--blue-t:#8ea9ff;--blue-s:rgba(91,124,255,.15);--blue-l:rgba(91,124,255,.38);
+  --gold:#e8b46a;--gold-t:#f0c27f;--gold-s:rgba(232,180,106,.14);--gold-l:rgba(232,180,106,.38);
+  --orange:#f08560;--orange-t:#ff9d78;--orange-s:rgba(240,133,96,.14);--orange-l:rgba(240,133,96,.4);
+  --red:#ff6b61;--red-t:#ff7b72;--red-s:rgba(255,107,97,.13);--red-l:rgba(255,107,97,.4);
+  --side:#0a120f;--side-ink:#d5e6df;--side-muted:#7f978d;--side-active:#13241e;
+  --shadow:0 1px 2px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+.num,td,.big{font-variant-numeric:tabular-nums}
+a{color:var(--blue-t);text-decoration:none}
+button{font-family:inherit;font-size:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--line2);border-radius:var(--rc);padding:9px 11px;min-width:0}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+svg.i{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+/* ribbon */
+.ribbon{position:sticky;top:0;z-index:60;background:repeating-linear-gradient(135deg,#e0a85a 0 14px,#d89a45 14px 28px);color:#3a2604;font-weight:700;font-size:12.5px;text-align:center;padding:5px 12px;letter-spacing:.02em}
+.ribbon b{background:#3a2604;color:#fbe7c4;padding:1px 7px;border-radius:5px;margin-right:6px}
+body.prod .ribbon{display:none}
+
+/* shell */
+.shell{display:flex;min-height:100vh}
+.side{width:248px;flex:none;background:var(--side);color:var(--side-ink);position:sticky;top:27px;height:calc(100vh - 27px);overflow-y:auto;display:flex;flex-direction:column;transition:width .2s}
+body.prod .side{top:0;height:100vh}
+.logo{display:flex;align-items:center;gap:10px;padding:18px 18px 14px;font-weight:800;font-size:17px;color:#fff}
+.logo .mark{width:32px;height:32px;border-radius:9px;background:var(--jade);display:grid;place-items:center;flex:none}
+.logo small{display:block;font-weight:600;font-size:11px;color:var(--side-muted)}
+.nav{padding:4px 10px;flex:1}
+.ng{margin-bottom:2px}
+.nl{display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:9px;color:var(--side-ink);font-weight:600;cursor:pointer;width:100%;background:none;border:0;text-align:left}
+.nl:hover{background:rgba(255,255,255,.06)}
+.nl.on{background:var(--side-active);color:#fff}
+.nl .cnt{margin-left:auto;background:var(--orange);color:#fff;font-size:11px;font-weight:800;border-radius:999px;padding:1px 7px}
+.nl .chev{margin-left:auto;opacity:.6;transition:transform .2s}
+.ng.open .chev{transform:rotate(90deg)}
+.sub{display:none;padding:2px 0 6px 39px}
+.ng.open .sub{display:block}
+.sub a{display:flex;align-items:center;gap:6px;color:var(--side-muted);padding:6px 10px;border-radius:7px;font-size:13.5px;font-weight:500}
+.sub a:hover{color:#fff}
+.sub a.on{color:#fff;background:rgba(255,255,255,.07)}
+.sub a.locked{opacity:.55}
+.sub a .lk{width:13px;height:13px;margin-left:auto}
+.side-foot{padding:12px 16px;border-top:1px solid rgba(255,255,255,.08);font-size:12px;color:var(--side-muted)}
+.side-foot a{color:var(--side-muted);text-decoration:underline}
+.collapse-btn{margin:6px 10px 10px;background:none;border:1px solid rgba(255,255,255,.12);color:var(--side-muted);border-radius:8px;padding:7px;display:flex;align-items:center;gap:8px;font-size:12.5px}
+body.collapsed .side{width:72px}
+body.collapsed .side .txt,body.collapsed .side .sub,body.collapsed .side .chev,body.collapsed .logo small,body.collapsed .logo span,body.collapsed .side-foot{display:none}
+body.collapsed .nl{justify-content:center;position:relative}
+body.collapsed .nl .cnt{position:absolute;top:2px;right:4px;padding:0 5px}
+
+.mainwrap{flex:1;min-width:0;display:flex;flex-direction:column}
+.top{position:sticky;top:27px;z-index:40;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:10px 24px}
+body.prod .top{top:0}
+.search{position:relative;flex:1;max-width:520px}
+.search input{width:100%;padding-left:36px;background:var(--surface);border-radius:999px}
+.search>svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted)}
+.sres{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.15);padding:6px;display:none;max-height:70vh;overflow:auto;z-index:80}
+.sres.show{display:block}
+.sres h6{margin:8px 10px 4px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.sres a{display:flex;justify-content:space-between;gap:10px;padding:8px 10px;border-radius:8px;color:var(--ink)}
+.sres a:hover,.sres a.hl{background:var(--sunk)}
+.sres a small{color:var(--muted)}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.iconbtn{background:var(--surface);border:1px solid var(--line);color:var(--ink2);border-radius:999px;height:36px;min-width:36px;padding:0 10px;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-weight:600;font-size:13px;position:relative}
+.iconbtn .dot{position:absolute;top:-3px;right:-3px;background:var(--orange);color:#fff;border-radius:999px;font-size:10px;font-weight:800;padding:0 5px;line-height:16px}
+.switch-chip{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--ink2);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer;user-select:none}
+.mfa-chip{background:var(--gold-s);border-color:var(--gold-l);color:var(--gold-t)}
+.mfa-chip.ok{background:var(--jade-s);border-color:var(--jade-l);color:var(--jade-t)}
+.envbadge{display:none;font-size:12px;font-weight:700;color:var(--jade-t);background:var(--jade-s);border:1px solid var(--jade-l);padding:4px 10px;border-radius:999px}
+body.prod .envbadge{display:inline-block}
+.menu-btn{display:none}
+main{padding:24px;max-width:1280px;width:100%;margin:0 auto}
+
+/* page */
+.ph{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.ph h1{margin:0;font-size:26px;font-weight:800;letter-spacing:-.01em}
+.ph p{margin:4px 0 0;color:var(--muted)}
+.crumb{font-size:13px;color:var(--muted);margin-bottom:6px}
+.crumb a{color:var(--muted)}
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.g-main{grid-template-columns:minmax(0,1.7fr) minmax(0,1fr)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px;box-shadow:var(--shadow);min-width:0}
+.card h3{margin:0 0 4px;font-size:16px;font-weight:700}
+.card .sub-t{color:var(--muted);font-size:13px;margin:0 0 14px}
+.ch{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px}
+.ch h3{margin:0}
+.card.newc{border:2px dashed var(--line2);background:var(--sunk);box-shadow:none}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;box-shadow:var(--shadow);min-width:0}
+.tile .lbl{font-size:13px;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:7px}
+.tile .big{font-size:34px;font-weight:800;letter-spacing:-.02em;margin:4px 0 2px;line-height:1.15}
+.tile .foot{font-size:12.5px;color:var(--muted)}
+.tile.gold{background:var(--gold-s);border-color:var(--gold-l)} .tile.gold .big{color:var(--gold-t)}
+.tile.jade .big{color:var(--jade-t)} .tile.blue .big{color:var(--blue-t)}
+.tile.orange{background:var(--orange-s);border-color:var(--orange-l)} .tile.orange .big{color:var(--orange-t)}
+.sw{width:10px;height:10px;border-radius:3px;display:inline-block}
+
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:3px 10px 3px 8px;border-radius:999px;white-space:nowrap;border:1px solid transparent}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.pill.ok{color:var(--jade-t);background:var(--jade-s);border-color:var(--jade-l)}
+.pill.earn{color:var(--blue-t);background:var(--blue-s);border-color:var(--blue-l)}
+.pill.wait{color:var(--gold-t);background:var(--gold-s);border-color:var(--gold-l)}
+.pill.bad{color:var(--orange-t);background:var(--orange-s);border-color:var(--orange-l)}
+.pill.danger{color:var(--red-t);background:var(--red-s);border-color:var(--red-l)}
+.pill.mut{color:var(--muted);background:var(--sunk);border-color:var(--line)}
+.pill.nodot::before{display:none}
+.newtag{display:inline-flex;align-items:center;font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:999px;border:1.5px dashed var(--muted);color:var(--ink2);white-space:nowrap}
+.testtag{font-size:10.5px;font-weight:800;letter-spacing:.04em;color:#6b4a00;background:#ffe9a8;border-radius:5px;padding:1px 6px;margin-left:6px}
+:root[data-theme="dark"] .testtag{background:#5a4512;color:#ffe3a1}
+.xtag{font-size:11px;font-weight:800;color:var(--red-t);background:var(--red-s);border:1px solid var(--red-l);border-radius:6px;padding:1px 7px;white-space:nowrap}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border-radius:var(--rc);border:1px solid var(--line2);background:var(--surface);color:var(--ink);font-weight:700;padding:9px 15px;min-height:38px;white-space:nowrap}
+.btn:hover{background:var(--sunk)}
+.btn.pri{background:var(--jade-t);border-color:var(--jade-t);color:#fff}
+.btn.pri:hover{filter:brightness(1.08)}
+.btn.earn{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn.warn{background:var(--orange-t);border-color:var(--orange-t);color:#fff}
+.btn.danger{background:var(--red);border-color:var(--red);color:#fff}
+:root[data-theme="dark"] .btn.pri{background:#138a6d;border-color:#138a6d}
+:root[data-theme="dark"] .btn.danger{background:#c0322b;border-color:#c0322b}
+:root[data-theme="dark"] .btn.warn{background:#b8502f;border-color:#b8502f}
+.btn.ghost{background:none;border-color:transparent;color:var(--blue-t);padding:6px 8px;min-height:30px}
+.btn.sm{padding:5px 11px;min-height:32px;font-size:13px}
+.btn[disabled]{opacity:.5;cursor:not-allowed;filter:none}
+.btn .lk{width:14px;height:14px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.spread{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.muted{color:var(--muted)}.small{font-size:12.5px}
+.stack>*+*{margin-top:12px}
+hr.sep{border:0;border-top:1px solid var(--line);margin:16px 0}
+
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:18px;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs a,.tabs button{background:none;border:0;border-bottom:2.5px solid transparent;padding:10px 12px;color:var(--muted);font-weight:700;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+.tabs .on{color:var(--ink);border-bottom-color:var(--jade)}
+.tabs .c{font-size:11px;background:var(--sunk);border:1px solid var(--line);border-radius:999px;padding:0 6px;color:var(--ink2)}
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:14px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 13px;font-weight:600;color:var(--ink2);white-space:nowrap;font-size:13px}
+.chip.on{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.chip b{font-weight:800;margin-left:4px}
+
+table.tbl{width:100%;border-collapse:collapse}
+.tbl th{text-align:left;font-size:12px;color:var(--muted);font-weight:700;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{padding:12px;border-bottom:1px solid var(--line);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:0}
+.tbl tr.click{cursor:pointer}
+.tbl tr.click:hover td{background:var(--sunk)}
+.tbl .r{text-align:right}
+.tblwrap{margin:0 -20px -20px;}
+.tblwrap .tbl th:first-child,.tblwrap .tbl td:first-child{padding-left:20px}
+.tblwrap .tbl th:last-child,.tblwrap .tbl td:last-child{padding-right:20px}
+.who{display:flex;align-items:center;gap:10px;min-width:0}
+.av{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:12px;flex:none;color:#fff}
+.av.h{background:var(--jade)} .av.e{background:var(--blue)} .av.b{background:linear-gradient(135deg,var(--jade) 50%,var(--blue) 50%)} .av.t{background:#a3a3a3}
+.av.lg{width:64px;height:64px;font-size:22px}
+.who b{display:block;font-weight:700}
+.who small{color:var(--muted);display:block}
+
+body.hide-test .is-test{display:none!important}
+
+/* inbox */
+.ibx{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--line)}
+.ibx:last-child{border-bottom:0}
+.ibx .ic{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;flex:none}
+.ic.m{background:var(--gold-s);color:var(--gold-t)} .ic.d{background:var(--orange-s);color:var(--orange-t)} .ic.h{background:var(--blue-s);color:var(--blue-t)} .ic.s{background:var(--red-s);color:var(--red-t)} .ic.y{background:var(--sunk);color:var(--ink2)} .ic.c{background:var(--jade-s);color:var(--jade-t)}
+.ibx .body{flex:1;min-width:0}
+.ibx .t{font-weight:700}
+.ibx .meta{color:var(--muted);font-size:13px}
+.ibx .acts{display:flex;gap:6px;flex:none;align-items:center}
+.wbar{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:var(--muted)}
+.wbar .tr{flex:0 1 160px;height:6px;background:var(--sunk);border:1px solid var(--line);border-radius:99px;overflow:hidden}
+.wbar .fi{height:100%;border-radius:99px}
+
+/* banner */
+.blocker{display:flex;gap:14px;align-items:center;background:var(--red-s);border:1px solid var(--red-l);color:var(--ink);border-radius:var(--r);padding:14px 18px;margin-bottom:18px}
+.blocker .ic2{width:36px;height:36px;border-radius:10px;background:var(--red);color:#fff;display:grid;place-items:center;flex:none}
+.blocker b{color:var(--red-t)}
+.note{background:var(--sunk);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:13px;color:var(--ink2)}
+.note.gold{background:var(--gold-s);border-color:var(--gold-l)}
+.note.blue{background:var(--blue-s);border-color:var(--blue-l)}
+
+/* bars */
+.bars{display:flex;align-items:flex-end;gap:6px;height:140px;padding-top:8px}
+.bars .b{flex:1;border-radius:6px 6px 2px 2px;background:var(--jade);min-width:0;position:relative}
+.bars .b:hover::after{content:attr(data-v);position:absolute;bottom:100%;left:50%;transform:translateX(-50%);font-size:11px;background:var(--ink);color:var(--surface);padding:2px 6px;border-radius:5px;white-space:nowrap;margin-bottom:4px}
+.axis{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:6px}
+.hbar{display:flex;align-items:center;gap:10px;margin:8px 0;font-size:13px}
+.hbar .l{width:150px;flex:none;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hbar .tr{flex:1;height:22px;background:var(--sunk);border-radius:6px;overflow:hidden;min-width:0}
+.hbar .fi{height:100%;border-radius:6px}
+.hbar .v{width:64px;text-align:right;font-weight:700;flex:none}
+.split{display:flex;height:12px;border-radius:99px;overflow:hidden;margin:10px 0 8px}
+.meter{height:10px;background:var(--sunk);border:1px solid var(--line);border-radius:99px;overflow:hidden;margin:8px 0}
+.meter>div{height:100%}
+
+/* toggle */
+.tg{width:46px;height:26px;border-radius:99px;background:var(--line2);border:0;position:relative;flex:none;transition:background .15s;padding:0}
+.tg::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .15s}
+.tg.on{background:var(--jade)}
+.tg.on::after{left:23px}
+.tg.on.red{background:var(--red)}
+.tg[disabled]{opacity:.45;cursor:not-allowed}
+.swrow{display:flex;gap:14px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}
+.swrow:last-child{border-bottom:0}
+.swrow .tx{flex:1;min-width:0}
+.swrow .tx b{font-weight:700}
+.swrow .tx .d{color:var(--muted);font-size:13px}
+.swrow .tx code{font-size:11.5px;color:var(--muted);background:var(--sunk);padding:1px 5px;border-radius:4px}
+.swrow.blk{background:var(--red-s);border:1px solid var(--red-l);border-radius:12px;padding:14px;margin-bottom:6px}
+.kv{display:grid;grid-template-columns:minmax(110px,auto) 1fr;gap:8px 16px;font-size:13.5px}
+.kv dt{color:var(--muted)} .kv dd{margin:0;font-weight:600;min-width:0;overflow-wrap:anywhere}
+
+/* timeline */
+.tl{position:relative;padding-left:22px}
+.tl::before{content:"";position:absolute;left:6px;top:4px;bottom:4px;width:2px;background:var(--line)}
+.tl .e{position:relative;padding:0 0 14px}
+.tl .e::before{content:"";position:absolute;left:-21px;top:5px;width:10px;height:10px;border-radius:50%;background:var(--surface);border:2px solid var(--muted)}
+.tl .e.j::before{border-color:var(--jade)} .tl .e.bl::before{border-color:var(--blue)} .tl .e.g::before{border-color:var(--gold)} .tl .e.o::before{border-color:var(--orange);background:var(--orange)}
+.tl .e small{color:var(--muted);display:block}
+.chat{display:flex;flex-direction:column;gap:8px}
+.msg{max-width:80%;padding:9px 12px;border-radius:14px;font-size:13.5px}
+.msg.p{background:var(--jade-s);border:1px solid var(--jade-l);align-self:flex-start;border-bottom-left-radius:4px}
+.msg.w{background:var(--blue-s);border:1px solid var(--blue-l);align-self:flex-end;border-bottom-right-radius:4px}
+.msg small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+.photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.ph-img{aspect-ratio:4/3;border-radius:10px;position:relative;overflow:hidden;border:1px solid var(--line)}
+.ph-img span{position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,.55);color:#fff;font-size:11.5px;padding:4px 8px}
+.opt{display:flex;gap:12px;align-items:flex-start;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer;margin-bottom:8px}
+.opt input{margin-top:3px}
+.opt.sel{border-color:var(--jade);background:var(--jade-s)}
+.opt b{display:block}
+.opt small{color:var(--muted)}
+.side-col .card+.card{margin-top:16px}
+.actlist{display:flex;flex-direction:column;gap:8px}
+.actlist .btn{justify-content:flex-start;width:100%}
+
+/* modal */
+.scrim{position:fixed;inset:0;background:rgba(8,14,12,.5);z-index:100;display:none;align-items:center;justify-content:center;padding:16px}
+.scrim.show{display:flex}
+.modal{background:var(--surface);border-radius:18px;width:100%;max-width:500px;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);border:1px solid var(--line)}
+.modal .mh{display:flex;gap:12px;align-items:flex-start;padding:20px 22px 6px}
+.modal .mh .ic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;flex:none}
+.modal h2{margin:0;font-size:18px}
+.modal .tier{font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.modal .mb{padding:8px 22px 4px}
+.modal .mb ul{margin:6px 0 10px;padding-left:20px}
+.modal .mb li{margin:4px 0}
+.modal .envl{font-size:12.5px;font-weight:700;border-radius:8px;padding:7px 10px;margin:10px 0}
+.envl.stg{background:var(--gold-s);color:var(--gold-t);border:1px solid var(--gold-l)}
+.envl.prd{background:var(--red-s);color:var(--red-t);border:1px solid var(--red-l)}
+.modal label{display:block;font-weight:700;font-size:13px;margin:12px 0 6px}
+.modal input.code{letter-spacing:.5em;font-size:20px;font-weight:800;text-align:center;width:100%}
+.modal input.word{width:100%;font-weight:700}
+.modal .mf{display:flex;justify-content:flex-end;gap:8px;padding:16px 22px 20px}
+.ba{display:flex;align-items:center;gap:10px;background:var(--sunk);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-weight:700;flex-wrap:wrap}
+.ba .from{color:var(--muted);text-decoration:line-through}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--surface);padding:11px 16px;border-radius:12px;font-weight:600;z-index:120;opacity:0;pointer-events:none;transition:all .2s;display:flex;gap:14px;align-items:center;max-width:calc(100vw - 32px)}
+.toast.show{opacity:1;transform:translateX(-50%);pointer-events:auto}
+.toast button{background:none;border:0;color:var(--jade-l);font-weight:800}
+.drawer-scrim{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:90;display:none}
+
+/* demo panel */
+.demo{position:fixed;right:16px;bottom:16px;z-index:70;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.15);padding:12px 14px;width:236px;font-size:12.5px}
+.demo h5{margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);display:flex;justify-content:space-between}
+.demo h5 button{background:none;border:0;color:var(--muted);font-size:11px;padding:0}
+.demo label{display:block;font-weight:700;margin:6px 0 3px}
+.demo select{width:100%;padding:6px 8px}
+.demo.min .db{display:none}
+.demo p{margin:6px 0 0;color:var(--muted)}
+
+/* skeleton */
+.sk{background:linear-gradient(90deg,var(--sunk),var(--line),var(--sunk));background-size:200% 100%;animation:sh 1.3s infinite;border-radius:8px;height:14px;margin:8px 0}
+@keyframes sh{to{background-position:-200% 0}}
+.empty{text-align:center;padding:30px 16px;color:var(--muted)}
+.empty .eic{width:52px;height:52px;margin:0 auto 10px;border-radius:16px;background:var(--sunk);display:grid;place-items:center;color:var(--ink2)}
+.empty b{display:block;color:var(--ink);font-size:15px;margin-bottom:4px}
+
+.bottombar{display:none}
+.ticket-list a{display:block;padding:12px 14px;border-bottom:1px solid var(--line);color:var(--ink)}
+.ticket-list a.on{background:var(--blue-s)}
+.ticket-list a small{color:var(--muted)}
+.cohort{border-collapse:collapse;width:100%;font-size:12px}
+.cohort td,.cohort th{padding:6px;text-align:center;border:2px solid var(--surface)}
+.cohort th{color:var(--muted);font-weight:700}
+.donut{width:150px;height:150px;border-radius:50%;flex:none;position:relative}
+.donut::after{content:"";position:absolute;inset:28px;background:var(--surface);border-radius:50%}
+.legend div{display:flex;align-items:center;gap:8px;margin:6px 0}
+.check{display:flex;gap:14px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}
+.check:last-child{border-bottom:0}
+.check .st{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;flex:none}
+.st.y{background:var(--jade-s);color:var(--jade-t)} .st.n{background:var(--red-s);color:var(--red-t)} .st.p{background:var(--gold-s);color:var(--gold-t)}
+.audit .a{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.audit .a:last-child{border-bottom:0}
+.audit details summary{cursor:pointer;color:var(--blue-t);font-size:12.5px;font-weight:600}
+.prev-banner{border-radius:12px;padding:12px 14px;font-weight:600;display:flex;gap:10px;align-items:center}
+
+@media (max-width:1100px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g-main{grid-template-columns:minmax(0,1fr)}.g3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:760px){
+  .side{position:fixed;left:0;top:0;height:100vh!important;z-index:95;transform:translateX(-100%);transition:transform .22s;width:280px!important}
+  body.drawer .side{transform:none}
+  body.drawer .drawer-scrim{display:block}
+  body.collapsed .side .txt,body.collapsed .side .sub,body.collapsed .side .chev,body.collapsed .logo span,body.collapsed .side-foot{display:revert}
+  .collapse-btn{display:none}
+  .rb-long{display:none}
+  .top{padding:8px 12px;gap:6px;top:27px}
+  .top .hide-sm{display:none}
+  .menu-btn{display:inline-flex}
+  main{padding:16px 16px 96px}
+  .g2,.g3,.g4{grid-template-columns:1fr}
+  .g4.keep2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tile .big{font-size:26px}
+  .tile{padding:14px}
+  .card{padding:16px}
+  .tblwrap{margin:0 -16px -16px}
+  .ph h1{font-size:22px}
+  .tbl thead{display:none}
+  .tbl,.tbl tbody,.tbl tr,.tbl td{display:block;width:100%}
+  .tbl tr{padding:12px 16px;border-bottom:1px solid var(--line)}
+  .tblwrap .tbl td,.tbl td{padding:3px 0!important;border:0;display:flex;justify-content:space-between;gap:12px;text-align:right}
+  .tbl td::before{content:attr(data-l);color:var(--muted);font-size:12px;font-weight:600;text-align:left;flex:none}
+  .tbl td.r{text-align:right}
+  .tbl td .who{text-align:left}
+  .ibx{flex-wrap:wrap}
+  .ibx .acts{width:100%;padding-left:52px;flex-wrap:wrap}
+  .g-tk{grid-template-columns:minmax(0,1fr)!important}
+  .bottombar{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:50;background:var(--surface);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+  .bottombar a,.bottombar button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;font-weight:700;color:var(--muted);background:none;border:0;padding:4px 0;position:relative}
+  .bottombar .on{color:var(--jade-t)}
+  .bottombar .dot{position:absolute;top:0;left:calc(50% + 6px);background:var(--orange);color:#fff;font-size:10px;border-radius:99px;padding:0 5px}
+  .demo{right:8px;left:8px;width:auto;bottom:74px}
+  .scrim{align-items:flex-end;padding:0}
+  .modal{border-radius:18px 18px 0 0;max-width:none}
+  .modal .mf .btn{flex:1}
+  .hbar .l{width:96px}
+  .kv{grid-template-columns:1fr}
+  .kv dt{margin-top:6px}
+  .search{max-width:none}
+}
+</style>
+</head>
+<body class="hide-test">
+<div class="ribbon" id="ribbon"><b>STAGING</b>Test copy, fake money<span class="rb-long"> · admin.taskdrop.in · nothing here touches real users</span></div>
+<div class="shell">
+  <aside class="side" id="side">
+    <div class="logo"><div class="mark"><svg class="i" viewBox="0 0 24 24" style="color:#fff"><path d="M12 3v10m0 0-4-4m4 4 4-4"/><path d="M6 15l3 3 7-7" opacity=".0"/><path d="M5 19h14"/></svg></div><span>taskdrop.<small>Admin</small></span></div>
+    <nav class="nav" id="nav"></nav>
+    <button class="collapse-btn" onclick="toggleCollapse()"><svg class="i" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg><span class="txt">Collapse menu</span></button>
+    <div class="side-foot">Design preview · 28 Nov 2026<br><a href="#/states">Empty, loading and error states</a></div>
+  </aside>
+  <div class="drawer-scrim" onclick="document.body.classList.remove('drawer')"></div>
+  <div class="mainwrap">
+    <header class="top">
+      <button class="iconbtn menu-btn" onclick="document.body.classList.add('drawer')" aria-label="Open menu"><svg class="i" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <div class="search">
+        <svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="q" placeholder="Search people, tasks, payments, tickets (name, phone or id)" autocomplete="off" aria-label="Search">
+        <div class="sres" id="sres"></div>
+      </div>
+      <div class="tb-right">
+        <span class="envbadge">Production</span>
+        <label class="switch-chip hide-sm" title="Hide fake test people (fa4e0001-*) from lists and numbers"><button class="tg on" id="testTg" onclick="toggleTest(event)" aria-label="Hide test data"></button><span>Hide test data</span></label>
+        <button class="switch-chip mfa-chip hide-sm" id="mfaChip" onclick="unlockMfa()"><svg class="i" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span>Unlock money actions</span></button>
+        <button class="iconbtn" onclick="go('inbox')" aria-label="Inbox"><svg class="i" viewBox="0 0 24 24"><path d="M4 13h4l2 3h4l2-3h4"/><path d="M5 5h14l1 8v6H4v-6z"/></svg><span class="dot" id="topInboxCount">12</span></button>
+        <button class="iconbtn" onclick="toggleTheme()" aria-label="Light or dark"><svg class="i" viewBox="0 0 24 24" id="themeIc"><path d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10z"/></svg></button>
+        <button class="iconbtn hide-sm" onclick="go('security')" title="Signed in as owner"><span style="width:24px;height:24px;border-radius:50%;background:var(--jade);color:#fff;display:grid;place-items:center;font-size:11px;font-weight:800">HO</span><span id="roleLbl">Admin</span></button>
+      </div>
+    </header>
+    <main id="main"></main>
+  </div>
+</div>
+<nav class="bottombar" id="bottombar"></nav>
+
+<div class="demo" id="demo">
+  <h5><span>Design demo controls</span><button onclick="document.getElementById('demo').classList.toggle('min')">hide / show</button></h5>
+  <div class="db">
+    <label for="roleSel">See it as role</label>
+    <select id="roleSel" onchange="setRole(this.value)"><option>Admin</option><option>Finance</option><option>Support</option><option>Sales</option><option>Viewer</option></select>
+    <label for="envSel">Server</label>
+    <select id="envSel" onchange="setEnv(this.value)"><option value="stg">Staging (admin.taskdrop.in)</option><option value="prod">Production</option></select>
+    <label class="switch-chip" style="margin-top:8px;width:100%"><button class="tg on" id="testTg2" onclick="toggleTest(event)" aria-label="Hide test data"></button><span>Hide test data</span></label>
+    <p>Nothing here is real. Buttons show the confirm steps but change nothing.</p>
+  </div>
+</div>
+
+<div class="scrim" id="scrim" onclick="if(event.target===this)closeModal()"><div class="modal" id="modal" role="dialog" aria-modal="true"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------- icons ---------- */
+const IC={
+home:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>',
+inbox:'<path d="M4 13h4l2 3h4l2-3h4"/><path d="M5 5h14l1 8v6H4v-6z"/>',
+rupee:'<path d="M7 5h10M7 9h10M7 5c6 0 6 8 0 8h-.5L14 20"/>',
+users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/>',
+shield:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>',
+help:'<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5V14M12 17.5v.01"/>',
+grow:'<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
+gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-2.7-1.1l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.1-2.7l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 2.7-1.1V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0 1.1 2.7H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/>',
+chev:'<path d="M9 6l6 6-6 6"/>',
+lock:'<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+alert:'<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.01"/>',
+check:'<path d="M5 12l5 5 9-10"/>',
+x:'<path d="M6 6l12 12M18 6L6 18"/>',
+clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+scale:'<path d="M12 3v18M5 7h14M5 7l-3 7a4 4 0 0 0 6 0zM19 7l-3 7a4 4 0 0 0 6 0z"/>',
+copy:'<circle cx="12" cy="12" r="9"/><path d="M15 9.5a3.5 3.5 0 1 0 0 5"/>',
+flag:'<path d="M5 21V4h11l-2 4 2 4H5"/>',
+bolt:'<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
+more:'<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>',
+sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+moon:'<path d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10z"/>',
+retry:'<path d="M4 12a8 8 0 0 1 14-5.3L20 9"/><path d="M20 4v5h-5"/><path d="M20 12a8 8 0 0 1-14 5.3L4 15"/><path d="M4 20v-5h5"/>',
+msg:'<path d="M4 5h16v11H8l-4 4z"/>',
+plus:'<path d="M12 5v14M5 12h14"/>',
+dl:'<path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/>',
+eye:'<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+pause:'<path d="M8 5v14M16 5v14"/>',
+play:'<path d="M7 4l13 8-13 8z"/>'
+};
+const ic=(n,c='')=>`<svg class="i ${c}" viewBox="0 0 24 24">${IC[n]||''}</svg>`;
+
+/* ---------- state ---------- */
+const S={role:'Admin',env:'stg',hideTest:true,mfaUntil:0,theme:'light',inboxFilter:'all',taskFilter:'all',peopleFilter:'all',decision:'split',splitWorker:1200,broadcastSeg:'s2',switches:{}};
+const PERM={Admin:['money','disputes','settings','team','delete','support','safety','crm','write'],Finance:['money','disputes','write'],Support:['support','safety','crm','suspend','write'],Sales:['support','crm','write'],Viewer:[]};
+const can=p=>p==='none'||PERM[S.role].includes(p)||(p==='suspend'&&S.role==='Admin');
+
+/* ---------- data ---------- */
+const P={
+p1:{n:'Anita Reddy',k:'h',area:'Kondapur, Hyderabad',ph:'+91 98•••• •4521',joined:'12 Sep 2026',posted:14,spent:18450,rating:4.9,tags:['Regular poster'],test:false},
+p2:{n:'Ravi Kumar',k:'e',area:'Madhapur, Hyderabad',ph:'+91 90•••• •7710',joined:'3 Aug 2026',done:41,earned:52300,rating:4.8,goal:'Gig income',tags:['Top helper','Streak 9 weeks'],test:false},
+p3:{n:'Priya Sharma',k:'b',area:'Indiranagar, Bengaluru',ph:'+91 99•••• •0193',joined:'21 Oct 2026',posted:3,done:6,spent:2100,earned:4800,rating:4.7,tags:[],test:false},
+p4:{n:'Mohammed Irfan',k:'e',area:'Gachibowli, Hyderabad',ph:'+91 81•••• •3302',joined:'14 Nov 2026',done:2,earned:900,rating:3.1,tags:['Suspended'],test:false,susp:true},
+p5:{n:'Sneha Iyer',k:'h',area:'Koramangala, Bengaluru',ph:'+91 97•••• •6618',joined:'2 Oct 2026',posted:7,spent:9800,rating:4.6,tags:[],test:false},
+p6:{n:'Arjun Nair',k:'e',area:'HSR Layout, Bengaluru',ph:'+91 88•••• •2047',joined:'19 Sep 2026',done:23,earned:21650,rating:4.9,goal:'Own business',tags:[],test:false},
+p7:{n:'Lakshmi Devi',k:'h',area:'Banjara Hills, Hyderabad',ph:'+91 94•••• •5580',joined:'30 Oct 2026',posted:2,spent:1000,rating:5,tags:['New account'],test:false},
+p8:{n:'Vikram Singh',k:'e',area:'Whitefield, Bengaluru',ph:'+91 70•••• •1123',joined:'11 Sep 2026',done:17,earned:15400,rating:4.5,goal:'Gig income',tags:[],test:false},
+p9:{n:'Test helper 017',k:'t',area:'Kukatpally, Hyderabad',ph:'+91 98880 00017',joined:'10 Nov 2026',done:12,earned:6200,rating:4.4,tags:['fa4e0001-0017'],test:true},
+p10:{n:'Test poster 042',k:'t',area:'Jayanagar, Bengaluru',ph:'+91 98880 00042',joined:'10 Nov 2026',posted:9,spent:5400,rating:4.5,tags:['fa4e0001-0042'],test:true},
+p11:{n:'Test helper 088',k:'t',area:'Ameerpet, Hyderabad',ph:'+91 98880 00088',joined:'10 Nov 2026',done:5,earned:2100,rating:4.2,tags:['fa4e0001-0088'],test:true}
+};
+const T={
+'TD-4821':{t:'Assemble wardrobe and mount 55" TV',area:'Kondapur, Hyderabad',amt:1800,st:['Dispute open','bad'],p:'p1',w:'p2',kind:'Local',cat:'Home repair',when:'26 Nov'},
+'TD-4835':{t:'Pick up medicines from Apollo Pharmacy',area:'Indiranagar, Bengaluru',amt:250,st:['In progress','earn'],p:'p3',w:'p6',kind:'Local',cat:'Errands',when:'28 Nov'},
+'TD-4840':{t:'Deep clean 2BHK kitchen and chimney',area:'Koramangala, Bengaluru',amt:2400,st:['Waiting for offers','wait'],p:'p5',w:null,kind:'Local',cat:'Cleaning',when:'28 Nov'},
+'TD-4802':{t:'Fix leaking bathroom tap',area:'Madhapur, Hyderabad',amt:600,st:['Done · paid out','ok'],p:'p7',w:'p2',kind:'Local',cat:'Home repair',when:'22 Nov'},
+'TD-4799':{t:'Design a Telugu wedding invite',area:'Remote',amt:1500,st:['Proof sent','earn'],p:'p1',w:'p8',kind:'Remote',cat:'Design',when:'25 Nov'},
+'TD-4846':{t:'Stand in queue at RTA office',area:'Banjara Hills, Hyderabad',amt:500,st:['Hired','earn'],p:'p7',w:'p4',kind:'Local',cat:'Errands',when:'28 Nov'},
+'TD-4790':{t:'Carry 20 boxes to 3rd floor (no lift)',area:'HSR Layout, Bengaluru',amt:900,st:['Cancelled · refund asked','wait'],p:'p5',w:'p6',kind:'Local',cat:'Moving',when:'24 Nov'},
+'TD-4777':{t:'Paint one bedroom wall (accent)',area:'Whitefield, Bengaluru',amt:1500,st:['Done · release failed','bad'],p:'p3',w:'p8',kind:'Local',cat:'Painting',when:'23 Nov'},
+'TD-4851':{t:'Walk my dog every evening this week',area:'Jayanagar, Bengaluru',amt:300,st:['In progress','earn'],p:'p10',w:'p9',kind:'Local',cat:'Pets',when:'27 Nov',test:true},
+'TD-4853':{t:'Help set up new router',area:'Ameerpet, Hyderabad',amt:400,st:['Waiting for offers','wait'],p:'p10',w:null,kind:'Local',cat:'Tech help',when:'28 Nov',test:true}
+};
+const INBOX=[
+{id:'i1',type:'d',cat:'disputes',t:'Dispute: wardrobe and TV job',who:'Anita Reddy vs Ravi Kumar · ₹1,800 held',used:31,of:48,go:'task/TD-4821',btn:'Decide'},
+{id:'i2',type:'m',cat:'money',t:'Release failed: ₹1,350 to Vikram Singh',who:'TD-4777 · Razorpay said "account not ready" · try 3 of 5',used:5,of:24,go:'money/moves',btn:'Retry',retry:true},
+{id:'i3',type:'h',cat:'help',t:'"I paid but the task still shows unpaid"',who:'Sneha Iyer · Help request #H-2207',used:20,of:24,go:'support/H-2207',btn:'Reply'},
+{id:'i4',type:'m',cat:'money',t:'Refund asked: ₹900 for a cancelled job',who:'Sneha Iyer · TD-4790 · helper agreed',used:9,of:48,go:'task/TD-4790',btn:'Review'},
+{id:'i5',type:'s',cat:'safety',t:'Safety alarm: 6 reports in 1 hour on one person',who:'Mohammed Irfan · already suspended automatically',used:1,of:4,go:'person/p4',btn:'Open'},
+{id:'i6',type:'c',cat:'copyright',t:'Copyright notice: photo used in a design task',who:'TD-4799 · from "Studio Kalyani"',used:40,of:72,go:'safety/copyright',btn:'Review'},
+{id:'i7',type:'m',cat:'money',t:'Money check found ₹450 we cannot match',who:'Nightly check 02:30 · Razorpay shows a refund we did not record',used:6,of:24,go:'money/check',btn:'Look'},
+{id:'i8',type:'s',cat:'safety',t:'Task text flagged: shares a phone number',who:'"Call me on WhatsApp 98•••…" · TD-4849',used:2,of:24,go:'safety/moderation',btn:'Review'},
+{id:'i9',type:'h',cat:'help',t:'"I can\'t change my phone number"',who:'Priya Sharma · Help request #H-2210',used:3,of:24,go:'support/H-2210',btn:'Reply'},
+{id:'i10',type:'y',cat:'system',t:'Background jobs at 92% of the free monthly limit',who:'Inngest · resets 1 Dec · 46,200 of 50,000 used',used:20,of:72,go:'health',btn:'Open'},
+{id:'i11',type:'s',cat:'safety',t:'7 new skills people added need a look',who:'Skills catalog · e.g. "mehndi artist", "sofa dry clean"',used:22,of:72,go:'safety/skills',btn:'Review'},
+{id:'i12',type:'m',cat:'money',t:'Old wallet withdrawal: ₹2,000 to Ravi Kumar',who:'UPI ravi.k@okaxis · from before Pay per task',used:14,of:24,go:'money/payouts',btn:'Pay'},
+{id:'i13',type:'h',cat:'help',t:'"Test ticket from seed"',who:'Test poster 042 · Help request #H-2199',used:2,of:24,go:'support/H-2199',btn:'Reply',test:true}
+];
+const ROLE_INBOX={Admin:null,Finance:['money','disputes'],Support:['help','safety','copyright'],Sales:['help'],Viewer:null};
+
+/* ---------- helpers ---------- */
+const inr=n=>'₹'+Number(n).toLocaleString('en-IN');
+const pill=(t,k='mut')=>`<span class="pill ${k}">${t}</span>`;
+const NEW='<span class="newtag">New · needs building</span>';
+const tt=b=>b?'<span class="testtag">TEST</span>':'';
+const ini=n=>n.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+function who(id,sub){const p=P[id];if(!p)return '<span class="muted">Nobody yet</span>';return `<a class="who" href="#/person/${id}" onclick="event.stopPropagation()"><span class="av ${p.k}">${ini(p.n)}</span><span><b>${p.n}${tt(p.test)}</b><small>${sub||p.area}</small></span></a>`}
+function tbl(cols,rows){
+  return `<table class="tbl"><thead><tr>${cols.map(c=>`<th class="${c.r?'r':''}">${c.l}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr class="${r.go?'click':''} ${r.test?'is-test':''}" ${r.go?`onclick="go('${r.go}')"`:''}>${r.c.map((v,i)=>`<td data-l="${cols[i].l}" class="${cols[i].r?'r':''}">${v}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+}
+const card=(h,body,o={})=>`<div class="card ${o.cls||''}" ${o.id?`id="${o.id}"`:''}>${h?`<div class="ch"><div><h3>${h}</h3>${o.sub?`<p class="sub-t" style="margin:2px 0 0">${o.sub}</p>`:''}</div>${o.right||''}</div>`:''}${body}</div>`;
+function tile(lbl,val,foot,cls='',vt){return `<div class="tile ${cls}"><div class="lbl">${lbl}</div><div class="big num" ${vt?`data-a="${vt[0]}" data-r="${vt[1]}"`:''}>${val}</div><div class="foot">${foot}</div></div>`}
+function bars(vals,color,labels){const m=Math.max(...vals);return `<div class="bars">${vals.map((v,i)=>`<div class="b" style="height:${Math.max(4,v/m*100)}%;background:${color}" data-v="${labels?labels[i]+': ':''}${inr(v)}"></div>`).join('')}</div>`}
+function hbar(l,v,max,color,txt){return `<div class="hbar"><span class="l" title="${l}">${l}</span><span class="tr"><span class="fi" style="display:block;width:${v/max*100}%;background:${color}"></span></span><span class="v">${txt||v}</span></div>`}
+function wbar(used,of){const r=used/of;const c=r>.8?'var(--orange)':r>.5?'var(--gold)':'var(--jade)';const txt=of>=48&&used>=24?`${Math.floor(used/24)} d ${used%24} h`:`${used} h`;return `<div class="wbar"><span class="tr"><span class="fi" style="display:block;width:${Math.min(100,r*100)}%;background:${c}"></span></span><span>waited ${txt} of ${of} h promise</span></div>`}
+
+/* action registry */
+let A={},an=0;
+function act(label,cfg,cls='btn'){
+  const k='a'+(++an);A[k]=cfg;
+  const ok=can(cfg.perm||'write');
+  const why=cfg.perm==='settings'||cfg.perm==='team'||cfg.perm==='delete'?'Admin only':S.role==='Viewer'?'View only':'Your role cannot do this';
+  return `<button class="${cls}" ${ok?`onclick="runAct('${k}')"`:`disabled title="${why}"`}>${ok?(cfg.icon?ic(cfg.icon):''):ic('lock','lk')}${label}</button>`;
+}
+function runAct(k){const c=A[k];if(!c)return;if(c.tier===1){toast(c.done||'Done',true);return}openModal(c)}
+
+/* ---------- modal ---------- */
+let M=null;
+function openModal(c){
+  M=c;const t3=c.tier===3;const md=document.getElementById('modal');
+  const tone=c.tone||(t3?'danger':'pri');
+  const icCls=t3?'s':c.tone==='warn'?'d':'c';
+  md.innerHTML=`<div class="mh"><div class="ic ${icCls}" style="${t3?'background:var(--red-s);color:var(--red-t)':''}">${ic(t3?'lock':c.tone==='warn'?'alert':'check')}</div><div><div class="tier">${t3?'Step 3 of 3 safety: type + authenticator code':'Please confirm'}</div><h2>${c.title}</h2></div></div>
+  <div class="mb">${c.body||''}
+  ${c.ba?`<div class="ba"><span class="from">${c.ba[0]}</span><span>→</span><span>${c.ba[1]}</span></div>`:''}
+  <div class="envl ${S.env==='prod'?'prd':'stg'}">${S.env==='prod'?'PRODUCTION · real people and real money':'You are on STAGING · test copy, fake money'}</div>
+  ${t3?`<label for="mw">Type <span style="font-family:monospace;background:var(--sunk);padding:1px 6px;border-radius:5px">${c.word}</span> to continue</label><input class="word" id="mw" autocomplete="off" oninput="chkModal()">
+  <label for="mc">6-digit code from your authenticator app</label><input class="code" id="mc" inputmode="numeric" maxlength="6" placeholder="••••••" oninput="chkModal()"><div class="small muted" style="margin-top:6px">Demo: any 6 digits work.</div>`:''}
+  </div>
+  <div class="mf"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn ${tone}" id="mgo" ${t3?'disabled':''} onclick="doModal()">${c.go||'Confirm'}</button></div>`;
+  document.getElementById('scrim').classList.add('show');
+  setTimeout(()=>{const f=md.querySelector('input')||md.querySelector('#mgo');f&&f.focus()},50);
+}
+function chkModal(){const w=document.getElementById('mw').value.trim(),c=document.getElementById('mc').value.trim();document.getElementById('mgo').disabled=!(w.toUpperCase()===String(M.word).toUpperCase()&&/^\d{6}$/.test(c))}
+function closeModal(){document.getElementById('scrim').classList.remove('show');M=null}
+function doModal(){const c=M;closeModal();if(c.tier===3)S.mfaUntil=Date.now()+10*60e3;updMfa();if(c.after)c.after();toast((c.done||'Done')+' · demo only, nothing changed',c.tier===2&&c.undo)}
+let tT;function toast(m,undo){const t=document.getElementById('toast');t.innerHTML=`<span>${m}</span>${undo?'<button onclick="toast(\'Undone\')">Undo</button>':''}`;t.classList.add('show');clearTimeout(tT);tT=setTimeout(()=>t.classList.remove('show'),3200)}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();hideRes();document.body.classList.remove('drawer')}if(e.key==='/'&&document.activeElement.tagName!=='INPUT'&&document.activeElement.tagName!=='TEXTAREA'){e.preventDefault();document.getElementById('q').focus()}});
+function unlockMfa(){if(!can('money')&&!can('settings')){toast('Your role has no money or settings actions');return}openModal({tier:3,title:'Unlock money and settings actions for 10 minutes',body:'<p>After this, money and settings buttons still ask you to confirm, but you will not need a new code for 10 minutes.</p>',word:'UNLOCK',go:'Unlock',tone:'pri',done:'Unlocked for 10 minutes'})}
+function updMfa(){const c=document.getElementById('mfaChip');const on=S.mfaUntil>Date.now();c.classList.toggle('ok',on);c.querySelector('span').textContent=on?'Unlocked · 10 min':'Unlock money actions'}
+
+/* ---------- nav ---------- */
+const NAV=[
+{id:'today',l:'Today',i:'home'},
+{id:'inbox',l:'Inbox',i:'inbox',cnt:true},
+{id:'money',l:'Money',i:'rupee',hide:['Sales'],kids:[['money/overview','Overview'],['money/moves','Holds & moves'],['money/payouts','Payouts (old wallet)'],['money/refunds','Refunds'],['money/check','Money check'],['money/fees','Fees & money switches']]},
+{id:'people',l:'People & tasks',i:'users',kids:[['people','People'],['tasks','Tasks'],['devices','Devices & versions']]},
+{id:'safety',l:'Safety',i:'shield',kids:[['safety/reports','Reported content'],['safety/moderation','Text & video checks'],['safety/skills','Skills catalog'],['safety/hunt','City Hunt photos'],['safety/copyright','Copyright']]},
+{id:'support',l:'Support',i:'help',kids:[['support','Help requests'],['support/feedback','Feedback board']]},
+{id:'growth',l:'Growth',i:'grow',lock:['Finance'],kids:[['growth/segments','Segments'],['growth/broadcast','Broadcast'],['growth/leads','Leads & follow-ups'],['growth/promotions','Promotions'],['reports','Reports & numbers']]},
+{id:'settings',l:'Settings',i:'gear',kids:[['settings','App switches',{lock:['Finance','Support','Sales','Viewer']}],['content','Content',{lock:['Finance','Support','Sales','Viewer']}],['team','Team & access',{lock:['Finance','Support','Sales'],hide:['Viewer']}],['health','System health',{hide:['Sales'],lock:['Support']}],['audit','Audit log',{lock:['Support','Sales']}],['launch','Launch checklist',{lock:['Finance','Support','Sales','Viewer']}],['security','My security']]}
+];
+const GROUP_OF={};NAV.forEach(g=>(g.kids||[[g.id]]).forEach(k=>GROUP_OF[k[0]]=g.id));
+const inboxCount=()=>INBOX.filter(x=>(!S.hideTest||!x.test)&&(!ROLE_INBOX[S.role]||ROLE_INBOX[S.role].includes(x.cat))).length;
+function kidState(k){const o=k[2]||{};if(o.hide&&o.hide.includes(S.role))return 'hide';if(o.lock&&o.lock.includes(S.role))return 'lock';return 'ok'}
+function renderNav(cur){
+  const curKey=cur;const g0=GROUP_OF[curKey]||(curKey.startsWith('person')?'people':curKey.startsWith('task')?'people':curKey.startsWith('support')?'support':curKey.startsWith('safety')?'safety':curKey.startsWith('money')?'money':curKey.startsWith('growth')?'growth':'');
+  document.getElementById('nav').innerHTML=NAV.filter(g=>!(g.hide||[]).includes(S.role)).map(g=>{
+    if(!g.kids)return `<div class="ng"><a class="nl ${g0===g.id?'on':''}" href="#/${g.id}" title="${g.l}">${ic(g.i)}<span class="txt">${g.l}</span>${g.cnt?`<span class="cnt">${inboxCount()}</span>`:''}</a></div>`;
+    const gl=(g.lock||[]).includes(S.role);
+    const kids=g.kids.filter(k=>kidState(k)!=='hide');
+    return `<div class="ng ${g0===g.id?'open':''}" id="ng-${g.id}"><button class="nl ${g0===g.id?'on':''}" title="${g.l}" onclick="navGroup('${g.id}','${kids[0][0]}')">${ic(g.i)}<span class="txt">${g.l}</span><svg class="i chev" viewBox="0 0 24 24">${IC.chev}</svg></button><div class="sub">${kids.map(k=>{const st=gl?'lock':kidState(k);return `<a href="#/${k[0]}" class="${location.hash==='#/'+k[0]||curKey===k[0]?'on':''} ${st==='lock'?'locked':''}">${k[1]}${st==='lock'?ic('lock','lk'):''}</a>`}).join('')}</div></div>`;
+  }).join('');
+  const bb=[['today','Today','home'],['inbox','Inbox','inbox'],S.role==='Sales'?['support','Support','help']:['money/overview','Money','rupee'],['people','People','users']];
+  document.getElementById('bottombar').innerHTML=bb.map(b=>`<a href="#/${b[0]}" class="${g0===GROUP_OF[b[0]]?'on':''}">${ic(b[2])}${b[1]}${b[0]==='inbox'?`<span class="dot">${inboxCount()}</span>`:''}</a>`).join('')+`<button onclick="document.body.classList.add('drawer')">${ic('more')}More</button>`;
+  document.getElementById('topInboxCount').textContent=inboxCount();
+}
+function navGroup(id,first){if(document.body.classList.contains('collapsed')||!document.getElementById('ng-'+id).classList.contains('open')){go(first)}else document.getElementById('ng-'+id).classList.toggle('open')}
+function go(h){location.hash='#/'+h}
+function toggleCollapse(){document.body.classList.toggle('collapsed')}
+function toggleTheme(){S.theme=S.theme==='light'?'dark':'light';document.documentElement.dataset.theme=S.theme;document.getElementById('themeIc').innerHTML=S.theme==='dark'?IC.sun:IC.moon}
+function toggleTest(e){e&&e.preventDefault();S.hideTest=!S.hideTest;document.body.classList.toggle('hide-test',S.hideTest);['testTg','testTg2'].forEach(i=>document.getElementById(i).classList.toggle('on',S.hideTest));applyNums();renderNav(cur());toast(S.hideTest?'Test people hidden from lists and numbers':'Showing test people (marked TEST)')}
+function applyNums(){document.querySelectorAll('[data-a]').forEach(el=>el.textContent=S.hideTest?el.dataset.r:el.dataset.a)}
+function setRole(r){S.role=r;document.getElementById('roleLbl').textContent=r;route();toast('Now seeing the panel as '+r)}
+function setEnv(v){S.env=v;document.body.classList.toggle('prod',v==='prod');route()}
+const cur=()=>location.hash.replace(/^#\/?/,'')||'today';
+
+/* ---------- search ---------- */
+const PAY=[['PAY-88213','₹1,800 hold · TD-4821','task/TD-4821'],['PAY-88190','₹1,350 release failed · TD-4777','money/moves'],['RFD-1022','₹900 refund · TD-4790','money/refunds'],['PAY-88201','₹2,400 hold · TD-4840','task/TD-4840']];
+const TICK=[['H-2207','Paid but shows unpaid · Sneha Iyer'],['H-2210',"Can't change phone · Priya Sharma"],['H-2195','Helper did not come · Lakshmi Devi'],['H-2199','Test ticket · Test poster 042',true]];
+const qi=document.getElementById('q'),sr=document.getElementById('sres');let hl=-1;
+qi.addEventListener('input',()=>{const q=qi.value.trim().toLowerCase();if(!q){hideRes();return}
+  const ppl=Object.entries(P).filter(([id,p])=>(!S.hideTest||!p.test)&&(p.n.toLowerCase().includes(q)||p.ph.replace(/\D/g,'').includes(q.replace(/\D/g,'')||'#')||id===q||p.area.toLowerCase().includes(q))).slice(0,5);
+  const tks=Object.entries(T).filter(([id,t])=>(!S.hideTest||!t.test)&&(id.toLowerCase().includes(q)||t.t.toLowerCase().includes(q)||t.area.toLowerCase().includes(q))).slice(0,5);
+  const pays=PAY.filter(p=>(p[0]+p[1]).toLowerCase().includes(q));
+  const tix=TICK.filter(t=>(!S.hideTest||!t[2])&&(t[0]+t[1]).toLowerCase().includes(q));
+  let h='';
+  if(ppl.length)h+='<h6>People</h6>'+ppl.map(([id,p])=>`<a href="#/person/${id}"><span>${p.n}${tt(p.test)}</span><small>${p.ph}</small></a>`).join('');
+  if(tks.length)h+='<h6>Tasks</h6>'+tks.map(([id,t])=>`<a href="#/task/${id}"><span>${t.t}${tt(t.test)}</span><small>${id}</small></a>`).join('');
+  if(pays.length)h+='<h6>Payments</h6>'+pays.map(p=>`<a href="#/${p[2]}"><span>${p[1]}</span><small>${p[0]}</small></a>`).join('');
+  if(tix.length)h+='<h6>Help requests</h6>'+tix.map(t=>`<a href="#/support/${t[0]}"><span>${t[1]}</span><small>${t[0]}</small></a>`).join('');
+  sr.innerHTML=h||`<div class="empty" style="padding:16px"><b>Nothing found</b>Try a name, the last 4 digits of a phone, or an id like TD-4821</div>`;sr.classList.add('show');hl=-1});
+qi.addEventListener('keydown',e=>{const as=[...sr.querySelectorAll('a')];if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();hl=(hl+(e.key==='ArrowDown'?1:-1)+as.length)%as.length;as.forEach((a,i)=>a.classList.toggle('hl',i===hl))}if(e.key==='Enter'&&as.length){location.hash=(as[hl>=0?hl:0]).getAttribute('href');hideRes();qi.blur()}});
+qi.addEventListener('focus',()=>{if(qi.value)qi.dispatchEvent(new Event('input'))});
+document.addEventListener('click',e=>{if(!e.target.closest('.search'))hideRes()});
+sr.addEventListener('click',e=>{if(e.target.closest('a')){hideRes();qi.value=''}});
+function hideRes(){sr.classList.remove('show')}
+
+/* ---------- screens ---------- */
+const V={};
+function ph(title,sub,right='',crumb=''){return `${crumb?`<div class="crumb">${crumb}</div>`:''}<div class="ph"><div><h1>${title}</h1>${sub?`<p>${sub}</p>`:''}</div><div class="row">${right}</div></div>`}
+function lockedScreen(name){return ph(name,'')+card('',`<div class="empty"><div class="eic">${ic('lock')}</div><b>Only the owner (Admin) can open ${name}</b>You are seeing the panel as ${S.role}. Ask the owner if you need something changed here.</div>`)}
+function tabs(base,list,curT){return `<div class="tabs">${list.map(t=>`<a href="#/${base}/${t[0]}" class="${curT===t[0]?'on':''}">${t[1]}${t[2]!=null?`<span class="c">${t[2]}</span>`:''}</a>`).join('')}</div>`}
+const blockerBar=()=>S.switches.devotp===false?'':`<div class="blocker"><div class="ic2">${ic('alert')}</div><div style="flex:1;min-width:0"><b>Launch blocker: "Sign in without a real code" is ON.</b><div class="small">Anyone can sign in to any phone number with an auto-filled code. Fine for testing, never for launch.</div></div><a class="btn sm" href="#/launch">See checklist</a></div>`;
+
+V.today=()=>{
+  if(S.role==='Sales')return ph('Good morning','Your sales day · Friday 28 Nov')+`<div class="grid g4 keep2" style="margin-bottom:16px">${tile('Follow-ups due today','6','2 overdue','orange')}${tile('New leads this week','18','+5 vs last week','blue')}${tile('Help requests open','3','oldest 20 h','gold')}${tile('Signups today','24','Hyderabad 15 · Bengaluru 9','jade')}</div>`+card('Follow-ups due',tbl([{l:'Who'},{l:'Why'},{l:'Due'}],[{c:[who('p7'),'New poster, first task done. Ask for a review','Today'],go:'person/p7'},{c:[who('p3'),'Posted 3 tasks, ask about weekly cleaning','Today'],go:'person/p3'},{c:[who('p6'),'Top helper, invite to referral','Overdue 1 d'],go:'person/p6'}]),{right:'<a class="btn sm" href="#/growth/leads">All follow-ups</a>'});
+  const top=INBOX.filter(x=>!x.test&&(!ROLE_INBOX[S.role]||ROLE_INBOX[S.role].includes(x.cat))).sort((a,b)=>b.used/b.of-a.used/a.of).slice(0,3);
+  return ph('Good morning','Friday 28 Nov · here is what matters today',`<a class="btn pri" href="#/inbox">${ic('inbox')}Open Inbox (${inboxCount()})</a>`)+blockerBar()+
+  `<div class="grid g4 keep2" style="margin-bottom:16px">
+   ${tile('<span class="sw" style="background:var(--jade)"></span>Tasks posted today','38','Hyderabad 23 · Bengaluru 15','jade',['47','38'])}
+   ${tile('<span class="sw" style="background:var(--gold)"></span>Money held for tasks',inr(184350),'in 62 tasks, waiting for work to finish','gold',[inr(191550),inr(184350)])}
+   ${tile('<span class="sw" style="background:var(--blue)"></span>Paid to helpers today',inr(26840),'31 releases, all landed','blue')}
+   ${tile('<span class="sw" style="background:var(--orange)"></span>Problems','4','1 dispute · 1 failed release · 2 flagged','orange')}
+  </div>
+  <div class="grid g-main">
+   <div class="stack">
+    ${card('Needs you first',top.map(inboxRow).join(''),{sub:'Oldest against the promise first',right:'<a class="btn ghost" href="#/inbox">See all</a>'})}
+    ${card('Hire and Earn today',`<div class="split"><span style="width:58%;background:var(--jade)"></span><span style="width:42%;background:var(--blue)"></span></div><div class="spread small"><span><span class="sw" style="background:var(--jade)"></span> <b>Hire</b> 38 tasks posted · ${inr(41200)} offered</span><span><span class="sw" style="background:var(--blue)"></span> <b>Earn</b> 112 offers sent · 29 helpers hired</span></div><hr class="sep"><div class="small muted">Busiest areas</div>${hbar('Kondapur',14,14,'var(--jade)')}${hbar('Madhapur',11,14,'var(--jade)')}${hbar('Koramangala',9,14,'var(--jade)')}${hbar('HSR Layout',7,14,'var(--jade)')}`)}
+   </div>
+   <div class="stack">
+    ${card('Health',`<div class="stack small"><div class="spread"><span>App and server</span>${pill('Fine','ok')}</div><div class="spread"><span>Money moves</span>${pill('1 failed, retrying','bad')}</div><div class="spread"><span>Background jobs</span>${pill('92% of free limit','wait')}</div><div class="spread"><span>Money check (02:30)</span>${pill('₹450 to explain','wait')}</div><div class="spread"><span>Crashes (Sentry, 24 h)</span>${pill('3 new','mut')}</div></div>`,{right:'<a class="btn ghost" href="#/health">Details</a>'})}
+    ${card('Live now',`<div class="tl small">
+      <div class="e j"><b>Anita posted</b> "Fix balcony grill" · ₹700<small>Kondapur · 2 min ago</small></div>
+      <div class="e bl"><b>Arjun sent an offer</b> on "Deep clean kitchen"<small>₹2,200 · 5 min ago</small></div>
+      <div class="e g"><b>₹600 held</b> for "Fix leaking tap"<small>Razorpay · 9 min ago</small></div>
+      <div class="e j"><b>₹1,200 released</b> to Ravi Kumar<small>Lands in 1-2 days · 14 min ago</small></div>
+      <div class="e o"><b>Report</b> on a task message<small>Gachibowli · 21 min ago</small></div>
+      <div class="e is-test bl"><b>Test helper 017</b> finished "Walk my dog"<small>test data · 25 min ago</small></div>
+    </div>`)}
+   </div>
+  </div>`;
+};
+function inboxRow(x){
+  const icn={d:'scale',m:'rupee',h:'help',s:'flag',y:'bolt',c:'copy'}[x.type];
+  const retryBtn=x.retry?act('Retry',{tier:3,perm:'money',title:'Retry sending ₹1,350 to Vikram Singh',body:'<ul><li>We ask Razorpay to send the money again.</li><li>If his account is still not ready, it will fail again and stay in this list.</li><li>No money is sent twice: this uses the same move id.</li></ul>',word:'1350',go:'Retry now',tone:'pri',done:'Retry sent',icon:'retry'},'btn sm pri'):'';
+  return `<div class="ibx ${x.test?'is-test':''}"><div class="ic ${x.type}">${ic(icn)}</div><div class="body"><div class="t">${x.t}${tt(x.test)}</div><div class="meta">${x.who}</div>${wbar(x.used,x.of)}</div><div class="acts">${retryBtn||`<a class="btn sm ${x.type==='d'||x.type==='m'?'pri':''}" href="#/${x.go}">${x.btn}</a>`}${act('',{tier:1,done:'Snoozed for 4 hours',icon:'clock'},'btn sm ghost')}</div></div>`;
+}
+
+V.inbox=()=>{
+  const allowed=ROLE_INBOX[S.role];
+  const cats=[['all','All'],['money','Money'],['disputes','Disputes'],['help','Help requests'],['safety','Safety'],['copyright','Copyright'],['system','System']].filter(c=>c[0]==='all'||!allowed||allowed.includes(c[0]));
+  const list=INBOX.filter(x=>(!allowed||allowed.includes(x.cat))&&(S.inboxFilter==='all'||x.cat===S.inboxFilter)).sort((a,b)=>b.used/b.of-a.used/a.of);
+  const cnt=c=>INBOX.filter(x=>(!S.hideTest||!x.test)&&(!allowed||allowed.includes(x.cat))&&(c==='all'||x.cat===c)).length;
+  return ph('Inbox','Everything waiting on a person, in one list. Replaces Needs you, Alerts and Things to do.',`<select aria-label="Who"><option>Anyone</option><option>Assigned to me</option><option>Not assigned</option></select>`)+
+  `<div class="chips">${cats.map(c=>`<button class="chip ${S.inboxFilter===c[0]?'on':''}" onclick="S.inboxFilter='${c[0]}';route()">${c[1]}<b>${cnt(c[0])}</b></button>`).join('')}</div>`+
+  card('',list.length?list.map(inboxRow).join(''):`<div class="empty"><div class="eic">${ic('check')}</div><b>All clear</b>Nothing is waiting here. New items appear by themselves.</div>`)+
+  `<div style="margin-top:16px">${card('Done today',`<div class="small muted">9 items closed today: 4 refunds sent, 3 help requests answered, 1 report hidden, 1 payout marked paid. <a href="#/audit">See in audit log</a></div>`)}</div>`;
+};
+
+/* MONEY */
+V.money=(tab='overview')=>{
+  if(S.role==='Sales')return lockedScreen('Money');
+  const T_=tabs('money',[['overview','Overview'],['moves','Holds & moves',2],['payouts','Payouts (old wallet)',1],['refunds','Refunds'],['check','Money check'],['fees','Fees & money switches']],tab);
+  const head=ph('Money','Pay per task (Plan B) through Razorpay. Gold = held, jade = ours, blue = helpers.',`${pill(S.env==='prod'?'Razorpay live':'Razorpay test mode','wait')}`);
+  return head+T_+(MONEY[tab]||MONEY.overview)();
+};
+const MONEY={};
+MONEY.overview=()=>`<div class="grid g4 keep2" style="margin-bottom:16px">
+  ${tile('Held for tasks now',inr(184350),'62 tasks · released when work is done','gold',[inr(191550),inr(184350)])}
+  ${tile('Waiting to release',inr(42100),'14 tasks done, sent in the next hourly run','gold')}
+  ${tile('Our earnings this month',inr(38920),'fees + commission · up 22% vs Oct','jade',[inr(40310),inr(38920)])}
+  ${tile('Failed money moves','2','1 release, 1 refund · retrying','orange')}
+ </div>
+ <div class="grid g-main">
+  ${card('Our earnings, last 14 days',bars([1820,2100,1640,2450,2900,2300,1980,2650,3100,2800,3350,2950,3600,3120],'var(--jade)',['15','16','17','18','19','20','21','22','23','24','25','26','27','28'])+'<div class="axis"><span>15 Nov</span><span>28 Nov</span></div>',{right:`<a class="btn sm" href="#/money/overview">${ic('dl')}All money entries</a>`})}
+  <div class="stack">
+   ${card('Money is running',`<p class="small" style="margin-top:0">People can pay, and money is released and refunded every hour.</p><div class="kv"><dt>How money flows</dt><dd>Pay per task (Plan B)</dd><dt>Provider</dt><dd>Razorpay ${S.env==='prod'?'(live)':'(test keys)'}</dd><dt>Last hourly run</dt><dd>10:00 · 31 moves, 1 failed</dd></div><hr class="sep">`+act('Pause all money',{tier:3,perm:'settings',title:'Pause all money?',body:'<p><b>What happens right away:</b></p><ul><li>Nobody can pay for a new task.</li><li>Releases and refunds stop until you resume.</li><li>Money already held stays safe at Razorpay.</li><li>People see "Payments are paused for a short time".</li></ul>',word:'PAUSE',go:'Pause all money',done:'Money paused',icon:'pause'},'btn warn'),{cls:''})}
+   ${card('Where held money sits',`${hbar('Hired, work not started',62400,92000,'var(--gold)',inr(62400))}${hbar('Work in progress',92000,92000,'var(--gold)',inr(92000))}${hbar('In dispute',1800,92000,'var(--orange)',inr(1800))}${hbar('Done, release queued',28150,92000,'var(--blue)',inr(28150))}`)}
+  </div>
+ </div>`;
+MONEY.moves=()=>{
+  const rows=[
+   ['TD-4777','Release to helper','p8',1350,['Failed · try 3 of 5','bad'],'Razorpay: linked account not ready','11:00',true],
+   ['TD-4790','Refund to poster','p5',900,['Waiting for your OK','wait'],'Helper agreed to cancel','-',false],
+   ['TD-4766','Refund to poster','p3',450,['Failed · try 2 of 5','bad'],'Bank timeout','11:00',true],
+   ['TD-4802','Release to helper','p2',540,['Landed','ok'],'Paid 22 Nov 14:00','-',false],
+   ['TD-4811','Release to helper','p6',2160,['Sending','earn'],'Started 10:00','-',false],
+   ['TD-4851','Release to helper','p9',270,['Landed','ok'],'test','-',false,true]];
+  return `<div class="note blue" style="margin-bottom:16px">Every hour the system sends releases (to helpers) and refunds (to posters). If one fails it tries up to 5 times. You can retry now or open the task.</div>`+
+  card('Money moves',`<div class="chips"><button class="chip on">All <b>6</b></button><button class="chip">Failed <b>2</b></button><button class="chip">Waiting <b>1</b></button><button class="chip">Sending <b>1</b></button><button class="chip">Landed today <b>31</b></button></div><div class="tblwrap">`+tbl([{l:'Task'},{l:'Move'},{l:'To'},{l:'Amount',r:1},{l:'Status'},{l:'Why'},{l:''}],rows.map(r=>({test:r[8],c:[`<a href="#/task/${r[0]}">${r[0]}</a>`,r[1],who(r[2]),`<b>${inr(r[3])}</b>`,pill(r[4][0],r[4][1]),`<span class="small muted">${r[5]}</span>`,r[7]?act('Retry',{tier:3,perm:'money',title:`Retry ${r[1].toLowerCase()} of ${inr(r[3])}`,body:`<ul><li>We ask Razorpay to send ${inr(r[3])} to ${P[r[2]].n} again.</li><li>Same move id, so it can never be paid twice.</li></ul>`,word:String(r[3]),go:'Retry now',tone:'pri',done:'Retry sent',icon:'retry'},'btn sm pri'):r[4][0].startsWith('Waiting')?act('Approve',{tier:3,perm:'money',title:'Refund ₹900 to Sneha Iyer',body:'<ul><li>₹900 goes back to the card or UPI she paid with, in 5-7 days.</li><li>The helper Arjun gets nothing for this task (he agreed).</li></ul>',word:'900',go:'Send refund',tone:'pri',done:'Refund queued'},'btn sm'):''] }))) +'</div>')+
+  `<div class="grid g2" style="margin-top:16px">${card('Unpaid tasks that expired',`<p class="small muted" style="margin-top:0">Poster did not pay within 24 hours, so the task closed. No money was taken.</p>`+tbl([{l:'Task'},{l:'Poster'},{l:'Expired'}],[{c:['Fix ceiling fan','Sneha Iyer','27 Nov'],go:'task/TD-4840'},{c:['Bring groceries','Priya Sharma','26 Nov'],go:'person/p3'}]))}
+  ${card('Payment messages from Razorpay',`<div class="tl small"><div class="e j"><b>Payment captured</b> ₹600 · TD-4855<small>10:41 · handled</small></div><div class="e bl"><b>Transfer sent</b> ₹2,160 · TD-4811<small>10:02 · handled</small></div><div class="e o"><b>Transfer failed</b> ₹1,350 · TD-4777<small>10:01 · added to retry list</small></div><div class="e g"><b>Refund processed</b> ₹450 · not ours<small>02:12 · see money check</small></div></div>`)}</div>`;
+};
+MONEY.payouts=()=>`<div class="note gold" style="margin-bottom:16px">Only for older wallet balances from before Pay per task. New tasks pay helpers directly, so this list should shrink to zero.</div>`+
+ card('Withdrawals waiting',`<div class="tblwrap">`+tbl([{l:'Helper'},{l:'Amount',r:1},{l:'To'},{l:'Waiting'},{l:''}],[
+  {c:[who('p2'),'<b>₹2,000</b>','UPI ravi.k@okaxis',wbar(14,24),act('Mark paid',{tier:3,perm:'money',title:'Mark ₹2,000 as paid to Ravi Kumar',body:'<p>Use this only after you sent the money yourself. Enter the bank reference (UTR):</p><input style="width:100%" placeholder="UTR number, e.g. 433812345678">',word:'2000',go:'Mark paid',tone:'pri',done:'Marked paid'},'btn sm pri')+' '+act('Give back',{tier:3,perm:'money',title:'Give ₹2,000 back to Ravi\'s wallet',body:'<p>The withdrawal is cancelled and ₹2,000 shows in his wallet again.</p>',word:'2000',go:'Give back',done:'Given back'},'btn sm')]},
+  {c:[who('p9'),'<b>₹800</b>','UPI test@upi',wbar(3,24),''],test:true}
+ ])+'</div>',{right:act('Check all with RazorpayX',{tier:2,perm:'money',title:'Ask RazorpayX for the latest status?',body:'<p>Reads status only. No money moves.</p>',go:'Check now',done:'Checked: no change'},'btn sm')});
+MONEY.refunds=()=>`<div class="grid g-main">`+card('Recent refunds',`<div class="tblwrap">`+tbl([{l:'Task'},{l:'To'},{l:'Amount',r:1},{l:'Status'},{l:'Date'}],[
+  {c:['<a href="#/task/TD-4790">TD-4790</a>',who('p5'),'₹900',pill('Waiting for OK','wait'),'Today']},
+  {c:['TD-4766',who('p3'),'₹450',pill('Failed, retrying','bad'),'Today']},
+  {c:['TD-4731',who('p1'),'₹1,100',pill('Refunded','ok'),'25 Nov']},
+  {c:['TD-4702',who('p7'),'₹350',pill('Refunded','ok'),'23 Nov']}])+'</div>')+
+ card('Send a refund',`<p class="small muted" style="margin-top:0">For a task without a dispute. Disputes are decided on the task page.</p><label class="small" style="font-weight:700">Task id</label><input style="width:100%;margin:4px 0 10px" value="TD-4790"><label class="small" style="font-weight:700">Amount</label><input style="width:100%;margin:4px 0 10px" value="₹900"><label class="small" style="font-weight:700">Reason (both people see this)</label><select style="width:100%;margin:4px 0 14px"><option>Task cancelled before work started</option><option>Helper did not show up</option><option>Charged twice</option><option>Other</option></select>`+act('Send refund',{tier:3,perm:'money',title:'Refund ₹900 to Sneha Iyer',body:'<ul><li>₹900 goes back to how she paid, in 5-7 days.</li><li>This cannot be undone once Razorpay accepts it.</li></ul>',word:'900',go:'Send refund',tone:'pri',done:'Refund sent'},'btn pri'))+'</div>';
+MONEY.check=()=>`<div class="grid g4 keep2" style="margin-bottom:16px">${tile('Last check','02:30','today · nightly','')}${tile('Matched',inr(412880),'318 payments and moves','jade')}${tile('Not matched',inr(450),'1 item to explain','orange')}${tile('Days clean in a row','6','before today','')}</div>`+
+ card('To explain',`<div class="ibx"><div class="ic m">${ic('rupee')}</div><div class="body"><div class="t">Razorpay shows a ₹450 refund we did not record</div><div class="meta">Refund rfnd_Q8x… on 28 Nov 02:12 · probably TD-4766 retry that went through at the bank</div></div><div class="acts">${act('Mark explained',{tier:2,perm:'money',title:'Mark this ₹450 as explained?',body:'<p>Write what happened. It goes to the audit log.</p><textarea style="width:100%" rows="3">Refund for TD-4766 landed on the 2nd try; our record was late.</textarea>',go:'Save',done:'Marked explained'},'btn sm')}</div></div>`,{right:act('Run check now',{tier:2,perm:'money',title:'Run the money check now?',body:'<p>Compares our records with Razorpay. Reads only, takes about a minute.</p>',go:'Run check',done:'Check started'},'btn sm')})+
+ `<div style="margin-top:16px">${card('Past checks',tbl([{l:'Date'},{l:'Result'},{l:'Matched',r:1}],[{c:['28 Nov',pill('1 to explain','wait'),inr(412880)]},{c:['27 Nov',pill('All matched','ok'),inr(398210)]},{c:['26 Nov',pill('All matched','ok'),inr(377940)]}]))}</div>`;
+MONEY.fees=()=>{
+  const fee=(n,v,d,word,from,to)=>`<div class="swrow"><div class="tx"><b>${n}</b><div class="d">${d}</div></div><div class="big num" style="font-size:22px;font-weight:800">${v}</div>${act('Change',{tier:3,perm:'settings',title:'Change '+n.toLowerCase(),ba:[from,to],body:`<p>${d}</p><p><b>Applies to new tasks only.</b> Tasks already paid keep the old amount.</p>`,word,go:'Save change',tone:'pri',done:n+' changed'},'btn sm')}</div>`;
+  const msw=(key,n,on,dOn,dOff,word,danger)=>`<div class="swrow"><div class="tx"><b>${n}</b> <span class="xtag">Extra check</span><div class="d">${on?dOn:dOff}</div><code>${key}</code></div>${swBtn(key,on,{title:n,word,dOn,dOff,danger,perm:'settings'})}</div>`;
+  return `<div class="grid g2">`+card('Fees',fee('Helper commission','10%','We keep this from what the poster pays the helper.','10','10%','12%')+fee('Poster fee','3%','Added on top of the task price for the poster.','3','3%','4%')+fee('Cancel fine','5%','Charged to the poster if they cancel after work starts.','5','5%','8%')+fee('Days before payout clears','2 days','Helper money waits this long after the task is done.','2','2 days','3 days')+fee('Hours to pay before a task closes','24 h','If the poster does not pay in this time, the task closes.','24','24 h','12 h')+fee('Smallest top-up','₹50','Least amount a poster can add to raise the price.','50','₹50','₹100'),{sub:'Only the owner can change these, with an authenticator code.'})+
+  card('Money switches',`${msw('money_paused','Pause all money',false,'All payments, releases and refunds are stopped.','Money is running normally. Turn on to stop all payments, releases and refunds at once.','PAUSE',true)}
+  <div class="swrow"><div class="tx"><b>How money flows</b> <span class="xtag">Extra check</span><div class="d">Pay per task: poster pays when hiring, money waits at Razorpay, goes to the helper when done.</div><code>money_flow</code></div><select aria-label="Money flow" onchange="this.value='plan_b';runAct(this.dataset.k)" data-k="${(()=>{const k='a'+(++an);A[k]={tier:3,perm:'settings',title:'Switch money flow to Wallet?',ba:['Pay per task','Wallet'],body:'<ul><li>New tasks use wallet balances instead of paying per task.</li><li>Needs RBI checks before production. Not advised.</li></ul>',word:'WALLET',go:'Switch'};return k})()}" ${can('settings')?'':'disabled'}><option value="plan_b">Pay per task</option><option value="wallet">Wallet (old)</option></select></div>
+  <div class="swrow"><div class="tx"><b>Payment provider</b> <span class="xtag">Extra check</span><div class="d">Razorpay handles real payments. "Pretend" only fakes them for tests.</div><code>money_provider</code></div><select aria-label="Provider" disabled><option>Razorpay</option><option>Pretend (tests)</option></select></div>
+  <div class="note" style="margin-top:12px">Coupons and discount codes ${NEW}</div>`)+'</div>';
+};
+
+/* switch toggle helper */
+function swBtn(key,on,o){
+  if(S.switches[key]!==undefined)on=S.switches[key];
+  const ok=can(o.perm||'settings');
+  const k='a'+(++an);
+  A[k]={tier:o.tier||3,perm:o.perm||'settings',title:(on?'Turn OFF: ':'Turn ON: ')+o.title,body:`<p><b>What happens:</b> ${on?(o.dOff||'This feature stops for everyone.'):(o.dOn||'This feature starts for everyone.')}</p>`,word:o.word||(on?'OFF':'ON'),go:on?'Turn off':'Turn on',tone:o.danger&&!on?'danger':'pri',done:o.title+(on?' turned off':' turned on'),after:()=>{S.switches[key]=!on;route()}};
+  return `<button class="tg ${on?'on':''} ${o.red&&on?'red':''}" aria-label="${o.title}" ${ok?`onclick="runAct('${k}')"`:'disabled title="Admin only"'}></button>`;
+}
+
+/* TASKS */
+V.tasks=()=>{
+  const f=S.taskFilter;
+  const fl=[['all','All'],['disputes','Disputes'],['active','In progress'],['open','Waiting for offers'],['overdue','Overdue'],['done','Done']];
+  const match=t=>f==='all'||(f==='disputes'&&t.st[0].includes('Dispute'))||(f==='active'&&['earn'].includes(t.st[1]))||(f==='open'&&t.st[0].includes('Waiting'))||(f==='done'&&t.st[0].startsWith('Done'))||(f==='overdue'&&false);
+  const rows=Object.entries(T).filter(([,t])=>match(t));
+  return ph('Tasks','Every task in Hyderabad and Bengaluru.',`<a class="btn sm">${ic('dl')}CSV</a>`)+
+  `<div class="chips">${fl.map(x=>`<button class="chip ${f===x[0]?'on':''}" onclick="S.taskFilter='${x[0]}';route()">${x[1]}</button>`).join('')}<select aria-label="Area" style="border-radius:999px;padding:5px 12px"><option>All areas</option><option>Hyderabad</option><option>Bengaluru</option></select><select aria-label="Kind" style="border-radius:999px;padding:5px 12px"><option>Local and remote</option><option>Local</option><option>Remote</option></select></div>`+
+  card('',rows.length?`<div class="tblwrap">`+tbl([{l:'Task'},{l:'Status'},{l:'Poster'},{l:'Helper'},{l:'Price',r:1},{l:'Posted'}],rows.map(([id,t])=>({go:'task/'+id,test:t.test,c:[`<div><b>${t.t}</b>${tt(t.test)}<div class="small muted">${id} · ${t.area}</div></div>`,pill(t.st[0],t.st[1]),who(t.p,'Hire'),t.w?who(t.w,'Earn'):'<span class="muted small">No one hired</span>',`<b>${inr(t.amt)}</b>`,t.when]})))+'</div>':`<div class="empty"><div class="eic">${ic('check')}</div><b>No overdue tasks</b>Tasks past their due date show here.</div>`);
+};
+V.task=(id='TD-4821')=>{
+  const t=T[id]||T['TD-4821'];id=T[id]?id:'TD-4821';
+  const dispute=t.st[0].includes('Dispute');
+  const fee=Math.round(t.amt*.03),com=Math.round(t.amt*.1);
+  const d=S.decision,sw=S.splitWorker,sp=t.amt-sw;
+  const sumTxt=d==='release'?`${inr(t.amt-com)} to ${P[t.w].n} (after 10% commission)`:d==='refund'?`${inr(t.amt)} back to ${P[t.p].n}`:`${inr(sw)} to ${P[t.w]?.n} · ${inr(sp)} back to ${P[t.p].n}`;
+  const decisionCard=dispute?card('Decide this dispute',`
+   <div class="grid g2" style="margin-bottom:14px">
+    <div class="note" style="border-left:4px solid var(--jade)"><div class="small" style="font-weight:700;color:var(--jade-t)">Anita (poster) says</div>"The wardrobe doors don't close and the TV is tilted. He left after 2 hours and said he would come back, but didn't."</div>
+    <div class="note" style="border-left:4px solid var(--blue)"><div class="small" style="font-weight:700;color:var(--blue-t)">Ravi (helper) says</div>"Wardrobe is done. The wall is hollow, so I told her the TV needs a different bracket. She refused to buy it."</div>
+   </div>
+   <div class="tabs" id="evTabs">${['Timeline','Chat','Proof photos','Offers'].map((x,i)=>`<button class="${i===0?'on':''}" onclick="evTab(${i})">${x}</button>`).join('')}</div>
+   <div id="ev0">${timelineHtml()}</div>
+   <div id="ev1" hidden><div class="note gold small" style="margin-bottom:10px">${ic('eye')} Opening this chat was written to the audit log (dispute case). Chat is deleted 48 h after the task ends.</div><div class="chat">
+    <div class="msg p">Can you come at 4 pm? Need wardrobe + TV on wall<small>Anita · 26 Nov 11:02</small></div>
+    <div class="msg w">Yes madam, I will bring drill. Bracket you have?<small>Ravi · 11:05</small></div>
+    <div class="msg p">Bracket came with the TV<small>Anita · 11:06</small></div>
+    <div class="msg w">Wall is hollow here, this bracket is not safe. Need toggle bolts, ₹250. I can bring tomorrow<small>Ravi · 18:41</small></div>
+    <div class="msg p">Doors also not closing properly. I am not paying extra<small>Anita · 18:50</small></div>
+    <div class="msg w">Doors need 1 day to settle, I will adjust tomorrow free<small>Ravi · 18:52</small></div>
+   </div></div>
+   <div id="ev2" hidden><div class="photos">
+    <div class="ph-img" style="background:linear-gradient(160deg,#c9a77c,#8a6a45)"><span>Wardrobe done · Ravi · 18:30</span></div>
+    <div class="ph-img" style="background:linear-gradient(160deg,#d9d4cc,#9d958a)"><span>Wall behind TV · Ravi · 18:35</span></div>
+    <div class="ph-img" style="background:linear-gradient(160deg,#3b3f46,#16181c)"><span>TV tilted · Anita · 27 Nov</span></div>
+    <div class="ph-img" style="background:linear-gradient(160deg,#b8956a,#6d5235)"><span>Door gap · Anita · 27 Nov</span></div>
+   </div><p class="small muted">PIN unlock used: yes (26 Nov 16:04). 2 of 3 checklist steps ticked by the helper.</p></div>
+   <div id="ev3" hidden>${tbl([{l:'Helper'},{l:'Offer'},{l:'Note'}],[{c:[who('p2'),'₹1,800 · today 4 pm','"I have drill and level"']},{c:[who('p6'),'₹2,100 · tomorrow','Counter-offer: asked for 1 more day']}])}</div>
+   <hr class="sep">
+   <div style="font-weight:700;margin-bottom:8px">Your decision</div>
+   <label class="opt ${d==='release'?'sel':''}"><input type="radio" name="dc" ${d==='release'?'checked':''} onchange="S.decision='release';route()"><div><b>Release to helper</b><small>Ravi gets ${inr(t.amt-com)} after commission. Anita gets nothing back.</small></div></label>
+   <label class="opt ${d==='refund'?'sel':''}"><input type="radio" name="dc" ${d==='refund'?'checked':''} onchange="S.decision='refund';route()"><div><b>Refund poster</b><small>Anita gets ${inr(t.amt)} back. Ravi gets nothing.</small></div></label>
+   <label class="opt ${d==='split'?'sel':''}"><input type="radio" name="dc" ${d==='split'?'checked':''} onchange="S.decision='split';route()"><div style="flex:1;min-width:0"><b>Split</b><small>Pay for the part that was done.</small>${d==='split'?`<div style="margin-top:10px"><input type="range" min="0" max="${t.amt}" step="50" value="${sw}" style="width:100%;padding:0;border:0" aria-label="Amount to helper" oninput="S.splitWorker=+this.value;document.getElementById('spl').innerHTML=splitTxt(${t.amt})" onchange="route()"><div id="spl" class="spread small" style="font-weight:700">${splitTxt(t.amt)}</div></div>`:''}</div></label>
+   <div class="grid g2" style="margin-top:10px"><div><label class="small" style="font-weight:700">Reason (policy 4.9)</label><select style="width:100%;margin-top:4px"><option>Work partly done</option><option>Work not done</option><option>Work done as agreed</option><option>No-show</option><option>Safety or abuse</option></select></div><div><label class="small" style="font-weight:700">Message to both</label><input style="width:100%;margin-top:4px" value="Wardrobe done, TV mount not finished. Fair split."></div></div>
+   <div class="spread" style="margin-top:16px"><span class="small muted">Promise: decide within 48 h · 31 h used</span>${act('Decide: '+(d==='split'?'split':d),{tier:3,perm:'disputes',title:'Final decision on TD-4821',body:`<p><b>${sumTxt}</b></p><ul><li>Both people get a message with your reason.</li><li>Money moves in the next hourly run.</li><li>This closes the dispute and cannot be undone.</li></ul>`,word:'DECIDE',go:'Confirm decision',tone:'pri',done:'Decision saved'},'btn pri')}</div>`,{sub:'Read both sides, look at the evidence, then decide. Money is held safely until you do.',right:pill('31 h of 48 h','wait')}):'';
+  return `<div class="crumb"><a href="#/tasks">Tasks</a> / ${id}</div><div class="ph"><div><h1>${t.t}${tt(t.test)}</h1><p>${id} · ${t.kind} · ${t.cat} · ${t.area} · posted ${t.when}</p></div><div class="row">${pill(t.st[0],t.st[1])}</div></div>
+  <div class="grid g-main"><div class="stack">${decisionCard}${!dispute?card('What happened',timelineHtml()):''}
+   ${card('Task details',`<div class="kv"><dt>Price</dt><dd>${inr(t.amt)} · topped up +10%</dd><dt>When</dt><dd>Due 26 Nov, 4-8 pm</dd><dt>Checklist</dt><dd>1. Assemble wardrobe · 2. Mount TV · 3. Clean up</dd><dt>Address</dt><dd>Kondapur, near Sarath City Mall · ${act('Show full address (recorded)',{tier:2,perm:'write',title:'Show the private address?',body:'<p>This is written to the audit log with your name and the reason.</p><select style="width:100%"><option>Dispute case</option><option>Safety report</option><option>Police request</option></select>',go:'Show',done:'Flat 304, Aparna Towers (demo)'},'btn ghost')}</dd><dt>Questions asked</dt><dd>2 · <a href="#/safety/reports">1 hidden</a></dd></div>`)}
+  </div>
+  <div class="side-col">
+   ${card('Money',`<div class="kv"><dt>Held now</dt><dd style="color:var(--gold-t)">${inr(t.amt+fee)}</dd><dt>Task price</dt><dd>${inr(t.amt)}</dd><dt>Poster fee 3%</dt><dd>${inr(fee)}</dd><dt>Our commission 10%</dt><dd>${inr(com)}</dd><dt>Payment</dt><dd>UPI · PAY-88213</dd><dt>Status</dt><dd>${pill(dispute?'Frozen for dispute':'Held','wait')}</dd></div>`)}
+   ${card('People',`<div class="stack">${who(t.p,'Poster (Hire) · 14 tasks · 4.9')}${t.w?who(t.w,'Helper (Earn) · 41 done · 4.8'):''}</div>`)}
+   ${card('Other actions',`<div class="actlist">
+    ${act('Cancel with full refund',{tier:3,perm:'disputes',title:'Cancel and refund '+inr(t.amt+fee),body:'<ul><li>Task closes for both people.</li><li>Poster gets everything back in 5-7 days.</li><li>Helper gets nothing.</li></ul>',word:'CANCEL',done:'Cancelled'},'btn')}
+    ${act('Mark complete for them',{tier:3,perm:'disputes',title:'Mark this task complete?',body:'<p>Money is released to the helper in the next hourly run, as if the poster approved.</p>',word:'COMPLETE',done:'Marked complete'},'btn')}
+    ${act('Waive the cancel fine',{tier:3,perm:'money',title:'Waive the 5% cancel fine?',ba:['Fine ₹90','No fine'],body:'<p>The poster is not charged the fine.</p>',word:'WAIVE',tone:'pri',done:'Fine waived'},'btn')}
+    ${act('Remove helper from task',{tier:2,perm:'disputes',title:'Remove the helper?',body:'<p>Task opens again for offers. Held money stays held.</p>',go:'Remove',tone:'warn',done:'Helper removed'},'btn')}
+    ${act('Hide this task',{tier:2,perm:'safety',title:'Hide this task from everyone?',body:'<p>It disappears from search, map and Home. You can unhide it.</p>',go:'Hide',tone:'warn',done:'Task hidden',undo:true},'btn')}
+    ${act('Change category',{tier:1,done:'Category changed to Home repair'},'btn')}
+   </div>`)}
+  </div></div>`;
+};
+function splitTxt(a){return `<span style="color:var(--blue-t)">Ravi ${inr(S.splitWorker)}</span><span style="color:var(--jade-t)">Anita ${inr(a-S.splitWorker)}</span>`}
+function evTab(i){document.querySelectorAll('#evTabs button').forEach((b,j)=>b.classList.toggle('on',i===j));[0,1,2,3].forEach(j=>document.getElementById('ev'+j).hidden=j!==i)}
+const timelineHtml=()=>`<div class="tl small">
+ <div class="e j"><b>Posted</b> by Anita · ₹1,800<small>25 Nov 20:14</small></div>
+ <div class="e bl"><b>2 offers</b> · Ravi ₹1,800, Arjun ₹2,100 (asked for 1 more day)<small>25 Nov 20:30 - 22:10</small></div>
+ <div class="e g"><b>Hired Ravi and paid</b> ₹1,854 held at Razorpay<small>26 Nov 09:12</small></div>
+ <div class="e bl"><b>Started</b> · PIN unlock<small>26 Nov 16:04</small></div>
+ <div class="e bl"><b>Proof sent</b> · 2 photos, 2 of 3 steps ticked<small>26 Nov 18:36</small></div>
+ <div class="e o"><b>Dispute opened</b> by Anita · "Work not finished"<small>27 Nov 07:40</small></div>
+</div>`;
+
+/* PEOPLE */
+V.people=()=>{
+  const f=S.peopleFilter;const fl=[['all','Everyone'],['h','Hire'],['e','Earn'],['susp','Suspended'],['new','New accounts']];
+  const rows=Object.entries(P).filter(([,p])=>f==='all'||(f==='h'&&(p.k==='h'||p.k==='b'))||(f==='e'&&(p.k==='e'||p.k==='b'))||(f==='susp'&&p.susp)||(f==='new'&&p.tags.includes('New account')));
+  return ph('People','Posters (Hire, jade) and helpers (Earn, blue).',`<a class="btn sm">${ic('dl')}CSV</a>`)+
+  `<div class="chips">${fl.map(x=>`<button class="chip ${f===x[0]?'on':''}" onclick="S.peopleFilter='${x[0]}';route()">${x[1]}</button>`).join('')}</div>`+
+  card('',`<div class="tblwrap">`+tbl([{l:'Person'},{l:'Side'},{l:'Phone'},{l:'Activity'},{l:'Rating',r:1},{l:'Status'}],rows.map(([id,p])=>({go:'person/'+id,test:p.test,c:[who(id),p.k==='h'?pill('Hire','ok'):p.k==='e'?pill('Earn','earn'):p.k==='b'?pill('Hire + Earn','mut'):pill('Test','mut'),`<span class="small">${p.ph}</span>`,`<span class="small">${p.posted?p.posted+' posted':''}${p.posted&&p.done?' · ':''}${p.done?p.done+' done':''}</span>`,p.rating,p.susp?pill('Suspended','bad'):p.tags.includes('New account')?pill('New','wait'):pill('Active','ok')]})))+'</div>');
+};
+V.person=(id='p2')=>{
+  const p=P[id]||P.p2;id=P[id]?id:'p2';const e=p.k==='e'||p.k==='b'||p.k==='t';const first=p.n.split(' ')[0];
+  return `<div class="crumb"><a href="#/people">People</a> / ${p.n}</div>
+  <div class="card" style="margin-bottom:16px"><div class="row" style="gap:16px;align-items:center"><span class="av lg ${p.k}">${ini(p.n)}</span><div style="flex:1;min-width:200px"><h1 style="margin:0;font-size:24px">${p.n}${tt(p.test)}</h1><div class="muted small">${p.ph} · ${p.area} · joined ${p.joined}</div><div class="row" style="margin-top:8px;gap:6px">${p.k==='h'||p.k==='b'?pill('Hire','ok'):''}${e?pill('Earn','earn'):''}${p.susp?pill('Suspended until 5 Dec','bad'):''}${pill('Phone verified','mut')}${pill('Age 18+ checked','mut')}${p.tags.map(x=>`<span class="pill mut nodot">${x}</span>`).join('')}</div></div>
+  <div class="row">${act('Message',{tier:2,perm:'crm',title:'Send a message to '+first,body:'<p>Shows in their app notifications.</p><textarea style="width:100%" rows="3" placeholder="Write in plain words"></textarea>',go:'Send',done:'Message sent',icon:'msg'},'btn')}${act('Add note',{tier:1,done:'Note added',icon:'plus'},'btn')}</div></div></div>
+  <div class="tabs" id="pTabs">${['Overview','Money','Tasks','Devices','Safety','Notes & follow-ups','History'].map((x,i)=>`<button class="${i===0?'on':''}" onclick="pTab(${i})">${x}</button>`).join('')}</div>
+  <div class="grid g-main"><div>
+   <div id="pt0" class="stack">
+    <div class="grid g3">${p.posted!=null?tile('Tasks posted',p.posted,'spent '+inr(p.spent||0),'jade'):''}${p.done!=null?tile('Tasks done',p.done,'earned '+inr(p.earned||0),'blue'):''}${tile('Rating',p.rating,'from 36 reviews','')}</div>
+    ${card('About',`<div class="kv"><dt>Name shown</dt><dd>${p.n}</dd><dt>Bio</dt><dd>"Carpenter, 8 years. Wardrobes, beds, TV mounting."</dd><dt>Languages</dt><dd>Telugu, Hindi, English</dd>${e?`<dt>Why they earn</dt><dd>${p.goal||'Gig income'} <span class="small muted">(private)</span></dd><dt>Weekly goal</dt><dd>₹6,000 · this week ₹4,200</dd><dt>Skills</dt><dd>Carpentry, TV mounting, furniture assembly</dd>`:''}<dt>New-account limits</dt><dd>${p.tags.includes('New account')?'On (first 7 days)':'Finished'}</dd><dt>Self-dealing flag</dt><dd>None</dd></div>`)}
+   </div>
+   <div id="pt1" class="stack" hidden>${card('Money',`<div class="kv"><dt>Held for their tasks</dt><dd style="color:var(--gold-t)">₹1,800 (1 task, in dispute)</dd><dt>Paid to them, all time</dt><dd>${inr(p.earned||0)}</dd><dt>Payee account (Razorpay)</dt><dd>${pill('Ready','ok')} linked 4 Aug</dd><dt>Old wallet balance</dt><dd>₹2,000 · withdrawal waiting</dd></div><hr class="sep">`+tbl([{l:'Date'},{l:'What'},{l:'Amount',r:1}],[{c:['22 Nov','Released · TD-4802','+₹540']},{c:['20 Nov','Released · TD-4771','+₹1,080']},{c:['18 Nov','Commission','-₹120']}]))}</div>
+   <div id="pt2" hidden>${card('Tasks',tbl([{l:'Task'},{l:'Status'},{l:'Price',r:1}],Object.entries(T).filter(([,t])=>t.p===id||t.w===id).map(([tid,t])=>({go:'task/'+tid,c:[t.t,pill(t.st[0],t.st[1]),inr(t.amt)]}))))}</div>
+   <div id="pt3" hidden>${card('Devices and sign-ins',tbl([{l:'Device'},{l:'App'},{l:'Last seen'}],[{c:['Android · Redmi Note 12','1.1.0 (OTA f25514e7)','Today 10:12']},{c:['Web · Chrome','taskdrop.in','25 Nov']}])+'<hr class="sep">'+act('Sign out everywhere',{tier:2,perm:'suspend',title:'Sign '+first+' out on every device?',body:'<p>They need to sign in again with their phone. Nothing else changes.</p>',go:'Sign out everywhere',tone:'warn',done:'Signed out everywhere'},'btn'))}</div>
+   <div id="pt4" hidden>${card('Safety history',`<div class="tl small"><div class="e o"><b>Reported</b> by a poster: "rude message"<small>14 Nov · resolved, no action</small></div><div class="e g"><b>Warning sent</b>: keep chat polite<small>15 Nov · by Support (Meena)</small></div></div><div class="small muted">Blocked by 0 people · blocked 1 person</div>`)}</div>
+   <div id="pt5" hidden>${card('Notes and follow-ups',`<div class="note small">"Very reliable, consider for featured helper." · Meena, 20 Nov</div><div class="note small" style="margin-top:8px">Follow-up: invite to referral programme · due 1 Dec</div>`)}</div>
+   <div id="pt6" hidden>${card('History',`<div class="audit small"><div class="a">Owner viewed phone number (support case H-2190) · 21 Nov</div><div class="a">Meena added tag "Top helper" · 20 Nov</div></div>`)}</div>
+  </div>
+  <div class="side-col">
+   ${card('Actions',`<div class="actlist">
+    ${act('Warn',{tier:2,perm:'suspend',title:'Send '+first+' a warning?',body:'<p>They see it in the app. It stays on their record.</p><select style="width:100%"><option>Rude or abusive messages</option><option>Asking to pay outside TaskDrop</option><option>No-show</option><option>Other</option></select>',go:'Send warning',tone:'warn',done:'Warning sent',icon:'alert'},'btn')}
+    ${act('Suspend until a date',{tier:2,perm:'suspend',title:'Suspend '+first+'?',body:'<ul><li>They cannot post, offer or chat until the date.</li><li>Money already held is not touched.</li></ul><input type="date" style="width:100%" value="2026-12-05">',go:'Suspend',tone:'warn',done:'Suspended until 5 Dec',icon:'pause'},'btn')}
+    ${act('Sign out everywhere',{tier:2,perm:'suspend',title:'Sign out everywhere?',body:'<p>They sign in again with their phone.</p>',go:'Sign out',tone:'warn',done:'Signed out',icon:'x'},'btn')}
+    ${act('Unlock phone sign-in',{tier:2,perm:'suspend',title:'Unlock sign-in for this phone?',body:'<p>Clears the "too many codes" lock.</p>',go:'Unlock',done:'Phone unlocked'},'btn')}
+    ${act('Raise their limits',{tier:2,perm:'settings',title:'Raise limits for '+first+'?',body:'<p>Lets them post or withdraw more than the new-account limit for 30 days.</p>',go:'Raise',done:'Limits raised'},'btn')}
+    ${act('Reset age check',{tier:2,perm:'suspend',title:'Reset the age check?',body:'<p>They are asked to confirm they are 18+ again.</p>',go:'Reset',done:'Age check reset'},'btn')}
+    ${act('Rename to "New user"',{tier:2,perm:'suspend',title:'Reset their display name?',body:'<p>Use if the name has a phone number or is rude.</p>',go:'Reset name',done:'Name reset'},'btn')}
+    ${act('Remove photo and bio',{tier:2,perm:'suspend',title:'Remove photo and bio?',go:'Remove',tone:'warn',done:'Removed'},'btn')}
+   </div>`)}
+   ${card('Danger zone',`<div class="actlist">
+    ${act('Ban from TaskDrop',{tier:3,perm:'delete',title:'Ban '+p.n+'?',body:'<ul><li>They can never sign in again with this phone.</li><li>Open tasks are cancelled and held money refunded to posters.</li></ul>',word:first.toUpperCase(),go:'Ban',done:'Banned'},'btn danger')}
+    ${act('Delete account',{tier:3,perm:'delete',title:'Delete '+p.n+'\'s account?',body:`<div class="note gold small" style="margin-bottom:10px"><b>Blocked right now:</b> ₹1,800 held in 1 task (TD-4821, in dispute) and 1 open task. Settle these first, or deleting will refund the poster.</div><ul><li>Profile, photos and chat are erased.</li><li>Money records are kept for 8 years (tax law), without their name.</li><li>This cannot be undone.</li></ul>`,word:first.toUpperCase(),go:'Delete forever',done:'Account deleted'},'btn danger')}
+   </div>`,{cls:''})}
+  </div></div>`;
+};
+function pTab(i){document.querySelectorAll('#pTabs button').forEach((b,j)=>b.classList.toggle('on',i===j));for(let j=0;j<7;j++)document.getElementById('pt'+j).hidden=j!==i}
+
+V.devices=()=>ph('Devices and app versions','Which app versions people use. Lowest allowed version is set in App switches.')+
+ `<div class="grid g4 keep2" style="margin-bottom:16px">${tile('Android','1,912','phones seen in 30 days','blue',['2,034','1,912'])}${tile('Web','1,268','browsers in 30 days','jade')}${tile('Below lowest version','41','asked to update','orange')}${tile('iOS','-','not launched yet','')}</div>`+
+ card('Versions in use',hbar('1.1.0 · OTA f25514e7',1210,1210,'var(--blue)','1,210')+hbar('1.1.0 · OTA bbe4fa88',530,1210,'var(--blue)','530')+hbar('1.0.0 (cannot get updates)',131,1210,'var(--orange)','131')+hbar('Web · taskdrop.in',1268,1268,'var(--jade)','1,268'),{right:'<a class="btn sm" href="#/settings">Lowest allowed version: 1.0.0</a>'});
+
+/* SAFETY */
+V.safety=(tab='reports')=>{
+  const T_=tabs('safety',[['reports','Reported content',4],['moderation','Text & video checks',3],['skills','Skills catalog',7],['hunt','City Hunt photos',5],['copyright','Copyright',1]],tab);
+  return ph('Safety','Keep TaskDrop clean and safe. Every hide can be undone.')+T_+(SAFE[tab]||SAFE.reports)();
+};
+const SAFE={};
+SAFE.reports=()=>card('',`<div class="chips"><button class="chip on">All <b>4</b></button><button class="chip">Messages <b>2</b></button><button class="chip">Reviews <b>1</b></button><button class="chip">Tasks <b>1</b></button></div>`+[
+ ['Message','"Pay me outside the app, cheaper for you"','Reported by Lakshmi Devi · about Mohammed Irfan','p4'],
+ ['Review','"Worst helper, thief" (1 star)','Reported by Vikram Singh · on his profile','p8'],
+ ['Message','"Send me your photo first"','Reported by Priya Sharma · about Mohammed Irfan','p4'],
+ ['Task','"Need girl for party help, good money"','Auto-flagged + 2 reports · TD-4848','p4']
+].map(r=>`<div class="ibx"><div class="ic s">${ic('flag')}</div><div class="body"><div class="t">${pill(r[0],'mut')} ${r[1]}</div><div class="meta">${r[2]} · <a href="#/person/${r[3]}">open person</a></div></div><div class="acts">${act('Hide',{tier:2,perm:'safety',title:'Hide this '+r[0].toLowerCase()+'?',body:'<p>Nobody sees it any more. You can unhide it.</p>',go:'Hide',tone:'warn',done:'Hidden',undo:true},'btn sm warn')}${act('Warn',{tier:2,perm:'safety',title:'Warn the writer?',go:'Send warning',tone:'warn',done:'Warning sent'},'btn sm')}${act('No problem',{tier:1,perm:'safety',done:'Closed, no action'},'btn sm ghost')}</div></div>`).join(''));
+SAFE.moderation=()=>card('Automatic checks flagged these',`<p class="sub-t">Task text and videos are checked by the system first. These were unsure.</p>`+[
+ ['Text','"Call me on WhatsApp 98•••• for details"','Phone number in task text · TD-4849'],
+ ['Video','15 s clip on "Clean water tank"','Possible face of a child · TD-4852'],
+ ['Text','"Fake college ID card making"','Possibly illegal · TD-4850']].map(r=>`<div class="ibx"><div class="ic ${r[0]==='Video'?'h':'s'}">${ic(r[0]==='Video'?'play':'flag')}</div><div class="body"><div class="t">${pill(r[0],'mut')} ${r[1]}</div><div class="meta">${r[2]}</div></div><div class="acts">${act('Allow',{tier:1,perm:'safety',done:'Allowed'},'btn sm')}${act('Remove',{tier:2,perm:'safety',title:'Remove this task?',body:'<p>The poster is told why. Any held money is refunded.</p>',go:'Remove',tone:'warn',done:'Removed'},'btn sm warn')}</div></div>`).join(''));
+SAFE.skills=()=>card('New skills people added',`<p class="sub-t">Approve good ones, merge duplicates, hide junk.</p><div class="tblwrap">`+tbl([{l:'Skill typed'},{l:'Used by'},{l:'Looks like'},{l:''}],[
+ ['mehndi artist','4 helpers','new'],['sofa dry clean','3 helpers','Sofa cleaning'],['tv fitting','6 helpers','TV mounting'],['xyz123','1 helper','junk'],['tiffin delivery','2 helpers','new'],['aadhar help','2 helpers','new (check)'],['plumbing work','5 helpers','Plumbing']
+].map(r=>({c:[`<b>${r[0]}</b>`,r[1],r[2]==='new'?pill('New skill','earn'):r[2]==='junk'?pill('Looks like junk','bad'):r[2].startsWith('new')?pill('Check first','wait'):`Same as <b>${r[2]}</b>`,(r[2]==='new'||r[2].startsWith('new'))?act('Approve',{tier:1,perm:'safety',done:'Approved'},'btn sm pri'):r[2]==='junk'?act('Hide',{tier:2,perm:'safety',title:'Hide "'+r[0]+'"?',go:'Hide',done:'Hidden'},'btn sm'):act('Merge',{tier:2,perm:'safety',title:`Merge "${r[0]}" into "${r[2]}"?`,body:'<p>Helpers using it now show the main skill. Search finds both.</p>',go:'Merge',done:'Merged'},'btn sm')]})))+'</div>');
+SAFE.hunt=()=>card('City Hunt finds waiting',`<p class="sub-t">Photos people sent for City Hunt. Check for faces, number plates and private places.</p><div class="photos">${[['#7bb39a','#2f6b55','Old stepwell, Bansilalpet'],['#d8b07a','#8d6232','Irani chai, Nampally'],['#9fb6d9','#40618f','Mural, Church Street'],['#c6a0b0','#7a4a5e','Flower market, KR Market'],['#a7a7a7','#555','Car with number plate']].map((c,i)=>`<div><div class="ph-img" style="background:linear-gradient(160deg,${c[0]},${c[1]})"><span>${c[2]}</span></div><div class="row" style="margin-top:6px;gap:6px">${act('OK',{tier:1,perm:'safety',done:'Approved'},'btn sm')}${act('Hide',{tier:2,perm:'safety',title:'Hide this photo?',go:'Hide',tone:'warn',done:'Hidden'},'btn sm'+(i===4?' warn':''))}</div></div>`).join('')}</div>`);
+SAFE.copyright=()=>card('Copyright notices',`<div class="tblwrap">`+tbl([{l:'Notice'},{l:'About'},{l:'Stage'},{l:''}],[
+ {c:['<b>Studio Kalyani</b><div class="small muted">Wedding invite design copied</div>','TD-4799 photo',pill('New · 40 h of 72 h','wait'),act('Take down',{tier:2,perm:'safety',title:'Take down the photo?',body:'<p>The photo is hidden and the poster can send a counter-notice.</p>',go:'Take down',tone:'warn',done:'Taken down'},'btn sm warn')+' '+act('Reject',{tier:2,perm:'safety',title:'Reject this notice?',go:'Reject',done:'Rejected'},'btn sm')]},
+ {c:['<b>PixelHouse</b><div class="small muted">Logo in profile photo</div>','Arjun Nair photo',pill('Counter-notice sent','earn'),act('Restore',{tier:2,perm:'safety',title:'Restore the photo?',go:'Restore',done:'Restored'},'btn sm')]},
+ {c:['<b>Rao Photography</b>','TD-4710 photo',pill('Taken down','ok'),'']}])+'</div>');
+
+/* SUPPORT */
+const TICKETS={'H-2207':['Sneha Iyer','p5','I paid but the task still shows unpaid','20 h','bad'],'H-2210':['Priya Sharma','p3',"I can't change my phone number",'3 h','wait'],'H-2195':['Lakshmi Devi','p7','Helper did not come','Answered','ok'],'H-2199':['Test poster 042','p10','Test ticket from seed','2 h','wait',true]};
+V.support=(sub)=>{
+  if(sub==='feedback')return V.feedback();
+  const id=TICKETS[sub]?sub:'H-2207';const tk=TICKETS[id];
+  return ph('Help requests','Promise: first answer within 24 hours.')+supTabs('')+
+  `<div class="grid g-tk" style="grid-template-columns:minmax(0,1fr) minmax(0,2fr)">${card('',`<div class="ticket-list" style="margin:-20px">${Object.entries(TICKETS).map(([k,v])=>`<a href="#/support/${k}" class="${k===id?'on':''} ${v[5]?'is-test':''}"><div class="spread"><b>${v[0]}${tt(v[5])}</b>${pill(v[3],v[4])}</div><small>${k} · ${v[2]}</small></a>`).join('')}</div>`)}
+  ${card(tk[2],`<div class="row small muted" style="margin:-6px 0 12px">${id} · from <a href="#/person/${tk[1]}">${tk[0]}</a> · Android 1.1.0 · <select aria-label="Assign" style="padding:3px 8px"><option>Assign: Meena (Support)</option><option>Me</option><option>Nobody</option></select></div>
+   <div class="chat"><div class="msg p">Hi, I paid ₹2,400 by UPI for the kitchen cleaning but app still says "Pay to hire". Money is gone from my bank.<small>${tk[0]} · 27 Nov 14:20</small></div><div class="note small" style="align-self:stretch">System found: payment PAY-88201 captured at 14:18 but the task did not update. <a href="#/task/TD-4840">Open task</a></div></div>
+   <textarea style="width:100%;margin-top:14px" rows="3" placeholder="Write a reply in plain words">Sorry Sneha, your payment reached us. I have fixed the task, you can hire now.</textarea>
+   <div class="spread" style="margin-top:10px"><select aria-label="Saved replies" style="padding:6px"><option>Saved replies…</option><option>Payment reached us</option><option>How refunds work</option></select><div class="row">${act('Resolve',{tier:1,perm:'support',done:'Marked resolved'},'btn')}${act('Send reply',{tier:2,perm:'support',title:'Send this reply to '+tk[0]+'?',body:'<p>They get a notification and see it in Help.</p>',go:'Send',done:'Reply sent'},'btn pri')}</div></div>`)}</div>`;
+};
+const supTabs=c=>`<div class="tabs"><a href="#/support" class="${c===""?"on":""}">Help requests<span class="c">3</span></a><a href="#/support/feedback" class="${c==="feedback"?"on":""}">Feedback board</a></div>`;
+V.feedback=()=>ph('Feedback board','Public ideas and feedback from people. They can vote and comment.')+supTabs('feedback')+
+ card('',`<div class="chips"><button class="chip on">Top voted</button><button class="chip">New</button><button class="chip">Planned</button><button class="chip">Done</button></div>`+[
+ ['Show helper distance on offers',86,'Planned','earn',2],['Pay in cash option',64,'Under review','wait',1],['Hindi and Telugu app language',51,'New','mut',0],['Let me hire the same helper weekly',47,'Planned','earn',3],['Show helper distance in offers',9,'New','mut',0]
+].map((r,i)=>`<div class="ibx"><div style="width:52px;text-align:center;flex:none"><div class="num" style="font-size:20px;font-weight:800">${r[1]}</div><div class="small muted">votes</div></div><div class="body"><div class="t">${r[0]}</div><div class="meta">${r[4]} comments · ${i===4?'looks like a duplicate of the first idea':'2 photos attached'}</div></div><div class="acts">${pill(r[2],r[3])}<select aria-label="Status" style="padding:5px 8px" ${can('support')?'':'disabled'}><option>Change status</option><option>Planned</option><option>Done</option><option>Not now</option></select>${i===4?`<button class="btn sm" disabled title="Not built yet">Merge</button> ${NEW}`:act('Reply',{tier:2,perm:'support',title:'Post a public reply?',body:'<p>Everyone can see this reply.</p><textarea style="width:100%" rows="3"></textarea>',go:'Post',done:'Reply posted'},'btn sm')}</div></div>`).join(''));
+
+/* GROWTH */
+V.growth=(tab='segments')=>{
+  if(S.role==='Finance')return lockedScreen('Growth');
+  return ph('Growth','Bring people in, bring them back.')+tabs('growth',[['segments','Segments'],['broadcast','Broadcast'],['leads','Leads & follow-ups',6],['promotions','Promotions'],['new','Coming next']],tab)+(GROW[tab]||GROW.segments)();
+};
+const GROW={};
+const SEGS={s1:['Helpers in Hyderabad, active in 30 days',612,58],s2:['Posters who posted once and never again',1284,102],s3:['New signups this week, no task yet',238,31],s4:['Helpers with weekly goal not met',417,44]};
+GROW.segments=()=>card('Saved groups of people',`<div class="tblwrap">`+tbl([{l:'Group'},{l:'People',r:1},{l:'Test people (left out)',r:1},{l:''}],Object.entries(SEGS).map(([k,s])=>({c:[`<b>${s[0]}</b>`,s[1].toLocaleString('en-IN'),`<span class="muted">${s[2]}</span>`,`<a class="btn sm" href="#/growth/broadcast" onclick="S.broadcastSeg='${k}'">Message them</a>`]})))+'</div>',{right:act('New group',{tier:1,perm:'crm',done:'Group builder opened (demo)',icon:'plus'},'btn sm pri')});
+GROW.broadcast=()=>{const s=SEGS[S.broadcastSeg];return `<div class="grid g-main">`+card('Send a message to many people',`<label class="small" style="font-weight:700">Who</label><select style="width:100%;margin:4px 0 12px" onchange="S.broadcastSeg=this.value;route()">${Object.entries(SEGS).map(([k,v])=>`<option value="${k}" ${k===S.broadcastSeg?'selected':''}>${v[0]}</option>`).join('')}</select>
+ <div class="note blue" style="margin-bottom:12px"><b style="font-size:20px" class="num">${s[1].toLocaleString('en-IN')}</b> real people will get this. ${s[2]} test people left out. Max 5,000 per send.</div>
+ <label class="small" style="font-weight:700">Title</label><input style="width:100%;margin:4px 0 10px" value="Your next task is 2 taps away"><label class="small" style="font-weight:700">Message</label><textarea style="width:100%;margin-top:4px" rows="3">Post any task in 30 seconds. Pay only when you hire.</textarea>
+ <div class="row" style="margin-top:12px"><label class="row small"><input type="checkbox" checked> App notification</label><label class="row small"><input type="checkbox"> Push</label><label class="row small"><input type="checkbox" disabled> Email ${NEW}</label></div>
+ <div style="margin-top:14px">${act('Send to '+s[1].toLocaleString('en-IN')+' people',{tier:3,perm:'crm',title:'Send to '+s[1].toLocaleString('en-IN')+' people?',body:'<ul><li>Goes out right away, cannot be taken back.</li><li>Test people are left out.</li></ul>',word:String(s[1]),go:'Send now',tone:'pri',done:'Broadcast sent'},'btn pri')}</div>`)+
+ card('Preview',`<div style="background:var(--sunk);border-radius:16px;padding:14px"><div class="small muted">taskdrop. · now</div><b>Your next task is 2 taps away</b><div class="small">Post any task in 30 seconds. Pay only when you hire.</div></div><hr class="sep"><div class="small muted">Last sends</div>${tbl([{l:'Sent'},{l:'To',r:1},{l:'Opened',r:1}],[{c:['24 Nov','1,102','31%']},{c:['17 Nov','860','27%']}])}`)+'</div>'};
+GROW.leads=()=>`<div class="grid g2">`+card('Follow-ups due',tbl([{l:'Who'},{l:'Why'},{l:'Due'}],[{c:[who('p7'),'First task done, ask for review','Today'],go:'person/p7'},{c:[who('p3'),'Ask about weekly cleaning','Today'],go:'person/p3'},{c:[who('p6'),'Invite to referral','Overdue'],go:'person/p6'}]),{right:act('Add',{tier:1,perm:'crm',done:'Follow-up added',icon:'plus'},'btn sm')})+
+ card('Leads',tbl([{l:'Name'},{l:'From'},{l:'Stage'}],[{c:['Green Homes Society, Kondapur','Website form',pill('Talking','earn')]},{c:['Ramesh (shop owner)','Referral',pill('New','wait')]},{c:['Bloom PG, HSR','Call',pill('Won','ok')]}]))+'</div>'+
+ `<div style="margin-top:16px">${card('Automatic follow-ups',`<p class="sub-t">Rules that create follow-ups by themselves (was "Rules" in Settings).</p>`+[['When a poster\'s first task is done, remind staff to ask for a review',true],['When a helper has no task in 14 days, add a follow-up',true],['When someone reports a problem twice, alert Support',false]].map((r,i)=>`<div class="swrow"><div class="tx"><b>${r[0]}</b></div>${swBtn('rule'+i,r[1],{title:'Automatic follow-up',tier:2,perm:'crm',dOn:'Follow-ups start being created.',dOff:'No new follow-ups from this rule.'})}</div>`).join(''))}</div>`;
+GROW.promotions=()=>card('Paid promotions running',`<p class="sub-t">Posters pay to show a task higher. 8 spots per area, flat price, no refunds.</p><div class="tblwrap">`+tbl([{l:'Task'},{l:'Area'},{l:'Paid',r:1},{l:'Views → offers'},{l:''}],[
+ {c:['Deep clean 2BHK kitchen','Koramangala','₹99','412 → 6',act('Pause',{tier:2,perm:'crm',title:'Pause this promotion?',body:'<p>No refund is given (policy). Use only for rule breaks.</p>',go:'Pause',tone:'warn',done:'Paused'},'btn sm')]},
+ {c:['Packers for 1BHK move','Madhapur','₹149','655 → 9',act('Pause',{tier:2,perm:'crm',title:'Pause this promotion?',go:'Pause',tone:'warn',done:'Paused'},'btn sm')]}])+'</div>',{right:'<span class="small muted">This month: ₹4,820 from promotions</span>'});
+GROW.new=()=>`<div class="grid g2">${card('Coupons and discount codes '+NEW,'<p class="small muted">Give ₹100 off a first task, track who used it, stop abuse. Touches money, so needs owner sign-off.</p>',{cls:'newc'})}${card('Email sequences (Loops) '+NEW,'<p class="small muted">Welcome emails, "come back" emails. Decision 13: Loops sends, Inngest passes events.</p>',{cls:'newc'})}${card('Referral abuse review '+NEW,'<p class="small muted">See who referred whom and take back rewards from fake accounts.</p>',{cls:'newc'})}</div>`;
+
+/* REPORTS */
+V.reports=()=>ph('Reports and numbers','How TaskDrop is doing. Test people are always left out of these numbers.',`<a class="btn sm">${ic('dl')}Download CSV</a><select aria-label="Period" style="padding:7px"><option>Last 30 days</option><option>Last 7 days</option><option>This year</option></select>`)+
+ `<div class="grid g4 keep2" style="margin-bottom:16px">${tile('Tasks posted','1,146','+18% vs previous 30 days','jade')}${tile('Tasks done','884','77% of posted','blue')}${tile('Money through TaskDrop',inr(1186400),'paid by posters','gold')}${tile('Our earnings',inr(98720),'fees + commission','jade')}</div>
+ <div class="grid g2">
+  ${card('From signup to first task',hbar('Signed up',3120,3120,'var(--ink2)','3,120')+hbar('Finished onboarding',2480,3120,'var(--ink2)','2,480')+hbar('Posted or offered',1390,3120,'var(--jade)','1,390')+hbar('Paid or got paid',940,3120,'var(--jade)','940')+hbar('Came back in 30 days',610,3120,'var(--blue)','610'))}
+  ${card('Guests who signed up',hbar('Looked around as guest',5240,5240,'var(--ink2)','5,240')+hbar('Tapped sign up',1310,5240,'var(--jade)','1,310')+hbar('Finished sign up',1020,5240,'var(--jade)','1,020')+'<p class="small muted">19% of guests became users.</p>')}
+  ${card('Who comes back (by signup week)',`<div style="overflow-x:auto"><table class="cohort"><tr><th>Week</th><th>W1</th><th>W2</th><th>W3</th><th>W4</th></tr>${[['3 Nov',62,44,36,31],['10 Nov',58,41,33,null],['17 Nov',65,47,null,null],['24 Nov',61,null,null,null]].map(r=>`<tr><th>${r[0]}</th>${r.slice(1).map(v=>v==null?'<td></td>':`<td style="background:color-mix(in srgb,var(--blue) ${v}%,var(--surface));color:${v>45?'#fff':'var(--ink)'}">${v}%</td>`).join('')}</tr>`).join('')}</table></div>`)}
+  ${card('Why helpers earn',`<div class="row" style="gap:24px"><div class="donut" style="background:conic-gradient(var(--blue) 0 54%,var(--jade) 54% 82%,var(--gold) 82% 100%)"></div><div class="legend small"><div><span class="sw" style="background:var(--blue)"></span>Gig income · 54%</div><div><span class="sw" style="background:var(--jade)"></span>Own business · 28%</div><div><span class="sw" style="background:var(--gold)"></span>Other · 18%</div></div></div>`)}
+ </div>
+ <div style="margin-top:16px">${card('Marketplace by area',`<div class="tblwrap">`+tbl([{l:'Area'},{l:'Posted',r:1},{l:'Filled',r:1},{l:'Time to first offer',r:1},{l:'Helpers active',r:1}],[['Kondapur, Hyderabad',214,'84%','11 min',96],['Madhapur, Hyderabad',188,'81%','14 min',88],['Koramangala, Bengaluru',172,'79%','17 min',71],['HSR Layout, Bengaluru',140,'76%','22 min',59],['Banjara Hills, Hyderabad',96,'68%','35 min',30]].map(r=>({c:r})))+'</div>')}</div>
+ <div class="grid g2" style="margin-top:16px">${card('Staff performance',tbl([{l:'Staff'},{l:'Answered',r:1},{l:'Avg first reply',r:1}],[{c:['Meena (Support)',142,'3 h 10 m']},{c:['Kiran (Finance)',61,'5 h 40 m']},{c:['Owner',38,'2 h 05 m']}]))}${card('Website visitors (DataFast) '+NEW,'<p class="small muted">Where visitors come from and which pages turn them into users. Planned at $9/month.</p>',{cls:'newc'})}</div>`;
+
+/* SETTINGS: App switches */
+V.settings=()=>{
+  if(S.role!=='Admin'&&S.role!=='Viewer')return lockedScreen('App switches');
+  const ro=S.role!=='Admin';
+  const g=(title,sub,rows)=>card(title,rows,{sub});
+  const r=(key,n,on,d,o={})=>`<div class="swrow ${o.blk?'blk':''}" data-s="${(n+' '+key+' '+d).toLowerCase()}"><div class="tx"><b>${n}</b> ${o.x?'<span class="xtag">Extra check</span>':''} ${o.new?NEW:''}<div class="d">${d}</div><code>${key}</code></div>${o.new?'<button class="tg" disabled aria-label="Not built"></button>':swBtn(key,on,{title:n,tier:o.x?3:2,word:o.word,dOn:o.on,dOff:o.off,danger:o.danger,red:o.red})}</div>`;
+  const devOn=S.switches.devotp!==false;
+  return ph('App switches','Turn parts of the app on or off for everyone. Each switch says what happens.',`<input id="swq" placeholder="Find a switch" oninput="filterSw(this.value)" style="border-radius:999px;width:220px">`)+(ro?'<div class="note" style="margin-bottom:16px">You can look but not change. Only the owner can change switches.</div>':'')+
+  `<div class="stack" id="swlist">
+  ${g('Launch blockers','Must be fixed before real users arrive.',r('devotp','Sign in without a real code',true,devOn?'<b style="color:var(--red-t)">ON now:</b> any phone number signs in with an auto-filled code. Anyone could get into anyone\'s account. Turn OFF before launch.':'OFF: people must type the real SMS code. Correct for launch.',{x:1,blk:devOn,red:1,word:'ON',on:'Anyone can sign in to ANY phone number without the SMS code. Only for testing.',off:'People must type the real code from SMS again.',danger:1}))}
+  ${g('Money','Also shown in Money > Fees & money switches.',r('money_paused','Pause all money',false,'Off: money runs normally.',{x:1,word:'PAUSE',on:'All payments, releases and refunds stop until you turn it off.',off:'Money starts again.',danger:1})+r('topups','Posters can top up a task price',true,'People can raise a task price after posting.')+r('withdrawals','Old wallet withdrawals',true,'Helpers with old wallet money can withdraw it.')+r('promotions','Paid promotions',true,'Posters can pay to show a task higher.'))}
+  ${g('Sign-in and sign-up','',r('signups_open','New people can sign up',true,'Off means only existing people can sign in.',{x:1,word:'SIGNUPS',off:'Nobody new can join until you turn this back on.',danger:1})+r('phone','Sign in with phone (SMS code)',true,'Main sign-in. Turning it off locks most people out.',{x:1,word:'PHONE',off:'People who use phone sign-in cannot get in.',danger:1})+r('google','Sign in with Google',true,'')+r('apple','Sign in with Apple',false,'iOS not launched yet.')+r('password','Sign in with password',true,'')+r('require_phone','Phone must be checked before posting or offering',true,''))}
+  ${g('Marketplace','',r('posting','People can post tasks',true,'')+r('bidding','Helpers can send offers',true,'')+r('chat_photos','Photos in chat',true,'')+r('guest','Guests can look around without signing up',true,'Today this cannot be switched off.',{new:1}))}
+  ${g('App updates and maintenance','',r('maintenance','Maintenance mode',false,'Off. When on, the app shows your message and nobody can use it.',{x:1,word:'MAINTENANCE',on:'Everyone sees the maintenance message. Nothing works until you turn it off.',danger:1})+`<div class="swrow"><div class="tx"><b>Lowest app version allowed</b><div class="d">Older phones are asked to update. 131 people are on 1.0.0.</div><code>min_version</code></div><input value="1.0.0" style="width:90px" ${ro?'disabled':''}>${act('Save',{tier:3,perm:'settings',title:'Change lowest allowed version',ba:['1.0.0','1.1.0'],body:'<p><b>131 people</b> on 1.0.0 must update before they can use the app.</p>',word:'1.1.0',go:'Save',tone:'pri',done:'Saved'},'btn sm')}</div>`+r('update_required','Force the update (block old versions)',false,''))}
+  ${g('Limits','Protect against abuse and costs.',[['SMS codes per day (all)','5,000','sms_daily_cap'],['SMS codes per phone per day','5','sms_phone_daily_cap'],['Tasks a person can post per day','10 (new accounts 3)','post_cap_day'],['New-account days','7 days','new_account_days'],['Largest task for new accounts','₹3,000','new_account_max_task_minor'],['Area searches per day (all / per person)','2,000 / 40','places_daily_cap'],['Uploads per person per day','30 files · 50 MB','media_uploads_day'],['Feedback posts per day','5 (new 2)','feedback_cap_day'],['Smart search strictness','0.72','search_semantic_min']].map(x=>`<div class="swrow" data-s="${(x[0]+' '+x[2]).toLowerCase()}"><div class="tx"><b>${x[0]}</b><div class="d"><code>${x[2]}</code></div></div><b class="num">${x[1]}</b>${act('Change',{tier:3,perm:'settings',title:'Change '+x[0].toLowerCase(),ba:[x[1],'new value'],body:'<input style="width:100%" value="'+x[1]+'">',word:'SAVE',go:'Save',tone:'pri',done:'Saved'},'btn sm')}</div>`).join('')+'<p class="small muted" style="margin:10px 0 0">3 old unused settings are hidden (n8n).</p>')}
+  ${g('Admin security','',r('admin_require_mfa','Staff need an authenticator code for money and settings',true,'Keep ON.',{x:1,word:'OFF',off:'Money and settings could be changed with just a password.',danger:1})+`<div class="swrow"><div class="tx"><b>Sign staff out after idle</b><div class="d">30 minutes · session lasts 12 hours</div></div>${act('Change',{tier:3,perm:'settings',title:'Change idle sign-out',ba:['30 min','60 min'],word:'SAVE',go:'Save',tone:'pri',done:'Saved'},'btn sm')}</div>`)}
+  </div>`;
+};
+function filterSw(q){q=q.toLowerCase();document.querySelectorAll('#swlist .swrow').forEach(r=>r.style.display=!q||(r.dataset.s||r.textContent.toLowerCase()).includes(q)?'':'none')}
+
+V.content=()=>{
+  if(S.role!=='Admin')return lockedScreen('Content');
+  return ph('Content','What people see in the app that you can change without a new app release.')+
+  `<div class="grid g2">${card('Top banner',`<label class="small" style="font-weight:700">Text</label><input id="bt" style="width:100%;margin:4px 0 10px" value="Diwali week: helpers are busy, post early!" oninput="document.getElementById('bp').textContent=this.value">
+   <div class="grid g2"><div><label class="small" style="font-weight:700">Type</label><select id="bl" style="width:100%;margin-top:4px" onchange="document.getElementById('bpw').style.background={'Info':'var(--blue-s)','Warning':'var(--gold-s)','Problem':'var(--orange-s)'}[this.value]"><option>Info</option><option>Warning</option><option>Problem</option></select></div><div><label class="small" style="font-weight:700">Hide after</label><input type="date" style="width:100%;margin-top:4px" value="2026-12-02"></div></div>
+   <label class="small" style="font-weight:700;display:block;margin-top:10px">Link (optional)</label><input style="width:100%;margin-top:4px" placeholder="https://taskdrop.in/…">
+   <div class="small muted" style="margin:14px 0 6px">Preview</div><div id="bpw" class="prev-banner" style="background:var(--blue-s)">${ic('alert')}<span id="bp">Diwali week: helpers are busy, post early!</span></div>
+   <div class="row" style="margin-top:14px">${act('Publish banner',{tier:2,perm:'settings',title:'Show this banner to everyone?',body:'<p>Appears at the top of the app and website within a minute.</p>',go:'Publish',done:'Banner live'},'btn pri')}${act('Remove banner',{tier:2,perm:'settings',title:'Remove the banner?',go:'Remove',done:'Banner removed'},'btn')}</div>`)}
+   ${card('Home: live numbers and "Just posted"',`<div class="swrow"><div class="tx"><b>Show "Just posted" ticker</b><div class="d">Recent tasks scroll on Home.</div></div>${swBtn('ticker',true,{title:'Just posted ticker',tier:2})}</div><div class="swrow"><div class="tx"><b>Trending tasks</b><div class="d">Picked from the last 7 days.</div></div>${swBtn('trending',true,{title:'Trending',tier:2})}</div><div class="swrow"><div class="tx"><b>Highlights (live numbers)</b><div class="d">"1,146 tasks done this month"</div></div>${swBtn('highlights',true,{title:'Highlights',tier:2})}</div>`)}
+  </div>
+  <h3 style="margin:24px 0 6px">Written into the app today</h3><p class="muted small" style="margin:0 0 12px">These need a code change to edit. Each could become editable here. Owner to decide.</p>
+  <div class="grid g3">
+   ${card('Home ideas and templates '+NEW,'<p class="small muted">The idea cards on Hire Home, "Only on TaskDrop" ideas and poster options.</p>',{cls:'newc'})}
+   ${card('Big Days '+NEW,'<p class="small muted">Festival and event days with their own task ideas.</p>',{cls:'newc'})}
+   ${card('Explainer videos and walkthrough '+NEW,'<p class="small muted">"How TaskDrop works" page. <b>The YouTube link is still missing.</b></p>',{cls:'newc'})}
+   ${card('Where TaskDrop is open '+NEW,'<p class="small muted">Launch areas: list allowed areas, show "coming soon to your area" elsewhere (plan 4.6).</p>',{cls:'newc'})}
+   ${card('Terms and Privacy versions '+NEW,'<p class="small muted">Know which version each person accepted and ask them to accept again after a change.</p>',{cls:'newc'})}
+   ${card('Landing page art '+NEW,'<p class="small muted">Swap the A/B landing pictures without a release.</p>',{cls:'newc'})}
+  </div>`;
+};
+
+V.team=()=>{
+  if(S.role!=='Admin')return lockedScreen('Team & access');
+  return ph('Team and access','Who can use this admin panel and what they can do.',act('Add a person',{tier:3,perm:'team',title:'Add a staff member',body:'<input style="width:100%;margin-bottom:8px" placeholder="Google email"><select style="width:100%"><option>Support</option><option>Finance</option><option>Sales</option><option>Viewer</option><option>Admin</option></select>',word:'ADD',go:'Add',tone:'pri',done:'Invite sent',icon:'plus'},'btn pri'))+
+  card('',`<div class="tblwrap">`+tbl([{l:'Person'},{l:'Role'},{l:'Authenticator'},{l:'Last seen'},{l:''}],[
+   {c:['<b>Owner</b> (you)<div class="small muted">hiten••••@gmail.com</div>',pill('Admin','ok'),pill('On','ok'),'Now','<span class="small muted">You cannot change your own role</span>']},
+   {c:['<b>Meena</b><div class="small muted">meena@taskdrop.in</div>',pill('Support','earn'),pill('On','ok'),'Today 09:40',act('Change role',{tier:3,perm:'team',title:'Change Meena\'s role',ba:['Support','Finance'],word:'MEENA',go:'Change',tone:'pri',done:'Role changed'},'btn sm')]},
+   {c:['<b>Kiran</b><div class="small muted">kiran@taskdrop.in</div>',pill('Finance','wait'),pill('Off','bad'),'26 Nov',act('Change role',{tier:3,perm:'team',title:'Change Kiran\'s role',word:'KIRAN',go:'Change',tone:'pri',done:'Role changed'},'btn sm')]},
+   {c:['<b>Sana</b><div class="small muted">sana@taskdrop.in</div>',pill('Sales','mut'),pill('On','ok'),'27 Nov',act('Remove',{tier:3,perm:'team',title:'Remove Sana from the admin?',word:'SANA',go:'Remove',done:'Removed'},'btn sm')]}])+'</div>',{right:act('Sign out all staff',{tier:3,perm:'team',title:'Sign out every staff member?',body:'<p>Use if a laptop is lost. Everyone signs in again.</p>',word:'SIGNOUT',go:'Sign out all',done:'All staff signed out'},'btn sm warn')})+
+  `<div style="margin-top:16px">${card('What each role can do',tbl([{l:'Role'},{l:'Sees'},{l:'Can change'}],[{c:['Admin','Everything','Everything (money and settings need a code)']},{c:['Finance','Money, people, tasks, reports','Payouts, refunds, holds, disputes']},{c:['Support','Most things, money read-only','Help, follow-ups, warnings, suspensions, copyright']},{c:['Sales','People, help, growth','Help and follow-ups only']},{c:['Viewer','Everything except team','Nothing']}]))}</div>`;
+};
+
+V.health=()=>{
+  if(S.role==='Support')return lockedScreen('System health');
+  const jobs=[['Release and refund money','money-moves','Every hour','10:00','ok',1],['Settle cleared payouts','settle-cleared-often','Every 15 min','10:45','ok',0],['Finish tasks past due','auto-complete-due','Every 15 min','10:45','ok',0],['Delete old chats (48 h)','chat-purge','Daily 03:00','03:00','ok',0],['Overdue task reminders','overdue-tasks','Every hour','10:00','ok',0],['Daily digest email','daily-digest','Daily 08:00','08:00','ok',0],['Watch for SMS abuse','sms-pumping-watch','Every 10 min','10:50','ok',0],['Safety alarm','safety-alarm','Every hour','10:00','ok',0],['Public numbers on Home','public-snapshots','Every 30 min','10:30','ok',0],['Follow-up rules','crm-rules','Every hour','10:00','ok',0],['Nightly money check','reconcile','Daily 02:30','02:30','wait',0],['Outbox sweeper','outbox-watchdog','Every 5 min','10:55','ok',0],['Job watchdog','job-watchdog','Every 10 min','10:50','ok',0],['Housekeeping','housekeeping','Daily 04:00','04:00','ok',0],['Fix user sync','user-sync-repair','Every 6 h','06:00','bad',3]];
+  return ph('System health','Is the machine working? Green means nothing to do.')+
+  `<div class="grid g4 keep2" style="margin-bottom:16px">
+   <div class="tile orange"><div class="lbl">Background job runs (Inngest)</div><div class="big num">92%</div><div class="meter"><div style="width:92%;background:var(--orange)"></div></div><div class="foot">46,200 of 50,000 free · resets 1 Dec</div></div>
+   <div class="tile"><div class="lbl">SMS codes today</div><div class="big num">1,180</div><div class="meter"><div style="width:24%;background:var(--jade)"></div></div><div class="foot">of 5,000 daily cap</div></div>
+   <div class="tile"><div class="lbl">Area search backup (Google)</div><div class="big num">312</div><div class="meter"><div style="width:16%;background:var(--jade)"></div></div><div class="foot">of 2,000 today · free search first</div></div>
+   <div class="tile"><div class="lbl">New crashes (Sentry, 24 h)</div><div class="big num">3</div><div class="foot">app 2 · server 1 · admin 0</div></div>
+  </div>`+
+  card('Background jobs',`<div class="tblwrap">`+tbl([{l:'Job'},{l:'Runs'},{l:'Last run'},{l:'Status'},{l:''}],jobs.map(j=>({c:[`<b>${j[0]}</b><div class="small muted">${j[1]}</div>`,j[2],j[3],j[4]==='ok'?pill('Fine','ok'):j[4]==='bad'?pill(`Failed ${j[5]} times today`,'bad'):pill('1 item to explain','wait'),act('Run now',{tier:2,perm:'settings',title:'Run "'+j[0]+'" now?',body:'<p>Runs once right away. Uses 1 job run.</p>',go:'Run now',done:'Started',icon:'play'},'btn sm')+' '+act('',{tier:2,perm:'settings',title:'Pause "'+j[0]+'"?',body:'<p>It stops running until you resume it. '+(j[1]==='money-moves'?'<b>Releases and refunds will wait.</b>':'')+'</p>',go:'Pause',tone:'warn',done:'Paused',icon:'pause'},'btn sm ghost')]})))+'</div>')+
+  `<div class="grid g3" style="margin-top:16px">
+   ${card('Messages waiting to send (outbox)',`<div class="big num" style="font-size:28px;font-weight:800">4</div><p class="small muted">Oldest 40 s. Fine under 100.</p>`)}
+   ${card('App Check (blocks fake apps)',`${pill('Web: on, not enforced','wait')}<p class="small muted">Android Play Integrity not set up yet.</p>`)}
+   ${card('Connected services',`<div class="stack small"><div class="spread"><span>Razorpay</span>${pill('Test keys','wait')}</div><div class="spread"><span>SMS provider</span>${pill('Working','ok')}</div><div class="spread"><span>ImageKit photos</span>${pill('Working','ok')}</div><div class="spread"><span>Push notifications</span>${pill('Working','ok')}</div><div class="spread"><span>Email (Loops)</span>${NEW}</div></div>`)}
+  </div>`;
+};
+
+V.audit=()=>{
+  if(S.role==='Support'||S.role==='Sales')return lockedScreen('Audit log');
+  const L=[['Owner','changed <b>Poster fee</b> from 3% to 4%','Today 10:12','money',['Poster fee','3%','4%']],['Meena','suspended <b>Mohammed Irfan</b> until 5 Dec','Today 09:58','safety'],['Owner','opened the chat of <b>TD-4821</b> (dispute case)','Today 09:40','privacy'],['Kiran','sent a refund of <b>₹1,100</b> to Anita Reddy','25 Nov 16:02','money'],['Owner','turned ON <b>Sign in without a real code</b>','11 Oct 12:00','switch',['Sign in without a real code','Off','On']],['System','retried release of <b>₹1,350</b> to Vikram Singh (try 3)','Today 11:00','money'],['Owner','changed Meena\'s role from Sales to Support','20 Nov','team',['Role','Sales','Support']]];
+  return ph('Audit log','Every change, in plain words. Nothing here can be edited or deleted.',`<select aria-label="Who" style="padding:7px"><option>Everyone</option><option>Owner</option><option>Meena</option><option>Kiran</option><option>System</option></select><select aria-label="Kind" style="padding:7px"><option>All changes</option><option>Money</option><option>Switches</option><option>Safety</option><option>Privacy (viewed private info)</option></select>`)+
+  card('',`<div class="audit">${L.map(l=>`<div class="a"><span class="av ${l[0]==='System'?'t':l[0]==='Owner'?'h':'e'}" style="width:28px;height:28px;font-size:10px">${l[0]==='System'?'SY':ini(l[0])}</span><div style="flex:1;min-width:0"><div><b>${l[0]}</b> ${l[1]}</div><div class="small muted">${l[2]} · ${l[3]}</div>${l[4]?`<details><summary>Details</summary><div class="ba" style="margin-top:6px"><span>${l[4][0]}:</span><span class="from">${l[4][1]}</span><span>→</span><span>${l[4][2]}</span></div></details>`:''}</div></div>`).join('')}</div>`);
+};
+
+V.launch=()=>{
+  if(S.role!=='Admin')return lockedScreen('Launch checklist');
+  const devOn=S.switches.devotp!==false;
+  const L=[[!devOn,'"Sign in without a real code" is OFF',devOn?'It is ON. Anyone can sign in to any number.':'Done.','settings'],[false,'App Check is enforced (blocks fake apps)','Web on but not enforced. Android needs Play Integrity.','health'],[false,'Razorpay live keys on production','Production still uses test keys.','money/overview'],[false,'Production server says "production"','So the staging ribbon disappears there.','settings'],[true,'Staff need an authenticator code','On.','settings'],[null,'All staff have their authenticator set up','Kiran has not set it up.','team'],[true,'Money check passes 3 nights in a row','Last 2 nights clean, today 1 item.','money/check'],[false,'Test people removed from production','Not needed on staging. Check on production.','people'],[null,'Background jobs on a paid plan','92% of the free limit used.','health'],[true,'Lowest app version set','1.0.0.','settings'],[false,'Terms version tracking','Not built yet.','content'],[null,'Crash source maps for admin','Owner token missing.','health']];
+  const ready=L.filter(x=>x[0]===true).length;
+  return ph('Launch checklist','Everything that must be true before real people and real money.')+
+  `<div class="card" style="margin-bottom:16px"><div class="spread"><div><div class="big num" style="font-size:34px;font-weight:800">${ready} of ${L.length} ready</div><div class="small muted">Red items block launch. Gold items should be done soon after.</div></div></div><div class="meter" style="height:12px"><div style="width:${ready/L.length*100}%;background:var(--jade)"></div></div></div>`+
+  card('',L.map(x=>`<div class="check"><div class="st ${x[0]===true?'y':x[0]===false?'n':'p'}">${ic(x[0]===true?'check':x[0]===false?'x':'clock')}</div><div style="flex:1;min-width:0"><b>${x[1]}</b><div class="small muted">${x[2]}</div></div><a class="btn sm" href="#/${x[3]}">${x[0]===true?'View':'Fix'}</a></div>`).join(''));
+};
+V.security=()=>ph('My security','Your own sign-in safety.')+`<div class="grid g2">${card('Authenticator app',`${pill('On','ok')}<p class="small muted">Asked for money and settings changes. Unlocks for 10 minutes each time.</p>${act('Set up a new phone',{tier:3,perm:'none',title:'Move your authenticator to a new phone',word:'MOVE',go:'Continue',tone:'pri',done:'Scan the new code (demo)'},'btn')}`)}${card('Where you are signed in',tbl([{l:'Device'},{l:'Last seen'}],[{c:['Chrome on Windows','Now']},{c:['Chrome on Android','Yesterday']}])+'<hr class="sep">'+act('Sign out other devices',{tier:2,perm:'none',title:'Sign out your other devices?',go:'Sign out',done:'Other devices signed out'},'btn'))}</div>`;
+
+V.states=()=>ph('Empty, loading and error states','How every screen behaves when there is nothing, when it is loading, or when part is not installed.')+
+ `<div class="grid g2">${card('Loading',`<div class="sk" style="width:40%;height:22px"></div><div class="sk"></div><div class="sk" style="width:80%"></div><div class="sk" style="width:60%"></div>`)}
+ ${card('Empty',`<div class="empty"><div class="eic">${ic('check')}</div><b>No disputes. Nice.</b>New disputes appear here by themselves.</div>`)}
+ ${card('Not set up on this server yet',`<div class="empty"><div class="eic">${ic('gear')}</div><b>Not set up on this server yet</b>This part starts working once the next update is installed. Nothing is broken.<br><span class="small">(Replaces the old "run migration X" message.)</span></div>`)}
+ ${card('Could not load',`<div class="empty"><div class="eic" style="color:var(--orange-t)">${ic('alert')}</div><b>Couldn't load this</b>Check your internet and try again. No money moved.<div style="margin-top:10px"><button class="btn sm" onclick="toast('Trying again…')">${ic('retry')}Try again</button></div></div>`)}
+ ${card('No search results',`<div class="empty"><div class="eic">${ic('users')}</div><b>No one matches</b><button class="btn ghost" onclick="toast('Filters cleared')">Clear filters</button></div>`)}
+ ${card('New, needs building '+NEW,'<p class="small muted">Dashed cards mark features that do not exist yet, so nobody thinks they work.</p>',{cls:'newc'})}</div>`;
+
+/* ---------- router ---------- */
+function route(){
+  A={};an=0;
+  const h=cur();const [s,a]=h.split('/');
+  let html;
+  try{
+    if(s==='today'||!s)html=V.today();
+    else if(s==='inbox')html=V.inbox();
+    else if(s==='money')html=V.money(a||'overview');
+    else if(s==='people')html=V.people();
+    else if(s==='person')html=V.person(a);
+    else if(s==='tasks')html=V.tasks();
+    else if(s==='task')html=V.task(a);
+    else if(s==='devices')html=V.devices();
+    else if(s==='safety')html=V.safety(a||'reports');
+    else if(s==='support')html=V.support(a);
+    else if(s==='growth')html=V.growth(a||'segments');
+    else if(V[s])html=V[s](a);
+    else html=ph('Not found','')+card('',`<div class="empty"><b>This page does not exist</b><a href="#/today">Go to Today</a></div>`);
+  }catch(err){console.error(err);html=card('',`<div class="empty"><b>Couldn't show this screen</b>${err.message}</div>`)}
+  document.getElementById('main').innerHTML=html;
+  renderNav(h);applyNums();
+  document.body.classList.remove('drawer');
+  window.scrollTo(0,0);
+}
+window.addEventListener('hashchange',route);
+if(innerWidth<760)document.getElementById('demo').classList.add('min');
+route();
+</script>
+</body>
+</html>
