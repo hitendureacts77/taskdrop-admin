@@ -1,1 +1,45 @@
 /* Admin v2, work package wp2-disputes-jobs. Every rule must start with [data-v2]. Owned by that package only. */
+
+[data-v2] .wp2-says { background: var(--sunk); border-radius: var(--r); padding: 10px 12px; border-left: 4px solid var(--line); font-size: 14px; min-width: 0; overflow-wrap: anywhere; }
+[data-v2] .wp2-says.jade { border-left-color: var(--jade); }
+[data-v2] .wp2-says.jade .b { color: var(--jade-t); }
+[data-v2] .wp2-says.blue { border-left-color: var(--blue); }
+[data-v2] .wp2-says.blue .b { color: var(--blue-t); }
+[data-v2] .wp2-says .b, [data-v2] .wp2-decide .b { font-weight: 700; }
+
+[data-v2] .wp2-decide { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+[data-v2] .wp2-decide-h { font-weight: 700; }
+[data-v2] .wp2-opt { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--line); border-radius: var(--r); padding: 10px 12px; cursor: pointer; min-width: 0; }
+[data-v2] .wp2-opt.sel { border-color: var(--jade); background: var(--jade-s); }
+[data-v2] .wp2-opt input[type='radio'] { margin-top: 3px; flex: none; }
+[data-v2] .wp2-opt-b { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+[data-v2] .wp2-opt-b small { color: var(--muted); font-size: 13px; }
+[data-v2] .wp2-split { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+[data-v2] .wp2-split input[type='range'] { width: 100%; padding: 0; border: 0; accent-color: var(--jade); }
+[data-v2] .wp2-split-line { font-size: 14px; }
+[data-v2] .wp2-split-line.small { font-size: 13px; }
+[data-v2] .wp2-split-line .w { color: var(--blue-t); font-weight: 600; }
+[data-v2] .wp2-split-line .p { color: var(--jade-t); font-weight: 600; }
+[data-v2] .wp2-split-bar { display: flex; height: 12px; border-radius: 99px; overflow: hidden; background: var(--sunk); }
+[data-v2] .wp2-split-bar span { display: block; height: 100%; flex-basis: 0; }
+[data-v2] .wp2-split-bar .w { background: var(--blue); }
+[data-v2] .wp2-split-bar .t { background: var(--gold); }
+[data-v2] .wp2-split-bar .p { background: var(--jade); }
+[data-v2] .wp2-decide-f { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+
+[data-v2] .wp2-big { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+[data-v2] .wp2-prose { margin-top: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+[data-v2] .wp2-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; overflow-wrap: anywhere; }
+
+[data-v2] .wp2-tl { list-style: none; margin: 0; padding: 0 0 0 14px; border-left: 2px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
+[data-v2] .wp2-tl li { position: relative; display: flex; flex-direction: column; font-size: 14px; }
+[data-v2] .wp2-tl li::before { content: ''; position: absolute; left: -20px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--surface); border: 2px solid var(--line); }
+[data-v2] .wp2-tl li.done::before { background: var(--jade); border-color: var(--jade); }
+[data-v2] .wp2-tl li.todo b { color: var(--muted); }
+[data-v2] .wp2-tl small { color: var(--muted); font-size: 12px; }
+
+[data-v2] .wp2-reviews { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+[data-v2] .wp2-reviews p { margin: 2px 0 0; }
+[data-v2] .wp2-foot { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; min-width: 0; }
+[data-v2] .wp2-reason { font-size: 13px; overflow-wrap: anywhere; }
+[data-v2] .wp2-gold { color: var(--gold-t); font-weight: 700; font-variant-numeric: tabular-nums; }
