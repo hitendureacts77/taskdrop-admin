@@ -44,6 +44,8 @@ Only `main` and `redesigned-2.0` exist. All new work goes into `redesigned-2.0`;
 
 Import this repo as a new Vercel project. The defaults are right: framework **Next.js**, root directory `./`. Add the three environment variables above, then deploy. Add the deployed `/auth/callback` address to Supabase's Redirect URLs.
 
+**Production** (Vercel project `taskdrop-admin-production`, `https://taskdrop-admin-production.vercel.app`) does **not** move on a merge (plan decision 57, 28 Nov 2026). It moves only when the owner runs **Release to production** in the app repo: that workflow checks this repo's admin CI is green on the `redesigned-2.0` tip, calls the project's deploy hook and waits for the new build. The project's Ignored Build Step skips every build while no release run is in progress. See `docs/RELEASE.md` section 4a in the app repo.
+
 ## Database changes this panel expects
 
 The database schema lives in the TaskDrop app repo (`supabase/migrations/`); its `docs/DEPLOY.md` says how a change reaches the test project. The functions this panel relies on are all in the cloud project (checked 2026-10-20): `admin_earnings_daily` (060), `admin_resolve_dispute` (061), `admin_money_position` (066), the CRM tables and functions (071) and the live-event feed (091). Some were applied by hand under other names, which is why the cloud's migration history does not list them by number.

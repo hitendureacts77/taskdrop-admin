@@ -11,7 +11,7 @@ The admin panel (Next.js 16, port 3001) controls the user apps; the server enfor
 
 ## Rules
 
-- Staging is a test copy with fake data, built from `redesigned-2.0`, and its address is `admin.taskdrop.in` (since 2026-11-08, plan task 5.0b). Production (`taskdrop-admin-production.vercel.app`) is built from `redesigned-2.0` too (owner, 2026-11-21): every merge updates both admins. `redesigned-2.0` is the default branch and is protected (PR only); `main` is an untouched copy.
+- Staging is a test copy with fake data, built from `redesigned-2.0`, and its address is `admin.taskdrop.in` (since 2026-11-08, plan task 5.0b). Production (`taskdrop-admin-production.vercel.app`) is built from `redesigned-2.0` too, but only by **Release to production** in the user repo (plan decision 57, since 2026-11-28): a merge updates staging only; the production project's Ignored Build Step skips every build outside a release run. `redesigned-2.0` is the default branch and is protected (PR only); `main` is an untouched copy.
 - Never read, print or commit secret values. Use `.env.example` for shape.
 - **Security review before every merge (plan task 2.6, user repo):** run the `security-review` skill on the diff of each pull request and fix every Critical or High finding first; say in the PR what it found.
 
