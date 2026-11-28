@@ -9,6 +9,12 @@ import { mapLimit } from '../concurrency';
 import { type SettledPayout, getSettledPayouts } from './payouts';
 import { namesFor } from './people';
 import { isUuid } from './tasks';
+import { notTestIdFilter } from '../test-data';
+
+/** Admin v2 Hide test data: end-to-end test accounts are named "E2E …" (73 on staging); fake seed people have fa4e0001- ids. */
+export function isTestName(name: string | null | undefined): boolean {
+  return typeof name === 'string' && /^\s*e2e/i.test(name);
+}
 
 // ------------------------------------------------------------------- users --
 
@@ -102,6 +108,8 @@ export async function getUsers(
   page: number,
   pageSize = 30,
   restrict?: string[] | null,
+  /** Admin v2 Hide test data: leave out fake seed people and E2E test accounts. Off by default (gate off = today). */
+  hideTest = false,
 ): Promise<{ rows: UserRow[]; total: number }> {
   const supabase = await createSessionClient();
   let restrictTo: string[] | null = null;
@@ -140,6 +148,7 @@ export async function getUsers(
     const profParts = await mapLimit(chunk(wallets.map((x) => x.user_id), IN_CHUNK), 6, async (ids) => {
       let pq = supabase.from('profiles').select(PROFILE_COLS).in('id', ids).is('deleted_at', null);
       if (s) pq = pq.or(`display_name.ilike.%${s}%,username.ilike.%${s}%`);
+      if (hideTest) pq = pq.or(notTestIdFilter('id')).not('display_name', 'ilike', 'e2e%');
       const { data: profs, error: pErr } = await pq;
       if (pErr) throw new Error(`Could not read people: ${pErr.message}`);
       return (profs ?? []) as unknown as ProfileRow[];
@@ -170,6 +179,7 @@ export async function getUsers(
     // Deleted accounts show (and export) only under the Deleted filter (B107).
     if (filter !== 'deleted') q = q.is('deleted_at', null);
     if (s) q = q.or(`display_name.ilike.%${s}%,username.ilike.%${s}%`);
+    if (hideTest) q = q.or(notTestIdFilter('id')).not('display_name', 'ilike', 'e2e%');
     return q;
   };
   const from = page * pageSize;

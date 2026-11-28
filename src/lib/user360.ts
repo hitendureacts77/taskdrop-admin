@@ -1,4 +1,5 @@
 import 'server-only';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { EVENT_WORDS } from './admin-config';
 import { auditWords, personAuditOr } from './audit-target';
 import { isUuid } from './data';
@@ -139,4 +140,37 @@ export async function getUserSignIn(userId: string, hasUsername: boolean): Promi
   }
   if (hasUsername) methods.add('Username + password');
   return { methods: [...methods], phone, lastSignInAt: u.last_sign_in_at ?? null };
+}
+
+export type UserWarning = { id: string; at: string; reason: string; by: string; fromReport: boolean };
+
+/**
+ * Warnings staff sent this person (admin v2 person page). The table is admin-read under RLS. Returns
+ * `setup: true` when it is not on this server yet, so the page can say so instead of failing.
+ */
+export async function getUserWarnings(userId: string): Promise<{ setup: boolean; rows: UserWarning[] }> {
+  if (!isUuid(userId)) return { setup: false, rows: [] };
+  const supabase = await createSessionClient();
+  // user_warnings is newer than the generated types.
+  const { data, error } = await (supabase as unknown as SupabaseClient)
+    .from('user_warnings')
+    .select('id, reason, warned_by, report_id, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(20);
+  if (error) {
+    if (/does not exist|schema cache/i.test(error.message)) return { setup: true, rows: [] };
+    throw new Error(`Could not read their warnings: ${error.message}`);
+  }
+  const raw = (data ?? []) as unknown as { id: string; reason: string; warned_by: string | null; report_id: string | null; created_at: string }[];
+  const ids = [...new Set(raw.map((r) => r.warned_by).filter((x): x is string => Boolean(x)))];
+  const names = new Map<string, string>();
+  if (ids.length) {
+    const { data: profs } = await supabase.from('profiles').select('id, display_name').in('id', ids);
+    for (const p of (profs ?? []) as { id: string; display_name: string }[]) names.set(p.id, p.display_name);
+  }
+  return {
+    setup: false,
+    rows: raw.map((r) => ({ id: r.id, at: r.created_at, reason: r.reason, by: r.warned_by ? names.get(r.warned_by) ?? 'Staff' : 'Staff', fromReport: Boolean(r.report_id) })),
+  };
 }

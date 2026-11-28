@@ -1,5 +1,8 @@
 import { redirect } from 'next/navigation';
-import { UsersView } from '@/components/views/UsersView';
+import { PeopleList } from '@/components/v2/people/PeopleList';
+import { UsersView, type UsersData } from '@/components/views/UsersView';
+import { staffSeesContacts } from '@/lib/contact-mask';
+import { getHideTestData, getV2 } from '@/lib/v2-gate-server';
 import { getSuspendedAmong, getTags, getTagsFor, idsSuspended, idsWithTag } from '@/lib/crm';
 import { lastPageIndex } from '@/lib/data/paging';
 import { getUsers, parseUserFilter, requireAdmin } from '@/lib/data';
@@ -22,6 +25,8 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
   const page = Math.max(0, Math.min(1000, Number(first(sp.page)) || 0));
   const tag = first(sp.tag) && isUuid(first(sp.tag)!) ? first(sp.tag)! : '';
   const pageSize = 30;
+  // Admin v2 only (both false with the gate off): the new look, and the account menu's Hide test data.
+  const [v2, hideTest] = await Promise.all([getV2(), getHideTestData()]);
 
   // The CRM filters (a tag, the suspended) are worked out into lists of people first.
   // (The tag list does not depend on them, so it is read meanwhile.)
@@ -29,7 +34,7 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
   let restrict: string[] | null = suspendedIds;
   if (tagged) restrict = restrict ? restrict.filter((id) => tagged.includes(id)) : tagged;
 
-  const { rows: fetched, total } = await getUsers(filter, q, page, pageSize, restrict);
+  const { rows: fetched, total } = await getUsers(filter, q, page, pageSize, restrict, hideTest);
   // A page after the last one (a typed address, or a list that shrank): go to the last real page.
   if (!fetched.length && total > 0 && page > lastPageIndex(total, pageSize)) {
     const back = new URLSearchParams();
@@ -42,22 +47,20 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
   const ids = rows.map((r) => r.id);
   const [tagsByUser, suspended] = await Promise.all([getTagsFor(ids), getSuspendedAmong(ids)]);
 
-  return (
-    <UsersView
-      d={{
-        now: new Date().toISOString(),
-        filter,
-        q,
-        page,
-        pageSize,
-        rows,
-        total,
-        tag,
-        allTags,
-        tagsByUser: Object.fromEntries(tagsByUser),
-        suspended: Object.fromEntries([...suspended].map(([id, s]) => [id, s.reason])),
-        hideMoney,
-      }}
-    />
-  );
+  const d: UsersData = {
+    now: new Date().toISOString(),
+    filter,
+    q,
+    page,
+    pageSize,
+    rows,
+    total,
+    tag,
+    allTags,
+    tagsByUser: Object.fromEntries(tagsByUser),
+    suspended: Object.fromEntries([...suspended].map(([id, s]) => [id, s.reason])),
+    hideMoney,
+  };
+  if (v2) return <PeopleList d={d} hideTest={hideTest} contactsInExport={staffSeesContacts(me.staffRole)} />;
+  return <UsersView d={d} />;
 }

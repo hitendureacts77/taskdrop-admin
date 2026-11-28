@@ -25,7 +25,7 @@ export type UsersData = {
   hideMoney?: boolean;
 };
 
-const INTRO: Partial<Record<UserFilter, string>> = {
+export const INTRO: Partial<Record<UserFilter, string>> = {
   new_today: 'Signed up today (Indian time).',
   available: 'Workers who switched on “available now” and haven’t switched off.',
   workers: 'People who finished worker sign-up and can quote for jobs.',
