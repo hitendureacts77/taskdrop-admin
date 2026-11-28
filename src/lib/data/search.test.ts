@@ -32,3 +32,20 @@ test('likeTerm escapes a backslash so it matches itself', () => {
   assert.equal(likeTerm(`abc${bs}`), `abc${bs}${bs}`);
   assert.equal(likeTerm(`a${bs}b`), `a${bs}${bs}b`);
 });
+
+test('searchPlan reads words, a pasted id and a rupee amount', async () => {
+  const { searchPlan, typeaheadReady } = await import('./search.ts');
+  assert.deepEqual(searchPlan('Ravi'), { term: 'Ravi', id: null, amountMinor: null });
+  assert.deepEqual(searchPlan('@asha_k'), { term: `asha${String.fromCharCode(92)}_k`, id: null, amountMinor: null });
+  const id = 'FA4E0001-0000-4000-8000-000000000001';
+  assert.deepEqual(searchPlan(` ${id} `), { term: '', id: id.toLowerCase(), amountMinor: null });
+  assert.equal(searchPlan('₹1,470').amountMinor, 147000);
+  assert.equal(searchPlan('1470.5').amountMinor, 147050);
+  assert.equal(searchPlan('Rs 250').amountMinor, 25000);
+  assert.equal(searchPlan('0').amountMinor, null);
+  assert.equal(searchPlan('12abc').amountMinor, null);
+  assert.equal(searchPlan('1470').term, '1470');
+  assert.equal(searchPlan(undefined).term, '');
+  assert.equal(typeaheadReady(' a '), false);
+  assert.equal(typeaheadReady('ab'), true);
+});

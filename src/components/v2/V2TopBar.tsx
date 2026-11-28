@@ -8,6 +8,7 @@ import { Icon } from '@/components/Icon';
 import { LiveIndicator } from '@/components/LiveIndicator';
 import { useLive } from '@/components/LiveProvider';
 import { roleLabel } from '@/lib/staff-roles';
+import { SearchTypeahead } from './search/SearchTypeahead';
 import { setPrefCookie, useV2 } from './V2Frame';
 
 type Theme = 'light' | 'dark' | 'system';
@@ -92,11 +93,7 @@ export function V2TopBar({
       <button type="button" className="v2-iconbtn v2-menu-btn" aria-label="Open menu" aria-controls="v2-side" onClick={() => setDrawer(true)}>
         <Icon name="menu" />
       </button>
-      <form action="/search" method="get" className="v2-search" role="search">
-        <Icon name="search" size={16} />
-        <input ref={searchRef} type="search" name="q" placeholder="Search people, jobs, payouts, help requests" aria-label="Search people, jobs, payouts and help requests" />
-        <kbd aria-hidden="true">/</kbd>
-      </form>
+      <SearchTypeahead inputRef={searchRef} />
       <div className="v2-tb-right">
         <span className="hide-sm">
           <LiveIndicator />
