@@ -11,6 +11,7 @@ import { withoutDeleted, type OwnerFilter } from './crm-calc';
 import { getStaffList } from './growth';
 import { readAll } from './data/paging';
 import { mapLimit } from './concurrency';
+import { isTestUserId, notTestIdFilter } from './test-data';
 
 /**
  * Reads for the CRM screens: notes, tags, suspensions, segments and messages.
@@ -114,9 +115,10 @@ export const hasFilters = (c: Criteria) => Object.keys(c).length > 0;
 // -------------------------------------------------------------------- tags --
 
 export type Tag = { id: string; name: string; color: string };
-export type TagWithCount = Tag & { people: number };
+export type TagWithCount = Tag & { people: number; /** v2 "Hide test data": everyone with it is a test account. */ testOnly?: boolean };
 
-export async function getTags(): Promise<TagWithCount[]> {
+/** `hideTest` (admin v2 "Hide test data") leaves test accounts out of the counts; off, the counts are as before. */
+export async function getTags(opts?: { hideTest?: boolean }): Promise<TagWithCount[]> {
   const supabase = await db();
   const [tags, links, deleted] = await Promise.all([
     supabase.from('crm_tags').select('id, name, color').order('name'),
@@ -125,8 +127,17 @@ export async function getTags(): Promise<TagWithCount[]> {
   ]);
   if (tags.error) throw new Error(`Could not read tags: ${tags.error.message}`);
   const counts = new Map<string, number>();
-  for (const l of links) if (!deleted.has(l.user_id)) counts.set(l.tag_id, (counts.get(l.tag_id) ?? 0) + 1);
-  return ((tags.data ?? []) as Tag[]).map((t) => ({ ...t, people: counts.get(t.id) ?? 0 }));
+  const testCounts = new Map<string, number>();
+  for (const l of links) {
+    if (!deleted.has(l.user_id)) {
+      if (opts?.hideTest && isTestUserId(l.user_id)) testCounts.set(l.tag_id, (testCounts.get(l.tag_id) ?? 0) + 1);
+      else counts.set(l.tag_id, (counts.get(l.tag_id) ?? 0) + 1);
+    }
+  }
+  return ((tags.data ?? []) as Tag[]).map((t) => {
+    const people = counts.get(t.id) ?? 0;
+    return opts?.hideTest ? { ...t, people, testOnly: people === 0 && (testCounts.get(t.id) ?? 0) > 0 } : { ...t, people };
+  });
 }
 
 export async function getTagsFor(ids: string[]): Promise<Map<string, Tag[]>> {
@@ -289,8 +300,9 @@ async function matchingIds(c: Criteria): Promise<string[]> {
   return withoutDeleted(rows.map((r) => r.user_id), await deletedIds());
 }
 
-export async function countMatching(c: Criteria): Promise<number> {
-  return (await matchingIds(c)).length;
+export async function countMatching(c: Criteria, opts?: { hideTest?: boolean }): Promise<number> {
+  const ids = await matchingIds(c);
+  return opts?.hideTest ? ids.filter((id) => !isTestUserId(id)).length : ids.length;
 }
 
 async function memberRows(ids: string[]): Promise<MemberRow[]> {
@@ -323,8 +335,10 @@ async function memberRows(ids: string[]): Promise<MemberRow[]> {
   return rows.sort((a, b) => b.joinedAt.localeCompare(a.joinedAt));
 }
 
-export async function getMembers(c: Criteria, page: number, pageSize = 30, owner?: { filter: OwnerFilter; me: string }): Promise<{ rows: MemberRow[]; total: number }> {
-  const all = await matchingIds(c);
+export async function getMembers(c: Criteria, page: number, pageSize = 30, owner?: { filter: OwnerFilter; me: string }, opts?: { hideTest?: boolean }): Promise<{ rows: MemberRow[]; total: number }> {
+  const matched = await matchingIds(c);
+  // v2 "Hide test data": test accounts leave the list and the total together.
+  const all = opts?.hideTest ? matched.filter((id) => !isTestUserId(id)) : matched;
   const ids = owner ? await applyOwnerFilter(all, owner.filter, owner.me) : all;
   const names = await namesFor(ids);
   const sorted = [...ids].sort((a, b) => (names.get(a) ?? '').localeCompare(names.get(b) ?? ''));
@@ -333,13 +347,13 @@ export async function getMembers(c: Criteria, page: number, pageSize = 30, owner
 
 export type Segment = { id: string; name: string; criteria: Criteria; description: string; people: number; createdAt: string };
 
-export async function getSegments(tags: Tag[]): Promise<Segment[]> {
+export async function getSegments(tags: Tag[], opts?: { hideTest?: boolean }): Promise<Segment[]> {
   const supabase = await db();
   const { data, error } = await supabase.from('crm_segments').select('id, name, criteria, created_at').order('created_at', { ascending: false });
   if (error) throw new Error(`Could not read segments: ${error.message}`);
   const rows = (data ?? []) as { id: string; name: string; criteria: Criteria; created_at: string }[];
   return Promise.all(
-    rows.map(async (r) => ({ id: r.id, name: r.name, criteria: r.criteria, description: describeCriteria(r.criteria, tags), people: await countMatching(r.criteria).catch(() => 0), createdAt: r.created_at })),
+    rows.map(async (r) => ({ id: r.id, name: r.name, criteria: r.criteria, description: describeCriteria(r.criteria, tags), people: await countMatching(r.criteria, opts).catch(() => 0), createdAt: r.created_at })),
   );
 }
 
@@ -357,6 +371,9 @@ export async function getFollowUps(limit = 50): Promise<FollowUp[]> {
 }
 
 export type Broadcast = { id: string; title: string; body: string; audience: string; recipients: number; at: string; by: string; toUser: string | null };
+
+/** A message sent by an end-to-end test, or to one test account (v2 "Hide test data"). */
+export const isTestBroadcast = (b: Pick<Broadcast, 'title' | 'toUser'>) => /^\s*\[e2e\]/i.test(b.title) || isTestUserId(b.toUser);
 
 export async function getBroadcasts(limit = 30): Promise<Broadcast[]> {
   const supabase = await db();
@@ -378,17 +395,36 @@ export type CrmOverview = {
   notesTotal: number;
 };
 
-export async function getCrmOverview(): Promise<CrmOverview> {
+/**
+ * `hideTest` (admin v2 "Hide test data") leaves test accounts and [e2e] messages out of every list and count here,
+ * the same way; off (always, with the v2 gate off) the reads are exactly as before.
+ */
+export async function getCrmOverview(opts?: { hideTest?: boolean }): Promise<CrmOverview> {
   const supabase = await db();
+  const hide = Boolean(opts?.hideTest);
+  // Each query is built first and narrowed only when hiding test data.
+  let peopleQ = supabase.from('profiles').select('id', { count: 'exact', head: true }).is('deleted_at', null);
+  let suspQ = supabase.from('user_suspensions').select('user_id, reason, suspended_at').is('lifted_at', null);
+  let notesQ = supabase.from('crm_notes').select('id, user_id, body, created_at');
+  let notesCountQ = supabase.from('crm_notes').select('id', { count: 'exact', head: true });
+  let bcountQ = supabase.from('crm_broadcasts').select('id', { count: 'exact', head: true });
+  if (hide) {
+    peopleQ = peopleQ.or(notTestIdFilter('id'));
+    suspQ = suspQ.or(notTestIdFilter('user_id'));
+    notesQ = notesQ.or(notTestIdFilter('user_id'));
+    notesCountQ = notesCountQ.or(notTestIdFilter('user_id'));
+    bcountQ = bcountQ.or(notTestIdFilter('to_user')).not('title', 'ilike', '[e2e]%');
+  }
   const [people, susp, tags, followUps, notes, notesCount, broadcasts, bcount] = await Promise.all([
-    supabase.from('profiles').select('id', { count: 'exact', head: true }).is('deleted_at', null),
-    supabase.from('user_suspensions').select('user_id, reason, suspended_at').is('lifted_at', null).order('suspended_at', { ascending: false }).limit(20),
-    getTags(),
-    getFollowUps(30),
-    supabase.from('crm_notes').select('id, user_id, body, created_at').order('created_at', { ascending: false }).limit(6),
-    supabase.from('crm_notes').select('id', { count: 'exact', head: true }),
-    getBroadcasts(5),
-    supabase.from('crm_broadcasts').select('id', { count: 'exact', head: true }),
+    peopleQ,
+    suspQ.order('suspended_at', { ascending: false }).limit(20),
+    getTags(hide ? { hideTest: true } : undefined),
+    // Read a little more when hiding, so the list still fills after the test rows go.
+    getFollowUps(hide ? 60 : 30).then((rows) => (hide ? rows.filter((f) => !isTestUserId(f.userId)).slice(0, 30) : rows)),
+    notesQ.order('created_at', { ascending: false }).limit(6),
+    notesCountQ,
+    getBroadcasts(hide ? 15 : 5).then((rows) => (hide ? rows.filter((b) => !isTestBroadcast(b)).slice(0, 5) : rows)),
+    bcountQ,
   ]);
   const suspRows = (susp.data ?? []) as { user_id: string; reason: string; suspended_at: string }[];
   const noteRows = (notes.data ?? []) as { id: string; user_id: string; body: string; created_at: string }[];

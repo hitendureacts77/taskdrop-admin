@@ -5,6 +5,8 @@ import { csvDay, csvResponse, toCsv } from '@/lib/csv';
 import { getLeads } from '@/lib/leads';
 import { TOO_FAST, withinRate } from '@/lib/rate-limit';
 import { createClient } from '@/lib/supabase/server';
+import { isTestTitle, isTestUserId } from '@/lib/test-data';
+import { getHideTestData } from '@/lib/v2-gate-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +26,9 @@ export async function GET(req: Request) {
   const filter = parseLeadFilter(Object.fromEntries(new URL(req.url).searchParams));
   const all = await getLeads(who.user.staffRole);
   if (all.error || all.setup) return NextResponse.json({ error: all.error ?? 'Leads are not set up yet' }, { status: 500 });
-  const rows = filterLeads(all.data, filter, who.user.id);
+  // Admin v2 "Hide test data" (only ever on with the v2 gate): the spreadsheet matches the Leads list on screen.
+  const hideTest = await getHideTestData();
+  const rows = filterLeads(hideTest ? all.data.filter((l) => !isTestUserId(l.userId) && !isTestTitle(l.name)) : all.data, filter, who.user.id);
 
   const supabase = await createClient();
   const { error: auditError } = await supabase.rpc(

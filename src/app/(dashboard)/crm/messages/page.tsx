@@ -1,8 +1,10 @@
 import { MessagesView } from '@/components/views/CrmViews';
+import { MessagesV2 } from '@/components/v2/crm/Messages';
 import { criteriaToQuery, getAudiences, getBroadcasts, hasFilters, parseCriteria } from '@/lib/crm';
 import { requireAdmin } from '@/lib/data';
 import { withoutWallet } from '@/lib/crm-calc';
 import { staffCanSee } from '@/lib/staff-roles';
+import { getHideTestData, getV2 } from '@/lib/v2-gate-server';
 
 export const metadata = { title: 'Messages' };
 
@@ -21,5 +23,10 @@ export default async function MessagesPage({ searchParams }: { searchParams: SP 
   const [audiences, history] = await Promise.all([getAudiences(filtered ? fromFilters : undefined, { hideMoney }), getBroadcasts(30)]);
   const wanted = first(sp.audience);
   const defaultAudience = filtered ? 'filters' : wanted && audiences.some((a) => a.key === wanted) ? wanted : 'all';
-  return <MessagesView d={{ audiences, defaultAudience, filtersQuery: filtered ? criteriaToQuery(fromFilters) : '', history, now: new Date().toISOString() }} />;
+  const filtersQuery = filtered ? criteriaToQuery(fromFilters) : '';
+  if (await getV2()) {
+    // Audience counts stay whole (they are who really gets the message); only the history hides test messages.
+    return <MessagesV2 d={{ audiences, defaultAudience, filtersQuery, history, now: new Date().toISOString(), hideTest: await getHideTestData() }} />;
+  }
+  return <MessagesView d={{ audiences, defaultAudience, filtersQuery, history, now: new Date().toISOString() }} />;
 }
